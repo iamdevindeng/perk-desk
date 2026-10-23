@@ -1,0 +1,8 @@
+// Configures unit tests without real services or credentials.
+// Called by: npm test
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+export default defineConfig({
+  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  test: { environment: "node", include: ["tests/unit/**/*.test.ts"] },
+});

@@ -18,7 +18,9 @@ const ALLOWED_JSON = [/^package(-lock)?\.json$/, /^tsconfig\.json$/, /^component
 const HEADER_EXEMPT = [/^src\/components\/ui\//, /^next-env\.d\.ts$/, /\.config\.(ts|mjs|js)$/];
 const CODE_FILE = /\.(ts|tsx|mjs)$/;
 const UUID = /\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g;
+const FAKE_UUID = /^00000000-0000-4000-8000-0000000000[0-9]{2}$/;
 const ENV_READ_ALLOWED = ["src/lib/env.ts", "vitest.eval.config.ts", "scripts/check-rules.mjs", "next.config.ts"];
+const SECRET_ENV_NAMES = ["QLOO_API_KEY", "DEEPSEEK_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "JUDGE_BYPASS_CODE"];
 
 const problems = [];
 
@@ -55,7 +57,7 @@ function checkJson(file) {
 function checkFixtureIds(file, text) {
   if (!file.startsWith("tests/") && !file.startsWith("src/data/")) return;
   for (const match of text.match(UUID) ?? []) {
-    if (!match.startsWith("00000000-")) problems.push(`non-fake UUID ${match.slice(0, 8)}… in ${file} (use 00000000-0000-4000-8000-0000000000NN)`);
+    if (!FAKE_UUID.test(match)) problems.push(`non-fake UUID ${match.slice(0, 8)}… in ${file} (use 00000000-0000-4000-8000-0000000000NN)`);
   }
 }
 
@@ -65,11 +67,20 @@ function checkEnvAccess(file, text) {
   if (/NEXT_PUBLIC_[A-Z_]*(KEY|TOKEN|SECRET|CODE)/.test(text)) problems.push(`secret-like NEXT_PUBLIC_ variable in ${file}`);
 }
 
+function secretAssignmentValue(line) {
+  const assignment = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line);
+  if (!assignment || !SECRET_ENV_NAMES.includes(assignment[1])) return "";
+  const value = assignment[2].trim();
+  const quotedValue = /^(?:"([^"]*)"|'([^']*)')\s*(?:#.*)?$/.exec(value);
+  return quotedValue ? quotedValue[1] ?? quotedValue[2] : value.split("#", 1)[0].trim();
+}
+
 function readSecretValues() {
   // Values are only compared, never printed.
+  // WHY: documented URLs/model names and comments are public configuration, not secrets.
   if (!existsSync(".env.local")) return [];
   return readFileSync(".env.local", "utf8").split("\n")
-    .map((line) => line.replace(/^\s*[A-Z0-9_]+\s*=\s*/, "").replace(/^["']|["']$/g, "").trim())
+    .map(secretAssignmentValue)
     .filter((value) => value.length >= 12);
 }
 
