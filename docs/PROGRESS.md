@@ -58,6 +58,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T7: Exact card identity labels are masked before pitch number/sentence checks, allowing real names such as “Cafe 42” without permitting unsupported numeric claims. Unsafe institution labels use “our credit union”; an impossible overlong merchant identity leaves the pitch empty with a warning.
 - T7: Preset run exemptions additionally require matching resolved entity IDs and unique branch/brand identities. A customized preset without the canonical default plan cache uses normal limits. IP rejection does not consume global budget; global rejection may consume the IP attempt. Redis exhaustion remains remembered until its reset during outages.
 
+- T8: Load browser storage after hydration in a queued microtask to keep server/client initial markup identical. Persist every valid profile edit; temporarily invalid required fields leave the last complete saved profile intact.
+- T8: Changing an address clears its previous coordinates. Run request construction only borrows planned coordinates for the same branch ID and unchanged address. Business-member names stay empty until optional X2.
+- T8: Use a consistent light slate/teal interface for the native component fallback. Member-brand text and preset selection remain session state; only the documented profile and judge-code keys persist.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -221,3 +225,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: local fallback budgets remain per process, as designed; shared production enforcement needs optional Upstash. Customized preset plans can fall under normal limits. Pitch guard validates allowed numbers, length and identity; it is not a general fact checker. Decisions above explain identity handling and terminal-event ownership.
 - New dependencies: none.
 - For Devin: optional Upstash and judge-code setup remain in the waiting list.
+
+### T8: Saved profile, presets, taste input, and branch map — DONE
+- Date/time (UTC+8): 2026-10-23 22:35
+- What was done:
+  - Added browser profile/judge storage, safe line-list parsing, validated plan/run request builders, and planning HTTP handling.
+  - Added two preset buttons, institution/city fields, signed-merchant paste box, 1–5 branch editor with radius and map picking, and six taste segments.
+  - Added a client-only Leaflet map with branch markers, trade-area circles, city panning, and OpenStreetMap attribution.
+  - Connected page state, form invalidation, saved profiles, pending/error planning feedback, and temporary category labels.
+- Files touched: `src/app/{page.tsx,globals.css}`, `src/components/{PresetPicker,ProfileForm,BranchEditor,TasteInput,MerchantMap}.tsx`, `src/lib/{config,profile-storage,request-builders,run-client}.ts`, `tests/unit/{profile-storage,request-builders,post-plan}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run dev
+  ```
+  Open http://localhost:3000, select Try Denver demo, inspect three trade-area circles, then reload.
+- Verification: PASS (351 tests, production build without a Leaflet SSR/window error, lint, rules).
+- Live checks: in-app browser rendered the Denver fictional institution, 3 branches and 3 map circles. Reload retained the profile, branch locations and signed-merchant list. Brand input resets on reload as session state. No live API research was triggered during this browser check. Local server stopped.
+- Open issues / decisions: storage-unavailable sessions still work but cannot persist. Temporarily invalid profiles keep the last valid saved version. T9 adds category confirmation and research controls; current planning output is intentionally temporary.
+- New dependencies: none.
+- For Devin: broader real-browser and accessibility review remains for final acceptance.
