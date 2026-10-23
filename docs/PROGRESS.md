@@ -46,6 +46,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T4: Add the internal MerchantCandidate schema to the existing shared types file; it carries ranking inputs until pitch creation. Score before filtering so affinity normalization uses the original seeded branch/category list.
 - T4: Interleave per-branch quota picks before trimming, satisfying the documented three-branch minimum (4/3/3 rather than 4/4/2). Radius-only drops add no new exclusion field.
 
+- T5: Installed ai 7.0.150 exposes `generateText` with `instructions`, `tool` (re-exported from provider-utils), `isStepCount`, `StopCondition`, `LanguageModel` (v2/v3/v4 supported), and `MockLanguageModelV4` from `ai/test`. No API-name substitutions are needed. `Output.object` is available for T7.
+- T5: Expose up to 25 allowed tag names plus their exact IDs in tool results; otherwise the model could not submit the required real brandTagId evidence. No denied tags are exposed.
+- T5: Preserve fatal Qloo errors in per-request context as well as throwing, because SDK tool execution can catch exceptions. Orchestrators must check this state before fallback or success. Count uncached logical Qloo lookups in qlooCalls; trace also records cache hits.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -147,5 +151,25 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Verification: PASS first standard attempt; 149 tests across 15 files; required focused check 20 tests passed.
 - Live checks: none; all merchant functions and tests are pure/offline.
 - Open issues / decisions: shared candidate schema and tuning constants extend earlier T1/T2 files because T4 needs them. Nearest branch wins first, then the higher-scoring category within that branch; deterministic ties. Business-member flag remains false until X2.
+- New dependencies: none.
+- For Devin: no new blockers.
+
+### T5: Agent tools and guard layers 1–2 — DONE
+- Date/time (UTC+8): 2026-10-23 22:10
+- What was done:
+  - Added isolated plan/run contexts, safe trace helpers, fatal-error state, and deterministic DeepSeek settings.
+  - Added brand-resolution and category-search tools with real evidence IDs and cached density hints.
+  - Added merchant research tools with seeded/baseline calls, partial-failure handling, one replacement per original category, and global duplicate/count refresh.
+  - Added submission/category/evidence guards with real chosen-brand membership and defensive tag filtering.
+  - Verified the installed SDK APIs and added mocked tool/context/guard tests.
+- Files touched: `src/lib/agent/{context,model,guards}.ts`, `src/lib/agent/tools/{resolve-brands,search-categories,find-merchants}.ts`, `src/lib/config.ts`, `tests/unit/{context,guards,resolve-brands,search-categories,find-merchants}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npx vitest run tests/unit/guards.test.ts
+  ```
+- Verification: PASS first standard attempt; 202 tests across 20 files; focused guard check 10 tests passed.
+- Live checks: none; all services mocked.
+- Open issues / decisions: original ambiguous status is retained when a model chooses a brand so the one correction can change that choice. Guard code leaves submit counts and acceptance to T6. Category density refresh includes previously found categories when later results reveal duplicate names. SDK Tool<Input,Output> annotations are library types, not custom generic abstractions.
 - New dependencies: none.
 - For Devin: no new blockers.
