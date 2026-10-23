@@ -50,6 +50,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T5: Expose up to 25 allowed tag names plus their exact IDs in tool results; otherwise the model could not submit the required real brandTagId evidence. No denied tags are exposed.
 - T5: Preserve fatal Qloo errors in per-request context as well as throwing, because SDK tool execution can catch exceptions. Orchestrators must check this state before fallback or success. Count uncached logical Qloo lookups in qlooCalls; trace also records cache hits.
 
+- T6: Follow ARCHITECTURE §5's two-category minimum when it conflicts with T6's one-valid-category test example. Two valid categories plus an invalid one can stay in agent mode; one valid category is preserved while fallback completes the plan.
+- T6: Preserve ambiguous brand choices referenced by valid partial-plan evidence during fallback. Generic and saved-preference categories state that they need confirmation; every category still passes observed category and allowed-tag guards. Brands without permitted tags cannot justify fallback categories.
+- T6: Stop model generation as soon as a fatal Qloo error is stored in context, then propagate the safe error instead of falling back.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -173,3 +177,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: original ambiguous status is retained when a model chooses a brand so the one correction can change that choice. Guard code leaves submit counts and acceptance to T6. Category density refresh includes previously found categories when later results reveal duplicate names. SDK Tool<Input,Output> annotations are library types, not custom generic abstractions.
 - New dependencies: none.
 - For Devin: no new blockers.
+
+### T6: Planning API with guarded agent and fallback — DONE
+- Date/time (UTC+8): 2026-10-23 22:21
+- What was done:
+  - Added compact plan, research, and pitch prompts with only the relevant public business and aggregate taste fields.
+  - Added preset expansion, locality resolution, plan tool loop, one correction, deterministic omitted-brand completion, and fatal-error propagation.
+  - Added all documented fallback keyword rules, honest default evidence, saved preferences, and guarded backfill preserving valid agent categories.
+  - Added validated `/api/plan`, canonical nonempty-result caching, and safe JSON errors.
+  - Added model-driven, fallback, route, and prompt boundary tests.
+- Files touched: `src/lib/config.ts`, `src/lib/agent/{prompts,plan-agent}.ts`, `src/lib/fallback/{category-map,fallback-plan}.ts`, `src/app/api/plan/route.ts`, `tests/unit/{category-map,fallback-plan,plan-agent,plan-route,prompts}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npx vitest run tests/unit/plan-agent.test.ts tests/unit/plan-route.test.ts tests/unit/category-map.test.ts tests/unit/fallback-plan.test.ts
+  ```
+- Verification: PASS (256 tests, production build, lint, rules). Repeated the standard checks after the fatal-error stop-condition review fix.
+- Live checks: documented Denver preset call returned agent mode, 6 categories (Outdoor clothing and equipment shop, Coffee shop, Brewery, Yoga studio, Health food store, Pet supply store), and 0 unresolved names. Response time about 16 seconds. Printed only mode/counts/names, stored no response files, and stopped the local server.
+- Open issues / decisions: architecture's two-category minimum takes precedence over the inconsistent task test example; fallback labels unsupported generic/default inference honestly. Location approximation requires later user map confirmation. See decisions above.
+- New dependencies: none.
+- For Devin: no new action beyond the existing list.

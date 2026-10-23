@@ -48,3 +48,5 @@ export const DEFAULT_RATING_NORM = 0.5;
 export const BRAND_PROMPT_TAGS_MAX = 25;
 export const TRACE_SUMMARY_MAX = 200;
 export const MERCHANT_SAMPLE_MAX = 3;
+export const PLAN_MAX_SUBMISSIONS = 2;
+export const FALLBACK_MAX_CATEGORIES = 4;
