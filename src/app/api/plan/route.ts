@@ -1,11 +1,12 @@
 // Validates planning requests, serves canonical cached plans, and returns safe JSON errors.
 // Called by: the browser's POST /api/plan request and plan-route unit tests
 import { expandPlanRequest, runPlan } from "@/lib/agent/plan-agent";
-import { RESULT_TTL_S } from "@/lib/config";
+import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S } from "@/lib/config";
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError, isQlooError } from "@/lib/qloo/client";
 import { getJson, setJson } from "@/lib/store/cache";
+import { checkLimit, getClientIp, hasJudgeBypass } from "@/lib/store/rate-limit";
 import { PlanRequestSchema, PlanResponseSchema, type PlanRequest } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -48,6 +49,16 @@ function errorResponse(error: unknown): Response {
   return Response.json({ error: "upstream", message: "Qloo is having trouble; try again in a minute." }, { status: 502 });
 }
 
+async function limitedResponse(request: Request, input: PlanRequest): Promise<Response | null> {
+  if (hasJudgeBypass(request)) return null;
+  const limit = await checkLimit("plan", getClientIp(request), { skipIp: Boolean(input.presetId) });
+  if (limit.ok) return null;
+  return Response.json(PlanResponseSchema.parse({
+    mode: "fallback", limited: true, message: LIVE_LIMIT_MESSAGE,
+    branches: [], brands: [], unresolved: [], categories: [], candidateCategories: [], trace: [], warnings: [],
+  }));
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
     const input = await validatedRequest(request);
@@ -55,7 +66,8 @@ export async function POST(request: Request): Promise<Response> {
     const key = cacheKey("plan", input);
     const cached = PlanResponseSchema.safeParse(await getJson(key));
     if (cached.success && cached.data.categories.length > 0) return Response.json(cached.data);
-    // T7: rate limit here
+    const limited = await limitedResponse(request, input);
+    if (limited) return limited;
     if (!hasQlooKey()) throw createQlooError("config", null, "Server is missing its Qloo key.");
     const result = PlanResponseSchema.parse(await runPlan(input, {}));
     if (result.categories.length > 0) await setJson(key, result, RESULT_TTL_S);

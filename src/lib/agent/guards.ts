@@ -1,11 +1,11 @@
-// Validates submitted brand choices and category evidence against this plan's observed data.
-// Called by: submitPlan, deterministic fallback validation, and guards unit tests.
+// Validates plan choices, category evidence, and recruiting pitches against observed data.
+// Called by: submitPlan, fallback validation, pitch generation, and guard unit tests.
 import { z } from "zod";
-import { PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX } from "@/lib/config";
+import { PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX, PITCH_MAX_CHARACTERS, PITCH_MAX_SENTENCES, PITCH_CALL_MINUTES } from "@/lib/config";
 import { getBlacklist } from "@/lib/data";
 import { filterAllowedBrandTags } from "@/lib/qloo/search";
 import { CategoryTagIdSchema } from "@/lib/types";
-import type { BrandCandidate, CategoryEvidence, PlannedCategory, TagRef } from "@/lib/types";
+import type { BrandCandidate, CategoryEvidence, MerchantResult, PlannedCategory, TagRef } from "@/lib/types";
 import type { PlanContext } from "@/lib/agent/context";
 
 const EvidenceSubmissionSchema = z.object({
@@ -127,4 +127,36 @@ export function applyPlanGuards(submission: unknown, context: PlanContext): Guar
     });
   }
   return { kept, errors };
+}
+
+function maskCardLabels(pitch: string, card: MerchantResult): string {
+  const labels = [card.place.name, card.branchName, card.categoryLabel, ...card.brandShares.map((brand) => brand.brandName)];
+  let masked = pitch;
+  for (const label of labels.filter(Boolean).sort((first, second) => second.length - first.length)) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wholeLabel = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "gu");
+    masked = masked.replace(wholeLabel, "NAME");
+  }
+  return masked;
+}
+
+function allowedPitchNumbers(card: MerchantResult): Set<string> {
+  const numbers = [
+    card.place.businessRating, card.place.tripadvisorRating, card.place.tripadvisorCount,
+    Number((card.distanceMeters / 1000).toFixed(1)),
+    card.rankLift === null ? undefined : Math.abs(card.rankLift), PITCH_CALL_MINUTES,
+    ...card.brandShares.map((brand) => brand.sharePercent),
+  ];
+  return new Set(numbers.filter((number) => number !== undefined).map(String));
+}
+
+export function checkPitch(pitch: string, card: MerchantResult): boolean {
+  if (!pitch.trim() || pitch.length > PITCH_MAX_CHARACTERS || !pitch.includes(card.place.name)) return false;
+  // Card labels can contain digits and periods; those identify businesses rather than assert metrics.
+  const masked = maskCardLabels(pitch, card);
+  const withoutDecimals = masked.replace(/(\d)\.(\d)/g, "$1 $2");
+  const sentences = (withoutDecimals.match(/[^.!?]+(?:[.!?]+|$)/g) ?? []).filter((sentence) => sentence.trim());
+  if (sentences.length > PITCH_MAX_SENTENCES) return false;
+  const allowed = allowedPitchNumbers(card);
+  return (masked.match(/\d+(?:\.\d+)?/g) ?? []).every((number) => allowed.has(String(Number(number))));
 }

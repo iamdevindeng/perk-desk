@@ -9,6 +9,7 @@ import { resetEnvForTests } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError, type QlooErrorCode } from "@/lib/qloo/client";
 import { getJson, setJson } from "@/lib/store/cache";
+import { checkLimit } from "@/lib/store/rate-limit";
 import { PlanResponseSchema } from "@/lib/types";
 import { FAKE_PLAN_REQUEST, FAKE_PLAN_RESPONSE } from "../fixtures/fake-plan";
 
@@ -16,6 +17,9 @@ vi.mock("@/lib/agent/plan-agent", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/agent/plan-agent")>(), runPlan: vi.fn(),
 }));
 vi.mock("@/lib/store/cache", () => ({ getJson: vi.fn(), setJson: vi.fn() }));
+vi.mock("@/lib/store/rate-limit", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/store/rate-limit")>(), checkLimit: vi.fn(),
+}));
 
 function request(body: unknown): Request {
   return new Request("http://localhost/api/plan", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
@@ -25,7 +29,9 @@ beforeEach(() => {
   vi.mocked(runPlan).mockReset().mockResolvedValue(FAKE_PLAN_RESPONSE);
   vi.mocked(getJson).mockReset().mockResolvedValue(null);
   vi.mocked(setJson).mockReset().mockResolvedValue(undefined);
+  vi.mocked(checkLimit).mockReset().mockResolvedValue({ ok: true });
   vi.stubEnv("QLOO_API_KEY", "fake-route-key");
+  vi.stubEnv("JUDGE_BYPASS_CODE", "");
   resetEnvForTests();
 });
 
@@ -110,6 +116,7 @@ describe("preset expansion and cache", () => {
     expect(await response.json()).toEqual(FAKE_PLAN_RESPONSE);
     expect(runPlan).not.toHaveBeenCalled();
     expect(setJson).not.toHaveBeenCalled();
+    expect(checkLimit).not.toHaveBeenCalled();
   });
 
   it.each([{ broken: true }, { ...FAKE_PLAN_RESPONSE, categories: [] }])("treats unusable cached plans as a miss", async (stored) => {
@@ -122,6 +129,29 @@ describe("preset expansion and cache", () => {
     vi.mocked(runPlan).mockResolvedValue({ ...FAKE_PLAN_RESPONSE, categories: [] });
     expect((await POST(request(FAKE_PLAN_REQUEST))).status).toBe(200);
     expect(setJson).not.toHaveBeenCalled();
+  });
+});
+
+describe("plan request limits", () => {
+  it("returns a valid limited response without running or caching a plan", async () => {
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
+    const response = await POST(request(FAKE_PLAN_REQUEST));
+    expect(response.status).toBe(200);
+    expect(PlanResponseSchema.parse(await response.json())).toMatchObject({ limited: true, categories: [] });
+    expect(runPlan).not.toHaveBeenCalled();
+    expect(setJson).not.toHaveBeenCalled();
+  });
+
+  it("skips only per-IP limits for canonical presets", async () => {
+    await POST(request({ ...FAKE_PLAN_REQUEST, presetId: "denver-demo" }));
+    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown", { skipIp: true });
+  });
+
+  it("skips every limit for a valid judge code", async () => {
+    vi.stubEnv("JUDGE_BYPASS_CODE", "fake-judge-code"); resetEnvForTests();
+    const input = request(FAKE_PLAN_REQUEST); input.headers.set("x-judge-code", "fake-judge-code");
+    expect((await POST(input)).status).toBe(200);
+    expect(checkLimit).not.toHaveBeenCalled();
   });
 });
 

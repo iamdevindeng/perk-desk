@@ -54,6 +54,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T6: Preserve ambiguous brand choices referenced by valid partial-plan evidence during fallback. Generic and saved-preference categories state that they need confirmation; every category still passes observed category and allowed-tag guards. Brands without permitted tags cannot justify fallback categories.
 - T6: Stop model generation as soon as a fatal Qloo error is stored in context, then propagate the safe error instead of falling back.
 
+- T7: The run orchestrator returns RunResult; the route alone emits result, and the stream helper alone emits done. This prevents duplicate terminal events. Replay marks Qloo events cached and resets elapsed timestamps.
+- T7: Exact card identity labels are masked before pitch number/sentence checks, allowing real names such as “Cafe 42” without permitting unsupported numeric claims. Unsafe institution labels use “our credit union”; an impossible overlong merchant identity leaves the pitch empty with a warning.
+- T7: Preset run exemptions additionally require matching resolved entity IDs and unique branch/brand identities. A customized preset without the canonical default plan cache uses normal limits. IP rejection does not consume global budget; global rejection may consume the IP attempt. Redis exhaustion remains remembered until its reset during outages.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -197,3 +201,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: architecture's two-category minimum takes precedence over the inconsistent task test example; fallback labels unsupported generic/default inference honestly. Location approximation requires later user map confirmation. See decisions above.
 - New dependencies: none.
 - For Devin: no new action beyond the existing list.
+
+### T7: Streaming research, grounded pitches, cache replay, and limits — DONE
+- Date/time (UTC+8): 2026-10-23 22:28
+- What was done:
+  - Added NDJSON framing, elapsed timestamps, safe errors, cancellation handling, and exactly one terminal outcome followed by done.
+  - Added research orchestration with deterministic completion, one adjacent fallback per thin category, balanced shortlist, brand checks, category reports, and six step pairs.
+  - Added batched structured pitches, metric/identity guards, honest baseline templates, and safe handling of impossible pitch lengths.
+  - Added run cache/replay and both-route daily limits, with judge/preset exemptions and Redis outage behavior.
+  - Added offline route integration with fake Qloo data and model disabled, plus boundary, pitch, stream, limit, and model tests.
+- Files touched: `src/lib/{stream,config}.ts`, `src/lib/agent/{run-agent,pitch-writer,guards,prompts}.ts`, `src/lib/fallback/{fallback-run,pitch-template}.ts`, `src/lib/store/rate-limit.ts`, `src/app/api/{plan,run}/route.ts`, `tests/unit/{stream,pitch,rate-limit,run-agent,run-route,run-route-integration,plan-route}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npx vitest run tests/unit/run-route-integration.test.ts tests/unit/run-agent.test.ts tests/unit/pitch.test.ts tests/unit/rate-limit.test.ts
+  ```
+- Verification: PASS (329 tests, production build, lint, rules). First standard attempt passed lint/tests but build found an AI SDK Tool return-type literal mismatch; explicit execute return typing fixed it and typecheck passed. The next standard run passed. A separate optional live-check command had a missing closing delimiter before making requests; corrected and rerun successfully.
+- Live checks: Denver plan returned agent mode with 5 categories and 0 unresolved names. Research returned agent mode with 10 merchants; stream contained 12 step events, 6 tool calls, 40 Qloo events, 6 tool results, 3 agent notes, exactly 1 result and 1 done. Printed counts/names only and wrote no response files; local server stopped.
+- Open issues / decisions: local fallback budgets remain per process, as designed; shared production enforcement needs optional Upstash. Customized preset plans can fall under normal limits. Pitch guard validates allowed numbers, length and identity; it is not a general fact checker. Decisions above explain identity handling and terminal-event ownership.
+- New dependencies: none.
+- For Devin: optional Upstash and judge-code setup remain in the waiting list.
