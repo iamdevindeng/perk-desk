@@ -40,6 +40,9 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T1: Fix the existing rule checker to compare only actual secret assignments, ignoring comments and public URL/model configuration; otherwise documented public defaults falsely match secrets. Tighten fake UUIDs to the exact required form. No protections were removed.
 - T1: Turbopack needs a local worker port, blocked by the sandbox. Run verification with approved local execution permissions. Future build commands disable Next telemetry with `NEXT_TELEMETRY_DISABLED=1`.
 
+- T3: Restrict Qloo URL overrides to the approved HTTPS hackathon origin and reject redirects, preventing credentials from reaching another host. Reserve pacing slots synchronously so concurrent calls remain spaced.
+- T3: Cache failures emit one fixed warning, never provider error details. The local cache clones values to match Redis serialization isolation.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -105,3 +108,22 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: schemas fit one file (143 total lines), so no trace split. Added reusable CategoryTag schema for the documented tag/label pair. Enforced the documented 200-character trace-summary cap. JSON data and tag IDs are unchanged.
 - New dependencies: none.
 - For Devin: none beyond the existing Waiting list.
+
+### T3: Qloo layer and cache — DONE
+- Date/time (UTC+8): 2026-10-23 21:59
+- What was done:
+  - Added lazy optional Redis and expiring memory cache with safe failure handling.
+  - Added paced Qloo transport, typed sanitized errors, one short-term 429 retry, quota detection, and validated slim caching.
+  - Added brand/category searches with filtering before caching and strict query parameter names.
+  - Added seeded/baseline places, locality resolution, optional field mapping, and grouped opening hours.
+  - Added hand-written fake raw fixtures and transport/cache/parser tests; no real API data is stored.
+- Files touched: `src/lib/store/cache.ts`, `src/lib/qloo/{client,search,tags,insights}.ts`, `tests/fixtures/qloo-fake.ts`, `tests/unit/{cache,qloo-client,qloo-search,qloo-insights}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  ```
+- Verification: PASS first standard attempt; 109 tests across 9 files. An earlier targeted insights type check found optional-hours/default-null typing issues; fixed before standard verification.
+- Live checks: authorized T3 REI search succeeded, returning 3 candidate names; no response files written. Observed ambiguity matches QLOO_API.md.
+- Open issues / decisions: tags without a usable type are dropped; malformed category IDs are blocked; searchBrandExact returns the first result and leaves equality checking to the chain-check caller. Optional fields are omitted rather than invalidating an otherwise usable place.
+- New dependencies: none.
+- For Devin: no new blockers.
