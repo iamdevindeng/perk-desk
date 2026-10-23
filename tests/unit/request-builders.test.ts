@@ -73,6 +73,16 @@ describe("confirmed research requests", () => {
     expect(result.branches[0]).toMatchObject({ lat: 40, lon: -105, locationSource: "map" });
   });
 
+  it("researches only located plan branches while preserving unresolved branches for repair", () => {
+    const located = { ...FAKE_PROFILE.branches[0], name: "Fake Renamed", radiusMeters: 8000 };
+    const unresolved = { ...FAKE_PROFILE.branches[0], id: "unresolved", address: "Unknown location", lat: undefined, lon: undefined };
+    const profile = { ...FAKE_PROFILE, branches: [located, unresolved] };
+    const result = buildRunRequest(profile, FAKE_PLAN_RESPONSE, CATEGORIES);
+    expect(result.branches).toEqual([located]);
+    expect(profile.branches).toEqual([located, unresolved]);
+    expect(() => buildRunRequest(profile, { ...FAKE_PLAN_RESPONSE, branches: [] }, CATEGORIES)).toThrow();
+  });
+
   it("rejects unresolved changed addresses and more than five confirmed categories", () => {
     const profile = { ...FAKE_PROFILE, branches: [{ ...FAKE_PROFILE.branches[0], address: "New address", lat: undefined, lon: undefined }] };
     expect(() => buildRunRequest(profile, FAKE_PLAN_RESPONSE, CATEGORIES)).toThrow();

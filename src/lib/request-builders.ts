@@ -1,8 +1,8 @@
 // Builds validated API requests from editable profile fields and confirmed plan choices.
 // Called by: the page and request-builder unit tests
-import { LIST_MAX_ITEMS } from "@/lib/config";
+import { LIST_MAX_ITEMS, PREFERENCE_MAX_ITEMS } from "@/lib/config";
 import {
-  EntityIdSchema, PlanRequestSchema, RunRequestSchema, type Branch, type CategoryTag,
+  CategoryPreferencesSchema, EntityIdSchema, PlanRequestSchema, RunRequestSchema, type Branch, type CategoryPreferences, type CategoryTag,
   type PlanRequest, type PlanResponse, type Profile, type RunRequest,
 } from "@/lib/types";
 
@@ -34,7 +34,9 @@ export function buildPlanRequest(
 }
 
 function resolvedBranches(profile: Profile, plan: PlanResponse): Branch[] {
-  return profile.branches.map((branch) => {
+  // Planning drops unresolved locations; keep those branches editable without sending them to research.
+  const plannedIds = new Set(plan.branches.map((branch) => branch.id));
+  return profile.branches.filter((branch) => plannedIds.has(branch.id)).map((branch) => {
     if (branch.lat !== undefined && branch.lon !== undefined) return branch;
     const resolved = plan.branches.find((planned) => planned.id === branch.id && planned.address === branch.address);
     // A changed address must be planned again; never reuse its old approximate coordinates.
@@ -62,4 +64,24 @@ export function buildRunRequest(
     branches: resolvedBranches(profile, plan), brands: chosenBrands(plan, brandOverrides), categories: confirmedCategories,
     signedNames: parseListText(profile.signedMerchantsText), businessMemberNames: [], excludeEntityIds,
   });
+}
+
+function recentPreferences(previous: string[], latest: string[]): string[] {
+  const entries = new Set<string>();
+  for (const tagId of [...previous, ...latest]) {
+    entries.delete(tagId);
+    entries.add(tagId);
+  }
+  return [...entries].slice(-PREFERENCE_MAX_ITEMS);
+}
+
+export function mergePreferences(previous: CategoryPreferences, planned: CategoryTag[], confirmed: CategoryTag[]): CategoryPreferences {
+  const plannedIds = new Set(planned.map((category) => category.tagId));
+  const confirmedIds = new Set(confirmed.map((category) => category.tagId));
+  const newlyRemoved = [...plannedIds].filter((tagId) => !confirmedIds.has(tagId));
+  const newlyAdded = [...confirmedIds].filter((tagId) => !plannedIds.has(tagId));
+  // Confirming an old removal reverses it; removing an old addition reverses that choice too.
+  const removed = recentPreferences(previous.removed.filter((tagId) => !confirmedIds.has(tagId)), newlyRemoved);
+  const added = recentPreferences(previous.added.filter((tagId) => !removed.includes(tagId)), newlyAdded);
+  return CategoryPreferencesSchema.parse({ removed, added });
 }

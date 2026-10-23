@@ -62,6 +62,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T8: Changing an address clears its previous coordinates. Run request construction only borrows planned coordinates for the same branch ID and unchanged address. Business-member names stay empty until optional X2.
 - T8: Use a consistent light slate/teal interface for the native component fallback. Member-brand text and preset selection remain session state; only the documented profile and judge-code keys persist.
 
+- T9: A changed brand candidate disables confirmation until re-planning refreshes evidence. Category edits clear previous research results and trace; profile/brand edits also invalidate the plan.
+- T9: Fix T8 request building to research only branches that survived location resolution, while keeping unresolved branches visible for repair. Preserve current edits on resolved branches and show readable validation errors instead of raw schema output.
+- T9: The stream client requires one terminal outcome followed by done, handles UTF-8/chunk boundaries, and skips malformed lines with a static warning. A truncated stream is an error rather than an indefinitely running UI.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -245,3 +249,24 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: storage-unavailable sessions still work but cannot persist. Temporarily invalid profiles keep the last valid saved version. T9 adds category confirmation and research controls; current planning output is intentionally temporary.
 - New dependencies: none.
 - For Devin: broader real-browser and accessibility review remains for final acceptance.
+
+### T9: Category confirmation, preference memory, and live trace — DONE
+- Date/time (UTC+8): 2026-10-23 22:48
+- What was done:
+  - Added recognized-brand choices, guarded re-planning, evidence rows, category add/remove controls, and explicit confirmation capped at five categories.
+  - Added conflict-free preference merging and saved preferences when confirming research.
+  - Added robust NDJSON reading with judge headers, safe errors, chunk handling, and completion validation.
+  - Added six progress rows, capped detail lines, Qloo/cache counts, fallback/error/limit panels, and masked judge-code retry controls.
+  - Fixed partial branch resolution and cleared stale results when categories change.
+- Files touched: `src/app/page.tsx`, `src/components/{CategoryConfirm,AgentTrace}.tsx`, `src/lib/{config,request-builders,run-client}.ts`, `tests/unit/{run-client,preferences,request-builders}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run dev
+  ```
+  In the browser: Denver demo → Plan → edit categories → Confirm & find merchants → inspect progress and result preview.
+- Verification: PASS (370 tests, production build, lint, rules). Full checks repeated after independent integration review fixes.
+- Live checks: Denver plan completed in about 16 seconds. Six proposed categories initially selected five; removed one and selected the sixth. Server log showed only `/api/plan` before Confirm. After Confirm, live research completed in about 23 seconds with 10 merchants and six done steps. Editing a category afterward cleared the prior result. A browser permission-review timeout succeeded on its single retry; a stale tab after server restart was replaced with a fresh local test tab.
+- Open issues / decisions: evidence cards arrive in T10; this task displays a merchant-name result preview. Invalid/truncated stream behavior is covered offline. The existing local dev server stays running for the next browser check.
+- New dependencies: none.
+- For Devin: no new owner-only action.
