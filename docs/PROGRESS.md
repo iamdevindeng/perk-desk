@@ -87,3 +87,21 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: shadcn initialization and direct registry requests failed with `other side closed`; native wrappers keep later tasks moving. Generated scaffold uses Tailwind's Turbopack loader and creates no PostCSS config. Original README, LICENSE and specification docs are unchanged. Pre-existing `.env.example` deletion stays outside the commit.
 - New dependencies: only Architecture §9 runtime/dev families plus create-next-app's generated Tailwind/ESLint/TypeScript support. No extra UI libraries added.
 - For Devin: retry shadcn install; review pre-existing template deletion and npm audit findings (listed above).
+
+### T2: Types and data loading — DONE
+- Date/time (UTC+8): 2026-10-23 21:55
+- What was done:
+  - Added all shared schemas and inferred types in dependency order, with no circular imports or lazy schemas.
+  - Added validated, static JSON loaders for categories, blacklists, national chains, presets, and map cities.
+  - Added canonical JSON, SHA-256 cache keys and city slugs.
+  - Added fake fixtures and tests covering every schema with valid/two invalid inputs, every trace event, data references, and cache-key stability.
+- Files touched: `src/lib/{types.ts,data.ts,hash.ts}`, `tests/fixtures/fake-plan.ts`, `tests/unit/{types,data,hash}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  ```
+- Verification: PASS first standard attempt; 60 tests across 5 files, production build and rule checker pass.
+- Live checks: none.
+- Open issues / decisions: schemas fit one file (143 total lines), so no trace split. Added reusable CategoryTag schema for the documented tag/label pair. Enforced the documented 200-character trace-summary cap. JSON data and tag IDs are unchanged.
+- New dependencies: none.
+- For Devin: none beyond the existing Waiting list.
