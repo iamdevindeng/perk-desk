@@ -1,0 +1,832 @@
+{
+  "_comment": [
+    "Usable place-category tags: each had >=6 independent (non-chain, open, non-mall) places in BOTH Denver and Austin on 2026-10-23 (no taste seeds, take=30).",
+    "NOT a whitelist: the agent may pick any tag returned by searchCategories that passes the blacklist. These are used for (a) quick-segment fallback, (b) adjacent-category retries in fallback mode, (c) 'known usable' hints in the plan prompt, (d) the 'add category' picker in the confirm UI.",
+    "depth: thick >=15, medium 9-14, thin 6-8 independents in the thinner of the two cities. quickPick=false means usable but a weak fit for a member perk (delivery/fast food/medical etc.)."
+  ],
+  "verifiedOn": "2026-10-23",
+  "categories": [
+    {
+      "tagId": "urn:tag:category:place:bar",
+      "label": "Bar",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:cocktail_bar",
+        "urn:tag:category:place:bar_grill",
+        "urn:tag:category:place:beer_garden"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:bar_grill",
+      "label": "Bar & grill",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:bar",
+        "urn:tag:category:place:american_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:beer_garden",
+      "label": "Beer garden",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:brewery",
+        "urn:tag:category:place:bar"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:brewery",
+      "label": "Brewery",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:beer_garden",
+        "urn:tag:category:place:bar"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:cocktail_bar",
+      "label": "Cocktail bar",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:wine_bar",
+        "urn:tag:category:place:bar"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:wine_bar",
+      "label": "Wine bar",
+      "group": "bars",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:cocktail_bar",
+        "urn:tag:category:place:wine_store",
+        "urn:tag:category:place:winery"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:wine_store",
+      "label": "Wine store",
+      "group": "bars",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:wine_bar",
+        "urn:tag:category:place:winery"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:winery",
+      "label": "Winery",
+      "group": "bars",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:wine_bar",
+        "urn:tag:category:place:wine_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:barber_shop",
+      "label": "Barber shop",
+      "group": "beauty",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:hair_salon",
+        "urn:tag:category:place:hairdresser"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:day_spa",
+      "label": "Day spa",
+      "group": "beauty",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:spa",
+        "urn:tag:category:place:massage_spa",
+        "urn:tag:category:place:facial_spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:facial_spa",
+      "label": "Facial spa",
+      "group": "beauty",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:day_spa",
+        "urn:tag:category:place:spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:hair_extension_technician",
+      "label": "Hair extension technician",
+      "group": "beauty",
+      "depth": "thin",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:hair_salon",
+        "urn:tag:category:place:hairdresser"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:hair_salon",
+      "label": "Hair salon",
+      "group": "beauty",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:hairdresser",
+        "urn:tag:category:place:barber_shop",
+        "urn:tag:category:place:nail_salon"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:hairdresser",
+      "label": "Hairdresser",
+      "group": "beauty",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:hair_salon",
+        "urn:tag:category:place:barber_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:massage_spa",
+      "label": "Massage spa",
+      "group": "beauty",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:massage_therapist",
+        "urn:tag:category:place:day_spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:massage_therapist",
+      "label": "Massage therapist",
+      "group": "beauty",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:massage_spa",
+        "urn:tag:category:place:day_spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:medical_spa",
+      "label": "Medical spa",
+      "group": "beauty",
+      "depth": "medium",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:facial_spa",
+        "urn:tag:category:place:day_spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:nail_salon",
+      "label": "Nail salon",
+      "group": "beauty",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:day_spa",
+        "urn:tag:category:place:hair_salon"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:spa",
+      "label": "Spa",
+      "group": "beauty",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:day_spa",
+        "urn:tag:category:place:massage_spa",
+        "urn:tag:category:place:facial_spa"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:bakery",
+      "label": "Bakery",
+      "group": "coffee_dessert",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:cafe",
+        "urn:tag:category:place:donut_shop",
+        "urn:tag:category:place:dessert_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:bubble_tea_store",
+      "label": "Bubble tea store",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:tea_house",
+        "urn:tag:category:place:juice_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:cafe",
+      "label": "Cafe",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:coffee_shop",
+        "urn:tag:category:place:bakery",
+        "urn:tag:category:place:tea_house"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:coffee_shop",
+      "label": "Coffee shop",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:cafe",
+        "urn:tag:category:place:tea_house",
+        "urn:tag:category:place:bakery"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:dessert_restaurant",
+      "label": "Dessert restaurant",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:dessert_shop",
+        "urn:tag:category:place:ice_cream_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:dessert_shop",
+      "label": "Dessert shop",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:ice_cream_shop",
+        "urn:tag:category:place:dessert_restaurant",
+        "urn:tag:category:place:bakery"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:donut_shop",
+      "label": "Donut shop",
+      "group": "coffee_dessert",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:bakery",
+        "urn:tag:category:place:bagel_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:ice_cream_shop",
+      "label": "Ice cream shop",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:dessert_shop",
+        "urn:tag:category:place:dessert_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:juice_shop",
+      "label": "Juice shop",
+      "group": "coffee_dessert",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:health_food_restaurant",
+        "urn:tag:category:place:cafe"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:tea_house",
+      "label": "Tea house",
+      "group": "coffee_dessert",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:bubble_tea_store",
+        "urn:tag:category:place:cafe"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:american_restaurant",
+      "label": "American restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:bar_grill",
+        "urn:tag:category:place:brunch_restaurant",
+        "urn:tag:category:place:hamburger_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:asian_restaurant",
+      "label": "Asian restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:japanese_restaurant",
+        "urn:tag:category:place:chinese_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:bagel_shop",
+      "label": "Bagel shop",
+      "group": "dining",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:breakfast_restaurant",
+        "urn:tag:category:place:bakery"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:barbecue_restaurant",
+      "label": "Barbecue restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:american_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:breakfast_restaurant",
+      "label": "Breakfast restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:brunch_restaurant",
+        "urn:tag:category:place:bagel_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:brunch_restaurant",
+      "label": "Brunch restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:breakfast_restaurant",
+        "urn:tag:category:place:cafe"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:chinese_restaurant",
+      "label": "Chinese restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:asian_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:delivery_restaurant",
+      "label": "Delivery Restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:takeout_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:family_restaurant",
+      "label": "Family restaurant",
+      "group": "dining",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:american_restaurant",
+        "urn:tag:category:place:pizza_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:fast_food_restaurant",
+      "label": "Fast food restaurant",
+      "group": "dining",
+      "depth": "thin",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:hamburger_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:food_court",
+      "label": "Food court",
+      "group": "dining",
+      "depth": "medium",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:hamburger_restaurant",
+      "label": "Hamburger restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:american_restaurant",
+        "urn:tag:category:place:bar_grill"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:health_food_restaurant",
+      "label": "Health food restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:juice_shop",
+        "urn:tag:category:place:cafe"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:italian_restaurant",
+      "label": "Italian restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:pizza_restaurant",
+        "urn:tag:category:place:wine_bar"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:japanese_restaurant",
+      "label": "Japanese restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:asian_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:mexican_restaurant",
+      "label": "Mexican restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:taco_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pizza_delivery",
+      "label": "Pizza delivery",
+      "group": "dining",
+      "depth": "medium",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:pizza_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pizza_restaurant",
+      "label": "Pizza restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:italian_restaurant",
+        "urn:tag:category:place:pizza_takeout"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pizza_takeout",
+      "label": "Pizza Takeout",
+      "group": "dining",
+      "depth": "medium",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:pizza_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:restaurant",
+      "label": "Restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:american_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:seafood_restaurant",
+      "label": "Seafood restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:japanese_restaurant",
+        "urn:tag:category:place:american_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:taco_restaurant",
+      "label": "Taco restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:mexican_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:takeout_restaurant",
+      "label": "Takeout Restaurant",
+      "group": "dining",
+      "depth": "thick",
+      "quickPick": false,
+      "adjacent": [
+        "urn:tag:category:place:delivery_restaurant"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:bicycle_shop",
+      "label": "Bicycle Shop",
+      "group": "fitness",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:sporting_goods_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:gym",
+      "label": "Gym",
+      "group": "fitness",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:sporting_goods_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:sporting_goods_store",
+      "label": "Sporting goods store",
+      "group": "fitness",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:bicycle_shop",
+        "urn:tag:category:place:gym"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pet_groomer",
+      "label": "Pet groomer",
+      "group": "pets",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:pet_supply_store",
+        "urn:tag:category:place:pet_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pet_store",
+      "label": "Pet store",
+      "group": "pets",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:pet_supply_store",
+        "urn:tag:category:place:pet_groomer"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:pet_supply_store",
+      "label": "Pet supply store",
+      "group": "pets",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:pet_store",
+        "urn:tag:category:place:pet_groomer"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:book_store",
+      "label": "Book store",
+      "group": "retail",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:record_store",
+        "urn:tag:category:place:gift_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:clothing_store",
+      "label": "Clothing store",
+      "group": "retail",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:womens_clothing_store",
+        "urn:tag:category:place:mens_clothing_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:gift_basket_store",
+      "label": "Gift basket store",
+      "group": "retail",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:gift_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:gift_shop",
+      "label": "Gift shop",
+      "group": "retail",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:gift_basket_store",
+        "urn:tag:category:place:book_store",
+        "urn:tag:category:place:jewelry_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:jewelry_designer",
+      "label": "Jewelry designer",
+      "group": "retail",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:jewelry_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:jewelry_store",
+      "label": "Jewelry store",
+      "group": "retail",
+      "depth": "thick",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:jewelry_designer",
+        "urn:tag:category:place:gift_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:mens_clothing_store",
+      "label": "Mens Clothing Store",
+      "group": "retail",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:clothing_store",
+        "urn:tag:category:place:barber_shop"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:record_store",
+      "label": "Record store",
+      "group": "retail",
+      "depth": "thin",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:book_store"
+      ]
+    },
+    {
+      "tagId": "urn:tag:category:place:womens_clothing_store",
+      "label": "Womens Clothing Store",
+      "group": "retail",
+      "depth": "medium",
+      "quickPick": true,
+      "adjacent": [
+        "urn:tag:category:place:clothing_store",
+        "urn:tag:category:place:jewelry_store"
+      ]
+    }
+  ],
+  "quickSegments": [
+    {
+      "id": "dining",
+      "label": "Dining",
+      "seedBrands": [
+        "Sweetgreen",
+        "Shake Shack",
+        "Chipotle"
+      ],
+      "categories": [
+        "urn:tag:category:place:brunch_restaurant",
+        "urn:tag:category:place:mexican_restaurant",
+        "urn:tag:category:place:italian_restaurant",
+        "urn:tag:category:place:health_food_restaurant"
+      ]
+    },
+    {
+      "id": "coffee_dessert",
+      "label": "Coffee & desserts",
+      "seedBrands": [
+        "Starbucks",
+        "Blue Bottle Coffee",
+        "Krispy Kreme"
+      ],
+      "categories": [
+        "urn:tag:category:place:coffee_shop",
+        "urn:tag:category:place:bakery",
+        "urn:tag:category:place:dessert_shop",
+        "urn:tag:category:place:ice_cream_shop"
+      ]
+    },
+    {
+      "id": "bars_craft_beer",
+      "label": "Bars & craft beer",
+      "seedBrands": [
+        "Sierra Nevada",
+        "New Belgium Brewing",
+        "Aperol"
+      ],
+      "categories": [
+        "urn:tag:category:place:brewery",
+        "urn:tag:category:place:cocktail_bar",
+        "urn:tag:category:place:beer_garden",
+        "urn:tag:category:place:wine_bar"
+      ]
+    },
+    {
+      "id": "pets",
+      "label": "Pets",
+      "seedBrands": [
+        "Chewy",
+        "BarkBox",
+        "Petco"
+      ],
+      "categories": [
+        "urn:tag:category:place:pet_supply_store",
+        "urn:tag:category:place:pet_groomer",
+        "urn:tag:category:place:pet_store"
+      ]
+    },
+    {
+      "id": "fitness",
+      "label": "Fitness",
+      "seedBrands": [
+        "Lululemon",
+        "Peloton",
+        "Nike"
+      ],
+      "categories": [
+        "urn:tag:category:place:gym",
+        "urn:tag:category:place:sporting_goods_store",
+        "urn:tag:category:place:bicycle_shop",
+        "urn:tag:category:place:juice_shop"
+      ]
+    },
+    {
+      "id": "beauty_hair",
+      "label": "Beauty & hair",
+      "seedBrands": [
+        "Sephora",
+        "Ulta Beauty",
+        "Aveda"
+      ],
+      "categories": [
+        "urn:tag:category:place:hair_salon",
+        "urn:tag:category:place:nail_salon",
+        "urn:tag:category:place:day_spa",
+        "urn:tag:category:place:barber_shop"
+      ]
+    }
+  ]
+}

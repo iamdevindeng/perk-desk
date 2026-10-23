@@ -1,0 +1,17 @@
+{
+  "_comment": "Hand-entered map centers for the city picker. Any other US city can be typed as 'City, ST'; its center is then resolved by /api/plan via Qloo (see QLOO_API.md section 5).",
+  "cities": [
+    {
+      "label": "Denver, CO",
+      "lat": 39.7392,
+      "lon": -104.9903,
+      "zoom": 12
+    },
+    {
+      "label": "Austin, TX",
+      "lat": 30.2672,
+      "lon": -97.7431,
+      "zoom": 12
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "_comment": "FICTIONAL demo institution. Names, branches and lists are hand-written for the demo; this file contains no Qloo response data. Branch coordinates are approximate and hand-entered.",
+  "id": "austin-demo",
+  "label": "Demo: Bluebonnet Bend Credit Union (Austin, fictional)",
+  "profile": {
+    "institutionName": "Bluebonnet Bend Credit Union",
+    "city": "Austin, TX",
+    "branches": [
+      {
+        "id": "soco",
+        "name": "South Congress branch",
+        "address": "1600 S Congress Ave, Austin, TX 78704",
+        "lat": 30.2493,
+        "lon": -97.7497,
+        "radiusMeters": 6000
+      },
+      {
+        "id": "mueller",
+        "name": "Mueller branch",
+        "address": "1801 E 51st St, Austin, TX 78723",
+        "lat": 30.3009,
+        "lon": -97.7055,
+        "radiusMeters": 6000
+      }
+    ],
+    "signedMerchantsText": "BookPeople\nBouldin Creek Cafe",
+    "businessMembersText": "Austin Pets Alive! Thrift"
+  },
+  "brandsText": "Tecovas\nYETI\nAllbirds\nWhole Foods Market\nSweetgreen\nBarkBox\nAperol\nLululemon"
+}

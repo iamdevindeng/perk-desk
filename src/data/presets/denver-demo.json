@@ -1,0 +1,38 @@
+{
+  "_comment": "FICTIONAL demo institution. Names, branches and lists are hand-written for the demo; this file contains no Qloo response data. Branch coordinates are approximate and hand-entered.",
+  "id": "denver-demo",
+  "label": "Demo: Columbine Peaks Community CU (Denver, fictional)",
+  "profile": {
+    "institutionName": "Columbine Peaks Community Credit Union",
+    "city": "Denver, CO",
+    "branches": [
+      {
+        "id": "lodo",
+        "name": "LoDo branch",
+        "address": "1701 Wynkoop St, Denver, CO 80202",
+        "lat": 39.7531,
+        "lon": -104.9998,
+        "radiusMeters": 6000
+      },
+      {
+        "id": "highlands",
+        "name": "Highlands branch",
+        "address": "3300 W 32nd Ave, Denver, CO 80211",
+        "lat": 39.7623,
+        "lon": -105.0322,
+        "radiusMeters": 6000
+      },
+      {
+        "id": "cherry-creek",
+        "name": "Cherry Creek branch",
+        "address": "250 Columbine St, Denver, CO 80206",
+        "lat": 39.7187,
+        "lon": -104.9551,
+        "radiusMeters": 6000
+      }
+    ],
+    "signedMerchantsText": "Tattered Cover Book Store\nDenver Biscuit Company\nHuckleberry Roasters",
+    "businessMembersText": "Wilderness Exchange Unlimited\nSweet Cow Ice Cream\nDenver Bicycle Cafe"
+  },
+  "brandsText": "REI\nPatagonia\nLululemon\nWhole Foods Market\nNew Belgium Brewing\nChewy\nStarbucks\nYETI"
+}

@@ -1,0 +1,24 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js / build
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# env files: secrets never committed (only the names template)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# test / misc
+/coverage
+.DS_Store
+*.pem
+npm-debug.log*
