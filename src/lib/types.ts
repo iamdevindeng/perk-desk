@@ -77,6 +77,11 @@ export const MerchantResultSchema = z.object({
   multiLocation: z.boolean(), businessMember: z.boolean(), score: z.number(),
   pitch: z.string(), pitchSource: z.enum(["agent", "template"]), googleMapsUrl: z.string(),
 });
+// Internal research candidates carry ranking inputs until the shortlist adds a pitch.
+export const MerchantCandidateSchema = MerchantResultSchema.omit({ pitch: true, pitchSource: true, googleMapsUrl: true }).extend({
+  radiusMeters: z.number(), baselineLength: z.number().int(), affinity: z.number().nullable(),
+  explain: PlaceSchema.shape.explain,
+});
 export const CategoryReportSchema = z.object({
   tagId: CategoryTagIdSchema, label: z.string(), independentCount: z.number().int(),
   status: z.enum(["ok", "thin", "replaced"]), replacedBy: CategoryTagIdSchema.optional(),
@@ -133,6 +138,7 @@ export type PlannedCategory = z.infer<typeof PlannedCategorySchema>;
 export type PlanRequest = z.infer<typeof PlanRequestSchema>;
 export type RunRequest = z.infer<typeof RunRequestSchema>;
 export type MerchantResult = z.infer<typeof MerchantResultSchema>;
+export type MerchantCandidate = z.infer<typeof MerchantCandidateSchema>;
 export type CategoryReport = z.infer<typeof CategoryReportSchema>;
 export type RunResult = z.infer<typeof RunResultSchema>;
 export type StepId = z.infer<typeof StepIdSchema>;

@@ -43,6 +43,9 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T3: Restrict Qloo URL overrides to the approved HTTPS hackathon origin and reject redirects, preventing credentials from reaching another host. Reserve pacing slots synchronously so concurrent calls remain spaced.
 - T3: Cache failures emit one fixed warning, never provider error details. The local cache clones values to match Redis serialization isolation.
 
+- T4: Add the internal MerchantCandidate schema to the existing shared types file; it carries ranking inputs until pitch creation. Score before filtering so affinity normalization uses the original seeded branch/category list.
+- T4: Interleave per-branch quota picks before trimming, satisfying the documented three-branch minimum (4/3/3 rather than 4/4/2). Radius-only drops add no new exclusion field.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -125,5 +128,24 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Verification: PASS first standard attempt; 109 tests across 9 files. An earlier targeted insights type check found optional-hours/default-null typing issues; fixed before standard verification.
 - Live checks: authorized T3 REI search succeeded, returning 3 candidate names; no response files written. Observed ambiguity matches QLOO_API.md.
 - Open issues / decisions: tags without a usable type are dropped; malformed category IDs are blocked; searchBrandExact returns the first result and leaves equality checking to the chain-check caller. Optional fields are omitted rather than invalidating an otherwise usable place.
+- New dependencies: none.
+- For Devin: no new blockers.
+
+### T4: Merchant filter and scoring — DONE
+- Date/time (UTC+8): 2026-10-23 22:04
+- What was done:
+  - Added pure name normalization/matching, word-boundary national-chain checks, and duplicate-location flags.
+  - Added haversine distance and deterministic exclusion reasons with radius slack.
+  - Added seeded/baseline union, rank lift, normalized weighted scores, largest-remainder brand shares, and nearest-branch/category deduplication.
+  - Added balanced round-robin shortlists and fake merchant fixtures with over 100 assertions across the six task test files.
+- Files touched: `src/lib/merchants/{name-match,distance,chains,filter,scoring,shortlist}.ts`, `src/lib/{types,config}.ts`, `tests/fixtures/fake-places.ts`, `tests/unit/{name-match,distance,chains,filter,scoring,shortlist,types}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npx vitest run tests/unit/scoring.test.ts tests/unit/shortlist.test.ts
+  ```
+- Verification: PASS first standard attempt; 149 tests across 15 files; required focused check 20 tests passed.
+- Live checks: none; all merchant functions and tests are pure/offline.
+- Open issues / decisions: shared candidate schema and tuning constants extend earlier T1/T2 files because T4 needs them. Nearest branch wins first, then the higher-scoring category within that branch; deterministic ties. Business-member flag remains false until X2.
 - New dependencies: none.
 - For Devin: no new blockers.
