@@ -62,6 +62,7 @@ export const PLAN_MAX_SUBMISSIONS = 2;
 export const FALLBACK_MAX_CATEGORIES = 4;
 export const CATEGORY_EVIDENCE_MAX = 5;
 export const CATEGORY_EVIDENCE_VISIBLE = 3;
+export const BRAND_SHARES_VISIBLE = 3;
 export const PITCH_MAX_CHARACTERS = 600;
 export const PITCH_MAX_SENTENCES = 3;
 export const PITCH_CALL_MINUTES = 10;

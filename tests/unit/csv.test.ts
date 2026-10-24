@@ -2,16 +2,16 @@
 // Called by: npm test
 import { describe, expect, it } from "vitest";
 import { toCsv } from "@/lib/csv";
-import { FAKE_MERCHANT } from "../fixtures/fake-plan";
+import { FAKE_MERCHANT, FAKE_RESOLVED_BRAND } from "../fixtures/fake-plan";
 
-const HEADER = "branch,distance_km,name,category,address,phone,website,google_maps_url,member_brands,rank_lift,business_rating,tripadvisor_rating,multi_location,business_member,status,pitch";
+const HEADER = "branch,distance_km,name,category,address,phone,website,google_maps_url,member_brands,rank_lift,business_rating,tripadvisor_rating,multi_location,business_member,status,pitch,hours";
 
 describe("merchant CSV export", () => {
-  it("exports all sixteen columns in order with CRLF records and one decimal kilometre distances", () => {
+  it("preserves the sixteen columns and appends hours with CRLF records and one decimal kilometre distances", () => {
     const merchant = { ...FAKE_MERCHANT, distanceMeters: 1250, multiLocation: true };
     const csv = toCsv([merchant], {});
-    expect(csv).toBe(`\uFEFF${HEADER}\r\nFake Central Branch,1.3,Fake Corner Cafe,Coffee shop,2 Example Lane,555-0100,https://example.invalid/cafe,https://www.google.com/maps/search/?api=1&query=Fake+Corner+Cafe,Fake Coffee Co 100%,2,4.5,4.0,yes,no,to_contact,${merchant.pitch}\r\n`);
-    expect(csv.split("\r\n")[0].split(",")).toHaveLength(16);
+    expect(csv).toBe(`\uFEFF${HEADER}\r\nFake Central Branch,1.3,Fake Corner Cafe,Coffee shop,2 Example Lane,555-0100,https://example.invalid/cafe,https://www.google.com/maps/search/?api=1&query=Fake+Corner+Cafe,Fake Coffee Co 100%,2,4.5,4.0,yes,no,to_contact,${merchant.pitch},${merchant.place.hoursText}\r\n`);
+    expect(csv.split("\r\n")[0].split(",")).toHaveLength(17);
   });
 
   it("returns a valid header-only CSV for an empty list", () => {
@@ -26,7 +26,7 @@ describe("merchant CSV export", () => {
     expect(csv).toContain('"Fake, ""Central""",0.1,"Fake ""Quoted"" Cafe"');
     expect(csv).toContain('"Fake street\r\nSecond line"');
     expect(csv).toContain('"Fake, Brand 100%"');
-    expect(csv).toContain('"First fake line\nSecond fake line"\r\n');
+    expect(csv).toContain('"First fake line\nSecond fake line",');
   });
 
   it.each(["=FAKE()", "+FAKE", "-Fake Name", "@FAKE"])("prefixes formula-like text %s", (name) => {
@@ -42,15 +42,16 @@ describe("merchant CSV export", () => {
     expect(csv).toContain(`,'${phone},`);
     expect(csv).toContain(",-3,4.5,4.0,");
     expect(csv).not.toContain("'-3");
-    expect(csv).toContain('"\'=FAKE(""offer"", ""test"")"\r\n');
+    expect(csv).toContain('"\'=FAKE(""offer"", ""test"")",');
   });
 
   it("keeps missing optional values blank and both true/false boolean values readable", () => {
     const merchant = { ...FAKE_MERCHANT, brandShares: [], rankLift: null, multiLocation: false, businessMember: true,
-      place: { ...FAKE_MERCHANT.place, phone: undefined, website: undefined, businessRating: undefined, tripadvisorRating: undefined } };
+      place: { ...FAKE_MERCHANT.place, phone: undefined, website: undefined, businessRating: undefined, tripadvisorRating: undefined, hoursText: undefined } };
     const cells = toCsv([merchant], {}).split("\r\n")[1].split(",");
     expect(cells.slice(5, 7)).toEqual(["", ""]);
     expect(cells.slice(8, 14)).toEqual(["", "", "", "", "no", "yes"]);
+    expect(cells[16]).toBe("");
     expect(toCsv([merchant], {})).not.toMatch(/undefined|null/);
   });
 
@@ -95,5 +96,25 @@ describe("merchant CSV export", () => {
   it.each(["\t", "\r"])("protects leading control text %j before escaping quotes and commas", (prefix) => {
     const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: `${prefix}Fake, "Cafe"` } };
     expect(toCsv([merchant], {})).toContain(`,"'${prefix}Fake, ""Cafe""",`);
+  });
+
+  it.each(["Mon–Sun 00:00–00:00", "Mon–Sun 00:00–24:00"])("formats cached full-day hours %s in the appended column", (hoursText) => {
+    const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, hoursText } };
+    const cells = toCsv([merchant], {}).split("\r\n")[1].split(",");
+    expect(cells[16]).toBe("Open 24 hours");
+    expect(merchant.place.hoursText).toBe(hoursText);
+  });
+
+  it("exports every share using the supplied input name for an expanded brand", () => {
+    const resolved = { ...FAKE_RESOLVED_BRAND, inputName: "REI", name: "Recreational Equipment Inc" };
+    const brandShares = [
+      { brandName: resolved.name, sharePercent: 40 }, { brandName: "Fake Tea", sharePercent: 25 },
+      { brandName: "Fake Books", sharePercent: 20 }, { brandName: "Fake Bikes", sharePercent: 15 },
+    ];
+    const merchant = { ...FAKE_MERCHANT, brandShares };
+    const cells = toCsv([merchant], {}, [resolved]).split("\r\n")[1].split(",");
+    expect(cells[8]).toBe("REI 40%; Fake Tea 25%; Fake Books 20%; Fake Bikes 15%");
+    expect(merchant.brandShares).toBe(brandShares);
+    expect(merchant.brandShares[0].brandName).toBe(resolved.name);
   });
 });

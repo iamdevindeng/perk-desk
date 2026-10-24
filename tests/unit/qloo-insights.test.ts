@@ -77,6 +77,35 @@ describe("place normalization", () => {
 });
 
 describe("opening hours", () => {
+  it.each(["00:00", "24:00", "T00:00:00", "T24:00:00"])("labels all-day schedules closing at %s", (closes) => {
+    const hours = [{ opens: "T00:00:00", closes }];
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    expect(formatHours(Object.fromEntries(days.map((day) => [day, hours])))).toBe("Open 24 hours");
+  });
+
+  it("accepts mixed midnight formats across all listed days", () => {
+    expect(formatHours({
+      monday: [{ opens: "00:00", closes: "00:00" }],
+      thursday: [{ opens: "00:00", closes: "24:00" }],
+    })).toBe("Open 24 hours");
+  });
+
+  it("keeps ordinary and closed days in mixed schedules", () => {
+    expect(formatHours({
+      monday: [{ opens: "00:00", closes: "24:00" }],
+      tuesday: [{ opens: "09:00", closes: "17:00" }],
+      wednesday: [{ closed: true }],
+    })).toBe("Mon 00:00–24:00 · Tue 09:00–17:00 · Wed closed");
+    expect(formatHours({ monday: [{ opens: "09:00", closes: "24:00" }] })).toBe("Mon 09:00–24:00");
+  });
+
+  it.each([
+    { opens: "24:00", closes: "00:00" }, { opens: "T24:00:00", closes: "00:00" },
+    { opens: "00:00", closes: "24:01" }, { opens: "00:00", closes: "T24:00:01" },
+  ])("rejects invalid midnight clocks: $opens–$closes", (interval) => {
+    expect(formatHours({ monday: [{ opens: "00:00", closes: "00:00" }], tuesday: [interval] })).toBeUndefined();
+  });
+
   it("groups equal consecutive days without crossing unknown days", () => {
     const hours = [{ opens: "T09:00:00", closes: "T17:00:00" }];
     expect(formatHours({ monday: hours, tuesday: hours, thursday: hours })).toBe("Mon–Tue 09:00–17:00 · Thu 09:00–17:00");

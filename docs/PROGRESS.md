@@ -1251,3 +1251,40 @@ Verification: all checks passed; 1028 offline tests / 73 files. No live calls. I
 Decisions I made: retain the untouched plan in page state because its resolved brands/categories are needed to compare later requests accurately. Compare normalized builder output in the browser without importing Node hashing. Extracted the unchanged intro into ProgramIntro.tsx to preserve the page/function line limits; this is a small file-tree extension within existing components.
 
 Open issues: none. Request shapes, presets, and cache keys remain unchanged.
+
+## R26 — Polish cached and live merchant details (2026-10-24)
+
+Status: DONE
+
+- Normalized all-day raw hours and existing saved hours text to Open 24 hours, preserving mixed and malformed schedule behavior.
+- Showed the three largest brand shares on cards with remaining shares available in a title; CSV retains every share.
+- Displayed the user's brand name for matching expansions/acronyms in cards, confirmation evidence, and exports without changing stored data.
+- Passed plan brands through the page, cards, and download control; retained full dropdown choices for disambiguation.
+- Added hours as the final CSV column and tested helper, component, export, and page wiring with fictional data.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                     |  2 +-
+ src/components/CategoryConfirm.tsx   | 24 ++++++++-------
+ src/components/ExportButton.tsx      |  8 ++---
+ src/components/MerchantCard.tsx      | 35 +++++++++++++--------
+ src/lib/config.ts                    |  1 +
+ src/lib/csv.ts                       | 15 ++++-----
+ src/lib/merchant-display.ts          | 30 ++++++++++++++++++
+ src/lib/qloo/insights.ts             |  5 ++-
+ tests/unit/category-evidence.test.ts | 34 ++++++++++++++++++++-
+ tests/unit/csv.test.ts               | 37 +++++++++++++++++-----
+ tests/unit/merchant-card.test.ts     | 59 ++++++++++++++++++++++++++++++++----
+ tests/unit/merchant-display.test.ts  | 41 +++++++++++++++++++++++++
+ tests/unit/page-races.test.ts        |  1 +
+ tests/unit/qloo-insights.test.ts     | 29 ++++++++++++++++++
+ 14 files changed, 270 insertions(+), 51 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1058 offline tests / 74 files, plus focused dropdown distinction regressions. No live calls or cache changes.
+
+Decisions I made: CSV previously had no hours field, so append hours as column 17 while preserving the original 16 column positions. Added one pure display helper within src/lib to share client rendering and export behavior. Keep full candidate labels to prevent shortened aliases from hiding the distinction between choices. Cache requests and keys remain unchanged.
+
+Open issues: none.

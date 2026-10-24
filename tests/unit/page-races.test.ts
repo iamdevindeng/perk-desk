@@ -127,6 +127,7 @@ it("uses one deduplicated result for merchant cards, map markers, and the export
   pageHarness.runs[0].emit({ type: "result", at: 1, result: replayed });
   pageHarness.runs[0].emit({ type: "done", at: 2 }); pageHarness.runs[0].resolve(); await flushPage();
   const displayed = props("MerchantResults").result as RunResult;
+  expect(props("MerchantResults").brands).toEqual(FAKE_PLAN_RESPONSE.brands);
   expect(displayed.merchants).toEqual([first, different]);
   expect(props("MerchantMap").merchants).toEqual(displayed.merchants);
   expect(toCsv(displayed.merchants, FAKE_PROFILE.merchantStatus).trim().split("\r\n")).toHaveLength(3);

@@ -199,7 +199,7 @@ export default function Home(): ReactElement {
           onReplan={startPlan} onConfirm={startRun} />}
         {(stage === "running" || visibleTrace.length > 0) && <AgentTrace events={visibleTrace} disabled={busy}
           onRetry={research.runEvents.length ? startRun : startPlan} />}
-        {research.result && <MerchantResults result={research.result} profile={profile} selectedMerchantId={selectedMerchantId}
+        {research.result && <MerchantResults result={research.result} profile={profile} brands={plan?.brands} selectedMerchantId={selectedMerchantId}
           independentsOnly={independentsOnly} onIndependentsOnlyChange={setIndependentsOnly}
           onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}
       </div>

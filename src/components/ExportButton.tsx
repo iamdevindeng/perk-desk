@@ -5,9 +5,9 @@ import { useState, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { CSV_DOWNLOAD_REVOKE_DELAY_MS } from "@/lib/config";
 import { toCsv } from "@/lib/csv";
-import type { MerchantResult, Profile } from "@/lib/types";
+import type { MerchantResult, Profile, ResolvedBrand } from "@/lib/types";
 
-type ExportButtonProps = { merchants: MerchantResult[]; merchantStatus: Profile["merchantStatus"] };
+type ExportButtonProps = { merchants: MerchantResult[]; merchantStatus: Profile["merchantStatus"]; brands?: ResolvedBrand[] };
 
 function downloadFilename(): string {
   const date = new Date();
@@ -33,11 +33,11 @@ function downloadCsv(csv: string): void {
   }
 }
 
-export default function ExportButton({ merchants, merchantStatus }: ExportButtonProps): ReactElement {
+export default function ExportButton({ merchants, merchantStatus, brands = [] }: ExportButtonProps): ReactElement {
   const [errorMessage, setErrorMessage] = useState("");
   function exportMerchants(): void {
     setErrorMessage("");
-    try { downloadCsv(toCsv(merchants, merchantStatus)); }
+    try { downloadCsv(toCsv(merchants, merchantStatus, brands)); }
     catch { setErrorMessage("Could not export this list. Please try again."); }
   }
   return <div className="space-y-2">

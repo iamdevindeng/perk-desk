@@ -2,10 +2,11 @@
 // Shows merchant evidence, recruiting pitches, follow-up controls, and grouped research results.
 // Called by: the main page after a run; map selection highlights the matching card.
 import { useState, type ReactElement } from "react";
-import { DISTANCE_DECIMALS, METERS_PER_KILOMETER, RATING_DECIMALS } from "@/lib/config";
+import { BRAND_SHARES_VISIBLE, DISTANCE_DECIMALS, METERS_PER_KILOMETER, RATING_DECIMALS } from "@/lib/config";
+import { displayBrandName, displayHours } from "@/lib/merchant-display";
 import { getCategoryLabel } from "@/lib/data";
 import { scrollToElement } from "@/lib/page-navigation";
-import { MerchantStatusSchema, type MerchantResult, type MerchantStatus, type Profile, type RunResult } from "@/lib/types";
+import { MerchantStatusSchema, type MerchantResult, type MerchantStatus, type Profile, type ResolvedBrand, type RunResult } from "@/lib/types";
 import ExportButton from "@/components/ExportButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,10 @@ import { Switch } from "@/components/ui/switch";
 
 type MerchantCardProps = {
   merchant: MerchantResult; status: MerchantStatus; onStatusChange: (status: MerchantStatus) => void;
-  selected: boolean; onSelect: () => void;
+  selected: boolean; onSelect: () => void; brands?: ResolvedBrand[];
 };
 type MerchantResultsProps = {
-  result: RunResult; profile: Profile; selectedMerchantId?: string; independentsOnly: boolean;
+  result: RunResult; profile: Profile; brands?: ResolvedBrand[]; selectedMerchantId?: string; independentsOnly: boolean;
   onIndependentsOnlyChange: (value: boolean) => void; onSelectMerchant: (id: string) => void;
   onStatusChange: (merchant: MerchantResult, status: MerchantStatus) => void;
 };
@@ -42,7 +43,17 @@ function rankDescription(merchant: MerchantResult): string {
   return merchant.rankLift === 0 ? "Same position as baseline" : `+${merchant.rankLift} places vs. baseline`;
 }
 
-function MerchantFacts({ merchant }: { merchant: MerchantResult }): ReactElement {
+function BrandShares({ merchant, brands }: { merchant: MerchantResult; brands: ResolvedBrand[] }): ReactElement | null {
+  if (!merchant.tasteSignal || !merchant.brandShares.length) return null;
+  const shares = merchant.brandShares.toSorted((first, second) => second.sharePercent - first.sharePercent)
+    .map((share) => `${displayBrandName(share.brandName, brands)} ${share.sharePercent}%`);
+  const hidden = shares.slice(BRAND_SHARES_VISIBLE);
+  return <p>{shares.slice(0, BRAND_SHARES_VISIBLE).join(" · ")}
+    {hidden.length > 0 && <> · <span title={hidden.join(" · ")}>+{hidden.length} more</span></>}
+  </p>;
+}
+
+function MerchantFacts({ merchant, brands }: { merchant: MerchantResult; brands: ResolvedBrand[] }): ReactElement {
   const place = merchant.place;
   const website = safeWebLink(place.website);
   const maps = safeWebLink(merchant.googleMapsUrl);
@@ -50,7 +61,7 @@ function MerchantFacts({ merchant }: { merchant: MerchantResult }): ReactElement
     <div className="space-y-1">
       {place.address && <p>{place.address}</p>}
       {place.phone && <p>Phone: {place.phone}</p>}
-      {place.hoursText && <p><span className="font-medium text-slate-700">Hours:</span> {place.hoursText}</p>}
+      {place.hoursText && <p><span className="font-medium text-slate-700">Hours:</span> {displayHours(place.hoursText)}</p>}
       <div className="flex flex-wrap gap-4 text-teal-800">
         {website && <a href={website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Website ↗</a>}
         {maps && <a href={maps} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Google Maps ↗</a>}
@@ -58,7 +69,7 @@ function MerchantFacts({ merchant }: { merchant: MerchantResult }): ReactElement
     </div>
     <div className="space-y-1 rounded-lg bg-slate-50 p-3">
       <p className="font-medium text-slate-800">{rankDescription(merchant)}</p>
-      {merchant.tasteSignal && merchant.brandShares.length > 0 && <p>{merchant.brandShares.map((brand) => `${brand.brandName} ${brand.sharePercent}%`).join(" · ")}</p>}
+      <BrandShares merchant={merchant} brands={brands} />
       {place.businessRating !== undefined && <p>Business rating: {place.businessRating.toFixed(RATING_DECIMALS)} / 5</p>}
       {(place.tripadvisorRating !== undefined || place.tripadvisorCount !== undefined) && <p>Tripadvisor: {place.tripadvisorRating !== undefined ? `${place.tripadvisorRating.toFixed(RATING_DECIMALS)} / 5` : ""}{place.tripadvisorCount !== undefined ? ` ${place.tripadvisorRating !== undefined ? "· " : ""}${place.tripadvisorCount} reviews` : ""}</p>}
     </div>
@@ -91,7 +102,7 @@ function MerchantPitch({ merchant }: { merchant: MerchantResult }): ReactElement
   </div>;
 }
 
-export default function MerchantCard({ merchant, status, onStatusChange, selected, onSelect }: MerchantCardProps): ReactElement {
+export default function MerchantCard({ merchant, status, onStatusChange, selected, onSelect, brands = [] }: MerchantCardProps): ReactElement {
   return <Card id={`merchant-${merchant.place.entityId}`} tabIndex={0} role="article" aria-label={merchant.place.name}
     aria-current={selected ? "true" : undefined} onMouseEnter={onSelect} onFocus={onSelect} onClick={onSelect}
     onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") onSelect(); }}
@@ -108,7 +119,7 @@ export default function MerchantCard({ merchant, status, onStatusChange, selecte
       <p className="text-xs text-slate-500">{(merchant.distanceMeters / METERS_PER_KILOMETER).toFixed(DISTANCE_DECIMALS)} km from {merchant.branchName}</p>
     </CardHeader>
     <CardContent className="space-y-5">
-      <MerchantFacts merchant={merchant} />
+      <MerchantFacts merchant={merchant} brands={brands} />
       <MerchantPitch merchant={merchant} />
       <div className="space-y-2 border-t border-slate-100 pt-4">
         <Label htmlFor={`status-${merchant.place.entityId}`}>Follow-up status</Label>
@@ -139,7 +150,7 @@ function ResultNotes({ result, profile }: { result: RunResult; profile: Profile 
   </div>;
 }
 
-export function MerchantResults({ result, profile, selectedMerchantId, independentsOnly, onIndependentsOnlyChange, onSelectMerchant, onStatusChange }: MerchantResultsProps): ReactElement {
+export function MerchantResults({ result, profile, brands = [], selectedMerchantId, independentsOnly, onIndependentsOnlyChange, onSelectMerchant, onStatusChange }: MerchantResultsProps): ReactElement {
   const visible = result.merchants.filter((merchant) => !independentsOnly || !merchant.multiLocation);
   const groups = new Map<string, MerchantResult[]>();
   for (const merchant of visible) groups.set(merchant.branchId, [...(groups.get(merchant.branchId) ?? []), merchant]);
@@ -159,14 +170,14 @@ export function MerchantResults({ result, profile, selectedMerchantId, independe
       <CardContent className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Label className="flex items-center gap-2"><Switch checked={independentsOnly} onCheckedChange={onIndependentsOnlyChange} />Independents only</Label>
-          <ExportButton merchants={visible} merchantStatus={profile.merchantStatus} />
+          <ExportButton merchants={visible} merchantStatus={profile.merchantStatus} brands={brands} />
         </div>
         <ResultNotes result={result} profile={profile} />
       </CardContent>
     </Card>
     {[...groups].map(([branchId, merchants]) => <section key={branchId} aria-label={merchants[0].branchName} className="space-y-4">
       <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">{merchants[0].branchName}<Badge variant="secondary">{merchants.length}</Badge></h3>
-      {merchants.map((merchant) => <MerchantCard key={merchant.place.entityId} merchant={merchant}
+      {merchants.map((merchant) => <MerchantCard key={merchant.place.entityId} merchant={merchant} brands={brands}
         status={profile.merchantStatus[merchant.place.entityId]?.status ?? "to_contact"} onStatusChange={(status) => onStatusChange(merchant, status)}
         selected={selectedMerchantId === merchant.place.entityId} onSelect={() => onSelectMerchant(merchant.place.entityId)} />)}
     </section>)}

@@ -102,7 +102,9 @@ function formatInterval(raw: unknown): string | undefined {
   if (interval.data.closed) return "closed";
   const clockPattern = /^T?((?:[01]\d|2[0-3]):[0-5]\d)(?::[0-5]\d)?$/;
   const opens = clockPattern.exec(interval.data.opens ?? "")?.[1];
-  const closes = clockPattern.exec(interval.data.closes ?? "")?.[1];
+  // Midnight at the end of a day may use 24:00, but opening times still use the ordinary clock.
+  const closes = clockPattern.exec(interval.data.closes ?? "")?.[1]
+    ?? (/^T?24:00(?::00)?$/.test(interval.data.closes ?? "") ? "24:00" : undefined);
   return opens && closes ? `${opens}–${closes}` : undefined;
 }
 
@@ -131,6 +133,7 @@ export function formatHours(hours: unknown): string | undefined {
     }
   }
   if (!groups.length) return undefined;
+  if (groups.every((group) => group.hours === "00:00–00:00" || group.hours === "00:00–24:00")) return "Open 24 hours";
   return groups.map((group) => {
     const dayRange = group.start === group.end ? DAY_LABELS[group.start] : `${DAY_LABELS[group.start]}–${DAY_LABELS[group.end]}`;
     return `${dayRange} ${group.hours}`;

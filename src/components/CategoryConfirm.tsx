@@ -3,6 +3,7 @@
 // Called by: the main page after planning and before Confirm & find merchants.
 import type { ReactElement } from "react";
 import { CATEGORY_EVIDENCE_VISIBLE, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { displayBrandName } from "@/lib/merchant-display";
 import { getCategoryDefaults } from "@/lib/data";
 import type { CategoryTag, PlannedCategory, PlanResponse, ResolvedBrand } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -20,17 +21,18 @@ type BrandChoiceProps = {
   brand: ResolvedBrand; selectedId: string; disabled: boolean; onChange: (entityId: string) => void;
 };
 type CategoryChoiceProps = {
-  category: CategoryTag; planned?: PlannedCategory; selected: boolean; disabled: boolean; onToggle: () => void;
+  category: CategoryTag; planned?: PlannedCategory; brands: ResolvedBrand[]; selected: boolean; disabled: boolean; onToggle: () => void;
 };
 
 function BrandChoice({ brand, selectedId, disabled, onChange }: BrandChoiceProps): ReactElement {
+  const name = displayBrandName(brand.name, [brand]);
   const canSwitch = ["agent", "fallback", "user"].includes(brand.matchKind) && brand.candidates.length > 0;
   return <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <span className="text-sm font-medium text-slate-800">{brand.name}</span>
+      <span className="text-sm font-medium text-slate-800">{name}</span>
       <Badge variant="outline">{brand.matchKind === "user" ? "Your choice" : `${brand.matchKind} match`}</Badge>
     </div>
-    {brand.inputName !== brand.name && <p className="text-xs text-slate-500">You entered: {brand.inputName}</p>}
+    {brand.inputName !== name && <p className="text-xs text-slate-500">You entered: {brand.inputName}</p>}
     {canSwitch && <Label className="space-y-1.5 text-xs text-slate-600">
       <span>Choose the brand you meant</span>
       <Select value={selectedId} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
@@ -40,28 +42,28 @@ function BrandChoice({ brand, selectedId, disabled, onChange }: BrandChoiceProps
   </div>;
 }
 
-function CategoryEvidence({ planned }: { planned?: PlannedCategory }): ReactElement {
+function CategoryEvidence({ planned, brands }: { planned?: PlannedCategory; brands: ResolvedBrand[] }): ReactElement {
   if (!planned) return <p className="text-xs leading-relaxed text-slate-500">Added by you. Research will check local options in this category.</p>;
   const extraCount = planned.evidence.length - CATEGORY_EVIDENCE_VISIBLE;
   return <div className="space-y-2">
-    <EvidenceList evidence={planned.evidence.slice(0, CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} />
+    <EvidenceList evidence={planned.evidence.slice(0, CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} brands={brands} />
     {extraCount > 0 && <details>
       <summary className="cursor-pointer text-xs font-medium text-teal-800">+{extraCount} more</summary>
-      <div className="mt-2"><EvidenceList evidence={planned.evidence.slice(CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} /></div>
+      <div className="mt-2"><EvidenceList evidence={planned.evidence.slice(CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} brands={brands} /></div>
     </details>}
   </div>;
 }
 
-function EvidenceList({ evidence, label }: { evidence: PlannedCategory["evidence"]; label: string }): ReactElement {
+function EvidenceList({ evidence, label, brands }: { evidence: PlannedCategory["evidence"]; label: string; brands: ResolvedBrand[] }): ReactElement {
   return <ul className="space-y-2 text-xs leading-relaxed text-slate-600">
     {evidence.map((item, index) => <li key={index} className="break-words">
-      {"brandEntityId" in item ? <><span className="font-medium">{item.brandName}</span> → {item.brandTagName} → {label}: {item.reason}</>
+      {"brandEntityId" in item ? <><span className="font-medium">{displayBrandName(item.brandName, brands)}</span> → {item.brandTagName} → {label}: {item.reason}</>
         : <><span className="font-medium">{item.kind === "preference" ? "Saved preference" : "Default suggestion"}</span>: {item.reason}</>}
     </li>)}
   </ul>;
 }
 
-function CategoryChoice({ category, planned, selected, disabled, onToggle }: CategoryChoiceProps): ReactElement {
+function CategoryChoice({ category, planned, brands, selected, disabled, onToggle }: CategoryChoiceProps): ReactElement {
   const source = !planned ? "You added" : planned.evidence.some((item) => item.kind === "agent") ? "Brand evidence"
     : planned.evidence.some((item) => item.kind === "rule") ? "Rule"
       : planned.evidence.some((item) => item.kind === "preference") ? "Saved preference" : "Default suggestion";
@@ -78,7 +80,7 @@ function CategoryChoice({ category, planned, selected, disabled, onToggle }: Cat
           aria-label={`Remove ${category.label}`}><span aria-hidden="true">×</span></Button>}
       </div>
     </div>
-    <CategoryEvidence planned={planned} />
+    <CategoryEvidence planned={planned} brands={brands} />
   </div>;
 }
 
@@ -149,7 +151,7 @@ export default function CategoryConfirm({
         {visibleCategories.map((category) => {
           const selected = confirmedCategories.some((existing) => existing.tagId === category.tagId);
           return <CategoryChoice key={category.tagId} category={category} planned={plan.categories.find((planned) => planned.tagId === category.tagId)}
-            selected={selected} disabled={editsDisabled || (!selected && atLimit)} onToggle={() => toggleCategory(category)} />;
+            selected={selected} brands={plan.brands} disabled={editsDisabled || (!selected && atLimit)} onToggle={() => toggleCategory(category)} />;
         })}
         {!visibleCategories.length && <p className="text-sm text-slate-500">{missingContext
           ? "No categories are ready. Check the member brands and branch locations, then plan again."

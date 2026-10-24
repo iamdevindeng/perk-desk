@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import CategoryConfirm from "@/components/CategoryConfirm";
 import { compactCategoryEvidence } from "@/lib/agent/guards";
 import type { CategoryEvidence } from "@/lib/types";
-import { FAKE_CATEGORY, FAKE_EVIDENCE, FAKE_PLAN_RESPONSE } from "../fixtures/fake-plan";
+import { FAKE_CATEGORY, FAKE_EVIDENCE, FAKE_PLAN_RESPONSE, FAKE_RESOLVED_BRAND } from "../fixtures/fake-plan";
 
 function evidence(tagId: string, tagName: string, reason = "Observed tag supports this category."): typeof FAKE_EVIDENCE {
   return { ...FAKE_EVIDENCE, brandTagId: tagId, brandTagName: tagName, reason };
@@ -133,4 +133,36 @@ describe("category evidence confirmation", () => {
     expect(html).not.toContain("Default suggestion");
     expect(html).not.toContain("Saved preference");
   });
+});
+
+it("uses the input alias in recognized brands and category evidence for an expanded name", () => {
+  const brand = { ...FAKE_RESOLVED_BRAND, inputName: "REI", name: "Recreational Equipment Inc" };
+  const record = { ...FAKE_EVIDENCE, brandName: brand.name };
+  const plan = { ...FAKE_PLAN_RESPONSE, brands: [brand], categories: [{ ...FAKE_CATEGORY, evidence: [record] }] };
+  const markup = renderToStaticMarkup(createElement(CategoryConfirm, {
+    plan, confirmedCategories: plan.categories, brandOverrides: {}, onChange: vi.fn(),
+    onBrandOverride: vi.fn(), onReplan: vi.fn(), onConfirm: vi.fn(),
+  }));
+  expect(markup).toContain(">REI</span>");
+  expect(markup).not.toContain(brand.name);
+  expect(plan.brands[0].name).toBe(brand.name);
+  expect(plan.categories[0].evidence[0].brandName).toBe(brand.name);
+});
+
+it("keeps candidate option names distinct while shortening only the chosen brand heading", () => {
+  const candidates = [
+    { ...FAKE_RESOLVED_BRAND.candidates[0], name: "Fake Brand Inc" },
+    { ...FAKE_RESOLVED_BRAND.candidates[0], entityId: "00000000-0000-4000-8000-000000000009", name: "Fake Brand Sports" },
+  ];
+  const brand = { ...FAKE_RESOLVED_BRAND, inputName: "Fake Brand", name: "Fake Brand Inc", matchKind: "user" as const, candidates };
+  const plan = { ...FAKE_PLAN_RESPONSE, brands: [brand] };
+  const markup = renderToStaticMarkup(createElement(CategoryConfirm, {
+    plan, confirmedCategories: plan.categories, brandOverrides: {}, onChange: vi.fn(),
+    onBrandOverride: vi.fn(), onReplan: vi.fn(), onConfirm: vi.fn(),
+  }));
+  const options = markup.match(/<option\b[^>]*>[^<]*<\/option>/g) ?? [];
+  expect(markup).toContain(">Fake Brand</span>");
+  for (const candidate of candidates) {
+    expect(options.find((option) => option.includes(`value="${candidate.entityId}"`))).toContain(`>${candidate.name}</option>`);
+  }
 });
