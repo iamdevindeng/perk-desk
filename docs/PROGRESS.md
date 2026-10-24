@@ -1174,3 +1174,26 @@ Verification: all checks passed; 1000 offline tests / 69 files. One first-pass p
 Decisions I made: trust only the existing structured server error envelope; malformed HTTP bodies and transport errors use static safe text. Independent review found no blocking issues.
 
 Open issues: none.
+
+## R23 — Add response security headers (2026-10-24)
+
+Status: DONE
+
+- Added the five requested response headers to every path through Next configuration.
+- Limited Content-Security-Policy to frame-ancestors and added no CORS headers.
+- Tested exact values and path coverage; checked the installed Next headers guide before implementation.
+
+Files touched / staged list (before this log):
+```text
+ next.config.ts                      | 10 +++++++++-
+ tests/unit/security-headers.test.ts | 21 +++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1001 offline tests / 70 files. No live calls or deployment.
+
+Decisions I made: none beyond the specified headers. Cache requests and keys remain unchanged.
+
+Open issues: none.
