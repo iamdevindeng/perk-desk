@@ -17,7 +17,7 @@ Codex appends one section per task (AGENTS.md §3). Never delete earlier entries
 | T9 Confirm + trace | DONE | `b0df1a5` | Explicit confirmation and six-step trace |
 | T10 Cards, map, CSV, status | PARTIAL | `75c7388` | Implemented; native spreadsheet opening unverified |
 | T11 Eval | DONE | `2766908` | 15/15 hits after one prompt refinement |
-| T12 Smoke + summary | DONE | `T12 commit` | Agent/fallback smoke and missing-key exit verified |
+| T12 Smoke + summary | DONE | `2b10196` | Agent/fallback smoke and missing-key exit verified |
 
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
@@ -79,6 +79,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - T12: The npm smoke command uses a POSIX file-presence conditional so a missing `.env.local` reaches the required missing-key exit 2. This avoids a new dependency and stays compatible with Node 20.9; macOS/Linux or WSL is required. Empty plans or merchant lists fail the smoke check rather than reporting a false success.
 - T12: Preserve the specified first-candidate fallback for ambiguous brands; document the observed REI ambiguity instead of adding an unrequested alias heuristic. The UI exposes candidate correction before research.
+
+- X1: Both CSV and text uploads interpret columns; comma-containing names must be quoted. Import replaces the visible editable list, skips a first name/merchant/brand header, and shares existing dedupe/list limits. Normalize embedded cell line breaks to spaces. Reject malformed/empty or oversized files without clearing existing text; cap uploads at 1 MiB.
 
 ## Review guide
 
@@ -357,3 +359,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: forced fallback selected Real Madrid CF for the ambiguous input REI, following the documented first-candidate rule; agent mode selected Recreational Equipment Inc correctly. Users must inspect and correct recognized brands before confirming. This exposes a fallback relevance limit, not a failed pipeline. CSV spreadsheet opening and shadcn registry installation remain the earlier PARTIAL items. Timing comparisons are observations, not performance guarantees.
 - New dependencies: none.
 - For Devin: push/deploy/resources/judge code and broader browser review are listed above; all remain owner actions.
+
+### X1: CSV/text upload for editable lists — DONE
+- Date/time (UTC+8): 2026-10-24 10:53
+- What was done:
+  - Added accessible CSV/text inputs beside signed-merchant and member-brand paste boxes.
+  - Added first-column parsing for quoted/escaped/multiline CSV, header skipping, trimming, deduplication, and list limits.
+  - Added readable errors, file-size guards, same-file retry, and protection against stale reads overwriting newer input.
+  - Kept imported text visible and editable, including the existing over-10-brand validation.
+- Files touched: `src/components/{ProfileForm,TasteInput}.tsx`, `src/lib/{config,request-builders}.ts`, `tests/unit/uploaded-list.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run dev
+  ```
+  Import a small CSV/text file into each list; inspect and edit the resulting first-column names.
+- Verification: PASS (397 tests, production build, lint, rules). Parser coverage includes mixed line endings, quoted commas/quotes, multiline cells, headers, empty data, malformed quotes, deduplication, and cap behavior.
+- Live checks: browser imported one handwritten fake CSV into both fields; each displayed three expected names, preserved a quoted comma and escaped quotes, and the brand count showed 3/10. No API research was requested for this check.
+- Open issues / decisions: uploads use CSV syntax even for .txt; ordinary pasted text remains one name per line and retains unquoted commas. Business-member upload arrives with X2's new field.
+- New dependencies: none.
+- For Devin: no new owner-only action.

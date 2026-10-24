@@ -23,6 +23,59 @@ function validOverrides(brandNames: string[], overrides: Record<string, string>)
     brandNames.includes(name) && EntityIdSchema.safeParse(entityId).success));
 }
 
+type UploadedCell = { value: string; nextIndex: number; rowEnded: boolean };
+
+function readUploadedCell(text: string, start: number): UploadedCell {
+  let value = "";
+  let insideQuotes = false;
+  let quoteClosed = false;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (insideQuotes) {
+      if (character !== '"') { value += character; continue; }
+      if (text[index + 1] === '"') { value += '"'; index += 1; continue; }
+      insideQuotes = false;
+      quoteClosed = true;
+      continue;
+    }
+    if ([",", "\r", "\n"].includes(character)) {
+      const nextIndex = index + (character === "\r" && text[index + 1] === "\n" ? 2 : 1);
+      return { value, nextIndex, rowEnded: character !== "," };
+    }
+    if (character === '"') {
+      if (value.trim() || quoteClosed) throw new Error("Invalid CSV quoting in uploaded list.");
+      value = "";
+      insideQuotes = true;
+      continue;
+    }
+    if (quoteClosed && character.trim()) throw new Error("Invalid CSV quoting in uploaded list.");
+    if (!quoteClosed) value += character;
+  }
+  if (insideQuotes) throw new Error("Unclosed quoted field in uploaded list.");
+  return { value, nextIndex: text.length, rowEnded: true };
+}
+
+function uploadedFirstColumn(text: string): string[] {
+  const values: string[] = [];
+  let nextIndex = 0;
+  let firstColumn = true;
+  while (nextIndex < text.length) {
+    const cell = readUploadedCell(text, nextIndex);
+    if (firstColumn) values.push(cell.value);
+    firstColumn = cell.rowEnded;
+    nextIndex = cell.nextIndex;
+  }
+  return values;
+}
+
+export function parseUploadedList(text: string): string[] {
+  // CSV and text uploads both use columns: quote names containing commas (TASKS.md X1).
+  const names = uploadedFirstColumn(text).map((value) => value.replace(/\r\n|\r|\n/g, " ").trim()).filter(Boolean);
+  if (names.length && /^(name|merchant|brand)$/i.test(names[0])) names.shift();
+  // A multiline cell is one pasted name, never several merchants; share normal list limits.
+  return parseListText(names.join("\n"));
+}
+
 export function buildPlanRequest(
   profile: Profile, brandsText: string, presetId?: string, brandOverrides: Record<string, string> = {},
 ): PlanRequest {

@@ -78,3 +78,4 @@ export const MAP_BOUNDS_PADDING = 36;
 export const EVAL_TIMEOUT_MS = 900000;
 export const EVAL_MIN_HIT_RATE = 0.5;
 export const EVAL_METRIC_DECIMALS = 3;
+export const UPLOAD_MAX_BYTES = 1048576;
