@@ -27,7 +27,8 @@ const eslintConfig = defineConfig([
   {
     files: ["src/components/**/*.tsx", "src/app/page.tsx", "src/lib/profile-storage.ts", "src/lib/run-client.ts", "src/lib/request-builders.ts", "src/lib/csv.ts"],
     rules: { "no-restricted-imports": ["error", { patterns: [{
-      group: ["@/lib/env", "@/lib/qloo/*", "@/lib/agent/*", "@/lib/store/*", "@/lib/fallback/*", "@/lib/merchants/*"],
+      // This exact helper only transforms result data; other merchant modules remain server-only.
+      group: ["@/lib/env", "@/lib/qloo/*", "@/lib/agent/*", "@/lib/store/*", "@/lib/fallback/*", "@/lib/merchants/*", "!@/lib/merchants/dedupe"],
       message: "Client code must not import server code (ARCHITECTURE §2).",
     }] }] },
   },

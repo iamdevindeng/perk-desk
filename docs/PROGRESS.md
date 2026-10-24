@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R20: re-warm Austin once after deploy if a full ten-card cached demo is wanted; the client removes its duplicate immediately. R27 will also handle stale category caches.
+
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
 
 - [ ] R6: review R16–R29 local commits and authorize a push after completion. No push or deployment is authorized by this request.
@@ -1088,3 +1090,34 @@ Verification: all checks passed; 977 offline tests / 67 files. React accessibili
 Decisions I made: added the single-purpose src/lib/page-navigation.ts helper inside the existing lib directory to keep the page within readability limits; this is a documented addition to the architecture file list. Navigation is consumed after React commits, so headings exist before scrolling. The map link targets its stable wrapper to support lazy loading.
 
 Open issues: none for R19.
+
+## R20 — One merchant name per shortlist (2026-10-24)
+
+Devin: re-warm Austin once after deploy if a full ten-card cached demo is wanted. Existing cached results lose their duplicate at render time; no remote cache was changed.
+
+Status: DONE
+
+- Deduplicated normalized merchant names across categories and locations before branch balancing, retaining the better compareCandidates entry.
+- Backfilled from distinct remaining candidates to keep ten merchants when available.
+- Added a pure render-time dedupe used by the page for both live and cached results.
+- Verified cards, map and CSV receive the same deduplicated list, with order and inputs preserved.
+
+Files touched / staged list (before this log):
+```text
+ eslint.config.mjs                   |  3 ++-
+ src/app/page.tsx                    |  3 ++-
+ src/lib/merchants/dedupe.ts         | 16 ++++++++++++++++
+ src/lib/merchants/shortlist.ts      | 16 ++++++++++++++--
+ tests/unit/dedupe-merchants.test.ts | 36 ++++++++++++++++++++++++++++++++++++
+ tests/unit/page-races.test.ts       | 19 ++++++++++++++++++-
+ tests/unit/shortlist.test.ts        | 32 ++++++++++++++++++++++++++++++++
+ 7 files changed, 120 insertions(+), 5 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 983 offline tests / 68 files. No live calls or cache mutations.
+
+Decisions I made: the existing nearest-branch rule still resolves multiple sightings of the same entity before comparing distinct same-name locations. Added only an exact ESLint import exception for the requested pure dedupe module; all other server boundaries and privacy checks remain enforced. Cache keys and request shapes are unchanged.
+
+Open issues: the existing Austin cache can render nine unique merchants until refreshed after deployment.

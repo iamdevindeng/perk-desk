@@ -2,6 +2,7 @@
 // Called by: npm test
 import { describe, expect, it } from "vitest";
 import { buildShortlist } from "@/lib/merchants/shortlist";
+import { normalizeName } from "@/lib/merchants/name-match";
 import type { MerchantCandidate } from "@/lib/types";
 import { FAKE_BRANCHES, FAKE_CATEGORIES, makeFakeCandidate, makeFakePlace } from "../fixtures/fake-places";
 
@@ -86,5 +87,36 @@ describe("balanced shortlist", () => {
     expect(buildShortlist(new Map(), FAKE_BRANCHES)).toEqual([]);
     expect(buildShortlist(plentyOfCandidates(), [])).toEqual([]);
     expect(buildShortlist(plentyOfCandidates(), FAKE_BRANCHES, 0)).toEqual([]);
+  });
+
+  it("keeps the best normalized name across branches and categories and backfills ten merchants", () => {
+    const branches = FAKE_BRANCHES.slice(0, 2);
+    const lower = makeFakeCandidate(12, { score: 0.99, branchId: branches[0].id,
+      place: makeFakePlace(12, { name: "The Fake Harbor Co." }) });
+    const higher = makeFakeCandidate(13, { score: 1, branchId: branches[1].id,
+      categoryTagId: FAKE_CATEGORIES[1].tagId, categoryLabel: FAKE_CATEGORIES[1].label,
+      place: makeFakePlace(13, { name: "Fake Harbor LLC" }) });
+    const northern = Array.from({ length: 3 }, (_, index) => makeFakeCandidate(index + 1, { score: 0.8, branchId: branches[0].id }));
+    const southern = Array.from({ length: 8 }, (_, index) => makeFakeCandidate(index + 4, {
+      score: 0.8, branchId: branches[1].id, categoryTagId: FAKE_CATEGORIES[1].tagId,
+    }));
+    const result = buildShortlist(new Map([
+      [FAKE_CATEGORIES[0].tagId, [lower, ...northern]], [FAKE_CATEGORIES[1].tagId, [higher, ...southern]],
+    ]), branches);
+    expect(result).toHaveLength(10);
+    expect(new Set(result.map((merchant) => normalizeName(merchant.place.name))).size).toBe(10);
+    expect(result).toContain(higher);
+    expect(result).not.toContain(lower);
+    expect(result.filter((merchant) => merchant.branchId === branches[0].id)).toHaveLength(3);
+    expect(result.filter((merchant) => merchant.branchId === branches[1].id)).toHaveLength(7);
+  });
+
+  it("uses taste-signal precedence when choosing between names at different locations", () => {
+    const baseline = makeFakeCandidate(1, { tasteSignal: false, score: 1, place: makeFakePlace(1, { name: "Fake Harbor" }) });
+    const taste = makeFakeCandidate(2, { tasteSignal: true, score: 0.01, branchId: FAKE_BRANCHES[1].id,
+      categoryTagId: FAKE_CATEGORIES[1].tagId, place: makeFakePlace(2, { name: "The Fake Harbor LLC" }) });
+    expect(buildShortlist(new Map([
+      [FAKE_CATEGORIES[0].tagId, [baseline]], [FAKE_CATEGORIES[1].tagId, [taste]],
+    ]), FAKE_BRANCHES)).toEqual([taste]);
   });
 });

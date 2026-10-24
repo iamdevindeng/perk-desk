@@ -1,6 +1,7 @@
 // Selects a balanced, unique shortlist across branches and merchant categories.
 // Called by: research orchestration and tests/unit/shortlist.test.ts
 import { SHORTLIST_TOTAL } from "@/lib/config";
+import { normalizeName } from "@/lib/merchants/name-match";
 import { assignNearestBranch, compareCandidates } from "@/lib/merchants/scoring";
 import type { Branch, MerchantCandidate } from "@/lib/types";
 
@@ -38,6 +39,16 @@ function balanceBranches(choicesByBranch: MerchantCandidate[][], total: number):
   return selected;
 }
 
+function uniqueMerchantNames(candidates: MerchantCandidate[]): MerchantCandidate[] {
+  const bestByName = new Map<string, MerchantCandidate>();
+  for (const candidate of candidates) {
+    const name = normalizeName(candidate.place.name);
+    const current = bestByName.get(name);
+    if (!current || compareCandidates(candidate, current) < 0) bestByName.set(name, candidate);
+  }
+  return [...bestByName.values()];
+}
+
 export function buildShortlist(
   candidatesByCategory: Map<string, MerchantCandidate[]>,
   branches: Branch[],
@@ -46,8 +57,9 @@ export function buildShortlist(
   const limit = Math.max(0, Math.floor(total));
   if (!limit || !branches.length) return [];
   const branchIds = new Set(branches.map((branch) => branch.id));
-  const candidates = assignNearestBranch([...candidatesByCategory.values()].flat()
-    .filter((candidate) => branchIds.has(candidate.branchId)));
+  // Choose the strongest location before branch balancing so backfill cannot reintroduce a duplicate name.
+  const candidates = uniqueMerchantNames(assignNearestBranch([...candidatesByCategory.values()].flat()
+    .filter((candidate) => branchIds.has(candidate.branchId))));
   const quota = Math.ceil(limit / branches.length);
   const choices = branches.map((branch) => branchChoices(candidates.filter((candidate) => candidate.branchId === branch.id), quota));
   const selected = balanceBranches(choices, limit);

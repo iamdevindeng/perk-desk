@@ -12,6 +12,7 @@ import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_RADIUS_M, LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
+import { dedupeMerchants } from "@/lib/merchants/dedupe";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
@@ -112,7 +113,7 @@ function useResearch(input: ResearchInputs) {
       await streamRun(request, (event) => {
         if (requestVersion !== versionRef.current) return;
         setRunEvents((previous) => [...previous, event]);
-        if (event.type === "result") { setResult(event.result); succeeded = true; input.navigation.navigate("merchant-results-heading"); }
+        if (event.type === "result") { setResult(dedupeMerchants(event.result)); succeeded = true; input.navigation.navigate("merchant-results-heading"); }
       });
     } catch (error) {
       if (requestVersion !== versionRef.current) return;

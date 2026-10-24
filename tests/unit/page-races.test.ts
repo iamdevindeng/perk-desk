@@ -1,9 +1,10 @@
 // Exercises map locking and late plan/run success, failure, and unmount races against the real page.
 // Called by: npm test; fake React hooks and deferred transports keep every scenario offline
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Profile } from "@/lib/types";
+import type { Profile, RunResult } from "@/lib/types";
 import Home from "@/app/page";
 import { saveProfile } from "@/lib/profile-storage";
+import { toCsv } from "@/lib/csv";
 import { FAKE_BRAND, FAKE_PLAN_RESPONSE, FAKE_PROFILE, FAKE_RUN_RESULT } from "../fixtures/fake-plan";
 import { elementProps, findElement, flushPage, invoke, pageHarness, renderPage, resetPage, unmountPage } from "../fixtures/page-harness";
 
@@ -113,4 +114,20 @@ describe("invalidated requests", () => {
     if (operation === "run") finishRun(0); else pageHarness.plans[0].resolve(FAKE_PLAN_RESPONSE);
     await flushPage(); expect(pageHarness.changes).toBe(changes);
   });
+});
+
+it("uses one deduplicated result for merchant cards, map markers, and the exported list", async () => {
+  await confirmPlan(); invoke(props("CategoryConfirm").onConfirm);
+  const first = FAKE_RUN_RESULT.merchants[0];
+  const duplicate = { ...first, branchId: "fake-other", categoryTagId: "urn:tag:category:place:bakery",
+    place: { ...first.place, entityId: "00000000-0000-4000-8000-000000000009", name: "The Fake Corner Cafe LLC" } };
+  const different = { ...first, place: { ...first.place, entityId: "00000000-0000-4000-8000-000000000010", name: "Fake Bookshop" } };
+  const replayed = { ...FAKE_RUN_RESULT, merchants: [first, duplicate, different] };
+  pageHarness.runs[0].emit({ type: "result", at: 1, result: replayed });
+  pageHarness.runs[0].emit({ type: "done", at: 2 }); pageHarness.runs[0].resolve(); await flushPage();
+  const displayed = props("MerchantResults").result as RunResult;
+  expect(displayed.merchants).toEqual([first, different]);
+  expect(props("MerchantMap").merchants).toEqual(displayed.merchants);
+  expect(toCsv(displayed.merchants, FAKE_PROFILE.merchantStatus).trim().split("\r\n")).toHaveLength(3);
+  expect(replayed.merchants).toHaveLength(3);
 });
