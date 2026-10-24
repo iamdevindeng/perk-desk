@@ -112,7 +112,7 @@ export default function MerchantMap({ center, branches, merchants, selectedMerch
     <p role="status" className={onPickLocation ? "bg-teal-50 px-5 py-3 text-sm font-medium text-teal-800" : "sr-only"}>
       {onPickLocation ? "Click the map to set the selected branch location." : "Map location picking is off."}
     </p>
-    {L.Browser.mobile && <p className="px-5 py-2 text-xs text-slate-500">Use two fingers to move the map</p>}
+    {L.Browser.mobile && <p className="px-5 py-2 text-xs text-slate-500">Pinch to zoom. Use the list below to browse merchants.</p>}
     <MapContainer center={[center.lat, center.lon]} zoom={center.zoom ?? MAP_DEFAULT_ZOOM}
       scrollWheelZoom={false} dragging={!L.Browser.mobile} touchZoom={L.Browser.mobile} zoomControl={true}
       className="z-0 w-full" style={{ height: "min(540px, 70vh)", cursor: onPickLocation ? "crosshair" : undefined }}>

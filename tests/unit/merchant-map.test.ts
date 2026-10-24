@@ -44,7 +44,7 @@ describe.each([false, true])("map controls with mobile=%s", (mobile) => {
     const markup = renderMap();
     expect(mapState.containers.at(-1)).toMatchObject({ scrollWheelZoom: false, dragging: !mobile, touchZoom: mobile });
     expect(mapState.containers.at(-1)!.zoomControl).not.toBe(false);
-    expect(markup.includes("Use two fingers to move the map")).toBe(mobile);
+    expect(markup.includes("Pinch to zoom. Use the list below to browse merchants.")).toBe(mobile);
   });
 
   it("passes clicked coordinates only while branch location picking is enabled", () => {

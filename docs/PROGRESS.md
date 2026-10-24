@@ -1482,3 +1482,26 @@ Verification: all checks passed; 1153 offline tests / 79 files, including every 
 Decisions I made: exclude exactly two-letter city tokens as requested; keep explicit retail qualifiers separate. No preset data or cache identity changes.
 
 Open issues: none. No push or remote action.
+
+## R34 — Correct the mobile map hint (2026-10-24)
+
+Status: DONE
+
+- Changed the mobile hint to: Pinch to zoom. Use the list below to browse merchants.
+- Updated the existing mobile-only rendering assertion.
+- Retained scrolling, dragging, touch zoom, zoom buttons, and branch-picking behavior.
+
+Files touched / staged list (before this log):
+```text
+ src/components/MerchantMap.tsx  | 2 +-
+ tests/unit/merchant-map.test.ts | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1153 offline tests / 79 files. Existing component tests cover desktop/mobile text, map controls, and branch-picking callbacks. Production build used local worker permission and cleared provider keys. No live provider calls.
+
+Decisions I made: use the exact requested wording in the existing wrapping paragraph. Only text and its assertion changed; no layout or interaction changes. Physical-device layout was not retested.
+
+Open issues: none for the requested change. No push or remote action.
