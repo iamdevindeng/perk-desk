@@ -81,7 +81,7 @@ function PlanNotes({ plan }: { plan: PlanResponse }): ReactElement | null {
   if (!plan.unresolved.length && !plan.warnings.length && !plan.message) return null;
   return <div className="space-y-2 rounded-lg bg-amber-50 p-4 text-sm leading-relaxed text-amber-950" role="status">
     {plan.message && <p>{plan.message}</p>}
-    {plan.unresolved.length > 0 && <p>Not recognized: {plan.unresolved.join(", ")}</p>}
+    {plan.unresolved.length > 0 && <p>Needs your review: {plan.unresolved.join(", ")}. Choose a matching candidate below or edit the brand names and plan again.</p>}
     {plan.warnings.length > 0 && <ul className="list-disc space-y-1 pl-4">{plan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
   </div>;
 }
@@ -115,6 +115,14 @@ export default function CategoryConfirm({
         <div className="grid gap-2 sm:grid-cols-2">{plan.brands.map((brand) => <BrandChoice key={brand.inputName} brand={brand}
           selectedId={brandOverrides[brand.inputName] ?? brand.entityId} disabled={disabled}
           onChange={(entityId) => onBrandOverride(brand.inputName, entityId)} />)}</div>
+        {(plan.ambiguousBrands ?? []).map((brand) => <Label key={brand.inputName} className="block space-y-2 text-sm">
+          <span>Choose the brand you meant by {brand.inputName}</span>
+          <Select value={brandOverrides[brand.inputName] ?? ""} disabled={disabled}
+            onChange={(event) => onBrandOverride(brand.inputName, event.target.value)}>
+            <option value="" disabled>No matching name — choose a brand</option>
+            {brand.candidates.map((candidate) => <option key={candidate.entityId} value={candidate.entityId}>{candidate.name}</option>)}
+          </Select>
+        </Label>)}
         {needsReplan && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-teal-50 p-3">
           <p className="text-sm text-teal-900">Update the plan to refresh evidence for your new brand choice.</p>
           <Button variant="outline" disabled={disabled} onClick={onReplan}>Re-plan with this brand</Button>

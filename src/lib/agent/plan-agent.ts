@@ -10,7 +10,7 @@ import { buildResolveBrandsTool, resolveBrandNames } from "@/lib/agent/tools/res
 import { buildSearchCategoriesTool } from "@/lib/agent/tools/search-categories";
 import { findPreset, getCities } from "@/lib/data";
 import { hasDeepSeekKey, isAgentDisabled } from "@/lib/env";
-import { buildFallbackPlan } from "@/lib/fallback/fallback-plan";
+import { buildFallbackPlan, chooseFallbackBrands } from "@/lib/fallback/fallback-plan";
 import { createQlooError } from "@/lib/qloo/client";
 import { resolveLocality } from "@/lib/qloo/insights";
 import { PlanRequestSchema, PlanResponseSchema, ResolvedBrandSchema, type Branch, type PlanRequest, type PlanResponse, type TraceEvent } from "@/lib/types";
@@ -114,18 +114,19 @@ async function completeBrandResolution(context: PlanContext): Promise<void> {
   for (const name of context.request.brandNames) {
     if (context.brandsByInput.has(name)) continue;
     await resolveBrandNames([name], context);
-    const resolution = context.brandsByInput.get(name);
-    if (resolution && !resolution.chosen && resolution.candidates.length) {
-      resolution.chosen = [...resolution.candidates].sort((first, second) => second.popularity - first.popularity)[0];
-      resolution.matchKind = "fallback";
-    }
   }
   if (context.fatalError) throw context.fatalError;
+  const chosenIds = new Set(chooseFallbackBrands(context).map((brand) => brand.entityId));
+  // An implicit first-candidate choice must not survive through an earlier partial plan.
+  if (context.plan) context.plan = context.plan.map((category) => ({ ...category,
+    evidence: category.evidence.filter((item) => chosenIds.has(item.brandEntityId)),
+  })).filter((category) => category.evidence.length);
 }
 
 async function completePlan(context: PlanContext, reason: string | null): Promise<PlanResponse["mode"]> {
   if (context.fatalError) throw context.fatalError;
   await completeBrandResolution(context);
+  if (!reason && (context.plan?.length ?? 0) < PLAN_MIN_CATEGORIES) reason = "Too few categories have confirmed brand matches; completing the plan with rules.";
   if (!reason) return "agent";
   context.emit({ type: "fallback", at: 0, reason });
   context.warnings.push(reason);
@@ -143,9 +144,11 @@ function buildResponse(context: PlanContext, mode: PlanResponse["mode"], city: P
     ...resolution.chosen, inputName: resolution.inputName, matchKind: resolution.matchKind ?? "fallback", candidates: resolution.candidates,
   }));
   const unresolved = context.request.brandNames.filter((name) => !context.brandsByInput.get(name)?.chosen);
+  const ambiguousBrands = resolutions.filter((resolution) => !resolution.chosen && resolution.candidates.length)
+    .map((resolution) => ({ inputName: resolution.inputName, candidates: resolution.candidates }));
   if (!brands.length && context.request.branches.length) context.warnings.push("None of these brands were found on Qloo");
   return PlanResponseSchema.parse({
-    mode, city, branches: context.request.branches, brands, unresolved, categories: brands.length ? context.plan ?? [] : [],
+    mode, city, branches: context.request.branches, brands, unresolved, ambiguousBrands, categories: brands.length ? context.plan ?? [] : [],
     candidateCategories: Array.from(context.candidateCategories, ([tagId, label]) => ({ tagId, label })), trace, warnings: context.warnings,
   });
 }

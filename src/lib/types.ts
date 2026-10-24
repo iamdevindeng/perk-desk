@@ -112,6 +112,7 @@ export const PlanResponseSchema = z.object({
   mode: z.enum(["agent", "fallback"]), limited: z.boolean().default(false), message: z.string().optional(),
   city: z.object({ label: z.string(), lat: z.number(), lon: z.number() }).optional(),
   branches: z.array(BranchSchema), brands: z.array(ResolvedBrandSchema), unresolved: z.array(z.string()),
+  ambiguousBrands: z.array(z.object({ inputName: z.string(), candidates: ResolvedBrandSchema.shape.candidates })).optional(),
   categories: z.array(PlannedCategorySchema), candidateCategories: z.array(CategoryTagSchema),
   trace: z.array(TraceEventSchema), warnings: z.array(z.string()),
 });

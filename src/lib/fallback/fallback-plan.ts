@@ -7,17 +7,40 @@ import type { PlanContext } from "@/lib/agent/context";
 import { resolveBrandNames } from "@/lib/agent/tools/resolve-brands";
 import { searchCategoriesForContext } from "@/lib/agent/tools/search-categories";
 import { mapBrandTagsToCategories } from "@/lib/fallback/category-map";
+import { normalizeName } from "@/lib/merchants/name-match";
 import { filterAllowedBrandTags } from "@/lib/qloo/search";
 import type { BrandCandidate, PlannedCategory } from "@/lib/types";
 
-function chooseFallbackBrands(context: PlanContext): BrandCandidate[] {
+function nameMatchLevel(inputName: string, candidateName: string): number {
+  const input = normalizeName(inputName);
+  const name = normalizeName(candidateName);
+  if (!input || !name) return 0;
+  if (name === input) return 3;
+  // A whole-word prefix keeps REI distinct from Reiss (QLOO_API.md §2).
+  if (name.startsWith(`${input} `) || input.startsWith(`${name} `)) return 2;
+  // Keep corporate words here: the I in REI comes from Inc.
+  const words = candidateName.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const acronym = words.map((word) => word[0]).join("");
+  return words.length > 1 && input === acronym ? 1 : 0;
+}
+
+export function selectFallbackBrand(inputName: string, candidates: BrandCandidate[]): BrandCandidate | undefined {
+  return candidates.map((candidate) => ({ candidate, level: nameMatchLevel(inputName, candidate.name) }))
+    .filter((match) => match.level > 0)
+    .sort((first, second) => second.level - first.level || second.candidate.popularity - first.candidate.popularity)[0]?.candidate;
+}
+
+export function chooseFallbackBrands(context: PlanContext): BrandCandidate[] {
   const preservedIds = new Set(context.plan?.flatMap((category) => category.evidence.map((item) => item.brandEntityId)) ?? []);
   const brands: BrandCandidate[] = [];
   for (const resolution of context.brandsByInput.values()) {
-    const preserve = resolution.chosen && (resolution.status === "resolved" || preservedIds.has(resolution.chosen.entityId));
+    const preserve = resolution.chosen && (resolution.matchKind === "user" ||
+      (resolution.matchKind === "agent" && preservedIds.has(resolution.chosen.entityId)));
     if (!preserve) {
-      resolution.chosen = [...resolution.candidates].sort((first, second) => second.popularity - first.popularity)[0];
-      resolution.matchKind = "fallback";
+      const chosen = selectFallbackBrand(resolution.inputName, resolution.candidates);
+      if (chosen !== resolution.chosen) resolution.matchKind = "fallback";
+      resolution.chosen = chosen;
+      resolution.status = chosen ? "resolved" : resolution.candidates.length ? "ambiguous" : "unresolved";
     }
     if (!resolution.chosen) continue;
     const brand = { ...resolution.chosen, tags: filterAllowedBrandTags(resolution.chosen.tags) };

@@ -1,17 +1,17 @@
-// Runs the Denver planning and research pipeline and prints safe names, counts, and timings.
+// Runs both demo planning and research pipelines and prints safe names, counts, and timings.
 // Called by: npm run smoke for the explicitly requested real-key end-to-end check
 import { runPlan } from "@/lib/agent/plan-agent";
 import { runResearch } from "@/lib/agent/run-agent";
 import { DISTANCE_DECIMALS, METERS_PER_KILOMETER, RUN_MAX_CATEGORIES } from "@/lib/config";
-import { findPreset } from "@/lib/data";
+import { getPresets } from "@/lib/data";
 import { hasDeepSeekKey, hasQlooKey } from "@/lib/env";
 import { createQlooError, isQlooError } from "@/lib/qloo/client";
 import { buildPlanRequest, buildRunRequest } from "@/lib/request-builders";
-import { ProfileSchema, type PlanResponse, type RunResult, type TraceEvent } from "@/lib/types";
+import { ProfileSchema, type PlanResponse, type Preset, type RunResult, type TraceEvent } from "@/lib/types";
 
 function printPlan(plan: PlanResponse, durationMs: number): void {
   console.info(`Plan mode: ${plan.mode}`);
-  console.info(`Resolved brands: ${plan.brands.map((brand) => brand.name).join(", ")}`);
+  console.info(`Resolved brands: ${plan.brands.map((brand) => `${brand.inputName} → ${brand.name}`).join(", ")}`);
   console.info(`Unresolved names: ${plan.unresolved.join(", ")}`);
   console.table(plan.categories.map((category) => ({ category: category.label,
     "evidence brands": [...new Set(category.evidence.map((evidence) => evidence.brandName))].join(", ") })));
@@ -37,14 +37,8 @@ function assertUsablePlan(plan: PlanResponse): void {
   throw createQlooError("upstream", null, "Smoke planning produced no usable brands, categories, or branch locations.");
 }
 
-async function main(): Promise<void> {
-  if (!hasQlooKey()) {
-    console.error("Missing QLOO_API_KEY in .env.local");
-    process.exit(2);
-  }
-  if (!hasDeepSeekKey()) console.info("Missing DEEPSEEK_API_KEY; running with deterministic fallback.");
-  const preset = findPreset("denver-demo");
-  if (!preset) throw createQlooError("config", null, "The Denver demo preset is unavailable.");
+async function runPreset(preset: Preset): Promise<void> {
+  console.info(`Preset: ${preset.id}`);
   const profile = ProfileSchema.parse(preset.profile);
   const request = buildPlanRequest(profile, preset.brandsText, preset.id);
   const planStartedAt = Date.now();
@@ -52,6 +46,7 @@ async function main(): Promise<void> {
   const planDurationMs = Date.now() - planStartedAt;
   printPlan(plan, planDurationMs);
   assertUsablePlan(plan);
+  if (plan.unresolved.length) throw createQlooError("upstream", null, "Smoke preset has unresolved brands; review the brand names.");
   const runRequest = buildRunRequest(profile, plan, plan.categories.slice(0, RUN_MAX_CATEGORIES), {}, preset.id);
   const eventCounts = new Map<string, number>();
   const emit = (event: TraceEvent): void => { eventCounts.set(event.type, (eventCounts.get(event.type) ?? 0) + 1); };
@@ -66,6 +61,15 @@ async function main(): Promise<void> {
   // Direct runPlan reuses Qloo caches, but still runs the model; faster timing is not guaranteed.
   const cacheHits = repeat.trace.filter((event) => event.type === "qloo_call" && event.cached).length;
   console.info(`Repeat plan durationMs: ${repeatDurationMs}; faster: ${repeatDurationMs < planDurationMs}; Qloo cache hits: ${cacheHits}`);
+}
+
+async function main(): Promise<void> {
+  if (!hasQlooKey()) {
+    console.error("Missing QLOO_API_KEY in .env.local");
+    process.exit(2);
+  }
+  if (!hasDeepSeekKey()) console.info("Missing DEEPSEEK_API_KEY; running with deterministic fallback.");
+  for (const preset of getPresets()) await runPreset(preset);
 }
 
 // CJS-safe entry point; only our typed Qloo messages are safe to expose, never an SDK error body.

@@ -122,6 +122,18 @@ describe("guarded planning agent", () => {
     expect(result.unresolved).toEqual([]);
   });
 
+  it("removes partial evidence for an implicit unrelated candidate before fallback", async () => {
+    const model = new MockLanguageModelV4({ doGenerate: [
+      toolReply("resolveBrands", { names: ["Fake Mystery"] }), toolReply("searchCategories", { query: "coffee" }),
+      toolReply("submitPlan", { categories: VALID_CATEGORIES }),
+    ] });
+    const result = await runPlan({ ...FAKE_PLAN_REQUEST, brandNames: ["Fake Mystery"] }, { model });
+    expect(result.mode).toBe("fallback");
+    expect(result.brands).toEqual([]);
+    expect(result.categories).toEqual([]);
+    expect(result.unresolved).toEqual(["Fake Mystery"]);
+  });
+
   it.each(["auth", "quota", "config"] as const)("propagates fatal Qloo %s errors captured during tool execution", async (code) => {
     const error = createQlooError(code, null, "Qloo unavailable");
     vi.mocked(searchBrands).mockRejectedValue(error);
@@ -162,5 +174,17 @@ describe("locations and presets", () => {
     expect(result.categories).toEqual([]);
     expect(result.unresolved).toEqual(FAKE_PLAN_REQUEST.brandNames);
     expect(result.warnings).toContain("None of these brands were found on Qloo");
+  });
+
+  it("keeps unrelated matches unresolved until the user explicitly chooses one", async () => {
+    const request = { ...FAKE_PLAN_REQUEST, brandNames: ["Fake Mystery"] };
+    const result = await runPlan(request);
+    expect(result.brands).toEqual([]);
+    expect(result.unresolved).toEqual(["Fake Mystery"]);
+    expect(result.ambiguousBrands?.[0]).toMatchObject({ inputName: "Fake Mystery", candidates: [{ entityId: FAKE_BRAND_ID }] });
+    expect(result.categories).toEqual([]);
+    const chosen = await runPlan({ ...request, brandOverrides: { "Fake Mystery": FAKE_BRAND_ID } });
+    expect(chosen.brands[0]).toMatchObject({ entityId: FAKE_BRAND_ID, matchKind: "user" });
+    expect(chosen.unresolved).toEqual([]);
   });
 });

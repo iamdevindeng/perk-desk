@@ -97,6 +97,9 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Review repair: ARCHITECTURE §3's RunRequest example replaces bounded Branch coordinates with bare `z.number()`, losing bounds. Reuse the required inner Branch schemas instead. Architecture is left unchanged as instructed; this discrepancy is recorded here.
 - Review repair: use request-generation refs and an immediate busy ref to ignore late events/errors/stage changes and block captured map handlers before React rerenders. These refs do not replace frontend useState.
 
+- R1 review fixes: the current user explicitly authorized `git pull` and forbade pushing; only the pull overrides the older remote-action restriction. R1–R9 use separate local commits under the requested author.
+- R1: use whole-word prefixes so REI cannot match Reiss; calculate acronyms before stripping corporate suffixes. Add optional `ambiguousBrands` to PlanResponse so unmatched names can be explicitly chosen without a guessed entity. PresetSchema has no brandOverrides, so preset JSON stays unchanged. Smoke now checks both presets sequentially.
+
 ## Review guide
 
 1. `src/lib/types.ts`: follow the validated profile, plan, run, and trace shapes.
@@ -448,3 +451,27 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: all seven findings have local regression evidence. Independent recheck remains for the coordinator after the stable commit. T1's shadcn registry gap and T10's native spreadsheet-opening gap remain PARTIAL. Prompt tuning was not changed or rerun; T11 still has one tuning round used. Fallback's ambiguous REI highest-popularity choice remains an existing documented relevance limit. Architecture/cache-shape discrepancies are recorded under Decisions I made above.
 - New dependencies: none. No remote repository/deployment/resource action. The pre-existing `.env.example` deletion remains excluded. Read-only helper reviews finished; the root agent made every repair edit.
 - For Devin: the existing Waiting for Devin list remains applicable; no additional infrastructure action is needed to recover legacy caches.
+
+## R1 review fixes
+
+### R1: Match fallback brands by name — FAILED (verification blocked; implementation complete)
+- Date/time (UTC+8): 2026-10-24 18:04
+- What was done:
+  - Ranked exact names, whole-word prefixes, and acronyms before popularity; unrelated candidates remain unresolved.
+  - Added explicit candidate selection/re-planning for ambiguous names and removed stale partial evidence for implicit unrelated choices.
+  - Extended smoke to both presets with input-to-resolved-name reporting; preserved user and explicit agent selections.
+  - Added 12 offline regression cases, including ranking and unresolved-to-user-choice recovery.
+- Files touched: `src/lib/{types,agent/plan-agent,fallback/fallback-plan}.ts`, `src/components/CategoryConfirm.tsx`, `scripts/smoke.ts`, `tests/unit/{fallback-brand-match,fallback-plan,plan-agent}.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`; `UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke`.
+- Verification: lint, typecheck, 479 tests in 45 files, and production build pass. Three verification rounds could not finish green: two builds hit a Turbopack worker-port permission error (the second reused its cached error); moving generated `.next` to `/private/tmp/perk-desk-r1-next-build-cache` and separately approved `NEXT_TELEMETRY_DISABLED=1 npm run build` succeeded. Final `npm run check:rules` still fails on the pre-existing tracked translation folder, which R2 specifically fixes next. No more R1 edits after the third failed round.
+- Last failing output (complete, fewer than 20 lines):
+  ```text
+  > perk-desk@0.1.0 check:rules
+  > node scripts/check-rules.mjs
+  ✗ directory not in ARCHITECTURE §2 tree: docs/translate
+  check:rules FAILED: 1 problem(s)
+  ```
+- Live checks: both fallback presets completed with 8 recognized brands, 0 unresolved, and 10 merchants / 10 template pitches each. All input-to-company name pairs were reviewed; REI resolved to Recreational Equipment Inc. Denver plan/research: 5,704 / 13,635 ms; Austin: 1,635 / 14,401 ms. No response files were written and Redis was disabled for this process.
+- Open issues / decisions: keep R1 before R2 as requested; the rule-check failure will be reverified after R2. No schema support for preset overrides and none needed. An independent review found and prompted the partial-evidence cleanup regression.
+- New dependencies: none.
+- For Devin: no new owner-only action.

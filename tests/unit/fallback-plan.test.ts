@@ -46,14 +46,14 @@ describe("fallback plan", () => {
     expect(context.brandsByInput.get(FAKE_BRAND.name)?.matchKind).toBe("exact");
   });
 
-  it("chooses the highest-popularity candidate when an ambiguity has no preserved evidence", async () => {
+  it("chooses a matching name before a more popular unrelated candidate", async () => {
     const context = makeContext();
     const resolution = context.brandsByInput.get(FAKE_BRAND.name);
     if (!resolution) throw new Error("Missing fake resolution");
     resolution.status = "ambiguous";
     resolution.chosen = undefined;
     await buildFallbackPlan(context);
-    expect(resolution.chosen).toBe(HIGHER_BRAND);
+    expect(resolution.chosen).toBe(FAKE_BRAND);
     expect(resolution.matchKind).toBe("fallback");
   });
 
@@ -83,6 +83,7 @@ describe("fallback plan", () => {
     const resolution = context.brandsByInput.get(FAKE_BRAND.name);
     if (!resolution) throw new Error("Missing fake resolution");
     resolution.chosen = { ...FAKE_BRAND, tags: [] };
+    resolution.candidates = [resolution.chosen];
     expect(await buildFallbackPlan(context)).toEqual([]);
     expect(context.warnings.join(" ")).toContain("no permitted evidence tags");
     expect(searchCategoriesForContext).not.toHaveBeenCalled();
