@@ -6,26 +6,26 @@ Codex appends one section per task (AGENTS.md §3). Never delete earlier entries
 
 | Task | Status | Commit | Notes |
 |---|---|---|---|
-| T1 Scaffold | PARTIAL | `5f58676` | Native UI fallback; shadcn registry unavailable |
-| T2 Types + data | DONE | `c0a37b6` | Shared schemas and validated hand-written data |
-| T3 Qloo layer + cache | DONE | `dade1da` | Pacing, safe errors, slim caching |
-| T4 Filter / scoring | DONE | `ca588fd` | Filtering, evidence scores, branch balance |
-| T5 Tools + guards 1–2 | DONE | `85e0537` | Real category and brand-tag evidence checks |
-| T6 /api/plan | DONE | `579e7f4` | Guarded planning plus fallback |
-| T7 /api/run | DONE | `c361601` | Streaming research, pitches, limits, replay |
-| T8 UI profile | DONE | `c4d0ffc` | Presets, local profile, branch editor/map |
-| T9 Confirm + trace | DONE | `b0df1a5` | Explicit confirmation and six-step trace |
-| T10 Cards, map, CSV, status | PARTIAL | `75c7388` | Implemented; native spreadsheet opening unverified |
-| T11 Eval | DONE | `2766908` | 15/15 hits after one prompt refinement |
-| T12 Smoke + summary | DONE | `2b10196` | Agent/fallback smoke and missing-key exit verified |
+| T1 Scaffold | PARTIAL | `c0e2952` | Native UI fallback; shadcn registry unavailable |
+| T2 Types + data | DONE | `93c69d1` | Shared schemas and validated hand-written data |
+| T3 Qloo layer + cache | DONE | `f4f588a` | Pacing, safe errors, slim caching |
+| T4 Filter / scoring | DONE | `1337f4a` | Filtering, evidence scores, branch balance |
+| T5 Tools + guards 1–2 | DONE | `cef91f0` | Real category and brand-tag evidence checks |
+| T6 /api/plan | DONE | `c1bbfa0` | Guarded planning plus fallback |
+| T7 /api/run | DONE | `2251cef` | Streaming research, pitches, limits, replay |
+| T8 UI profile | DONE | `207e99e` | Presets, local profile, branch editor/map |
+| T9 Confirm + trace | DONE | `a8df356` | Explicit confirmation and six-step trace |
+| T10 Cards, map, CSV, status | PARTIAL | `1cdce09` | Implemented; native spreadsheet opening unverified |
+| T11 Eval | DONE | `3eede5a` | 15/15 hits after one prompt refinement |
+| T12 Smoke + summary | DONE | `3748a6f` | Agent/fallback smoke and missing-key exit verified |
 
-Optional extras: X1 list uploads completed in `29ddfe8`; X2 business-member matching and badges are DONE in the final `X2:` commit.
+Optional extras: X1 list uploads are DONE in `c12eab3`; X2 business-member matching and badges are DONE in `5a50d52`.
 
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
-Final automated verification: 404 offline tests across 40 files, lint, production build, and repository rules all pass after X2. Live agent/fallback smoke evidence is recorded under T12; the category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
+Latest automated verification after R1–R9: 513 offline tests across 46 files, lint, typecheck, production build, and repository rules all pass. Live agent/fallback smoke evidence is recorded under T12; the category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
 
-Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback chooses the highest-popularity candidate for ambiguous brands (REI selected Real Madrid CF in the forced-fallback smoke, requiring user correction); cache/rate state without Upstash is per process; locations and live category coverage may vary. No deployment or remote repository action was performed. The existing `.env.example` deletion remains outside every task commit.
+Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback uses name matching and asks for a user choice when names do not match; cache/rate state without Upstash is per process; locations and live category coverage may vary. The requested pull completed; no push or deployment was performed during R1–R9. R3 restored `.env.example` exactly from the original docs commit.
 
 Post-review repair verification (2026-10-24): all seven reported findings are fixed locally; 467 offline tests across 44 files, lint, production build, repository rules (142 files), and typecheck pass. Fresh agent/fallback smoke and the Confirm/map browser check pass. See the final review-repair entry for exact evidence and cache recovery. T1 and T10 remain PARTIAL.
 
@@ -33,7 +33,7 @@ Post-review repair verification (2026-10-24): all seven reported findings are fi
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
 
-- [ ] Push the repo to GitHub (no remote is configured on purpose).
+- [ ] Push the local commits to the configured `origin` when ready; this R1–R9 run must not push.
 - [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, optional UPSTASH_*, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
 - [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
 - [ ] Review the UI in a real browser, including mobile layout, keyboard use, and accessibility; check recognized brand choices before confirming, especially in fallback mode (see T12).
@@ -458,6 +458,18 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 ## R1 review fixes
 
+| Fix | Final status | Notes |
+|---|---|---|
+| R1 Fallback brand matching | DONE | Initial verification blocker resolved and rechecked in R2 |
+| R2 Ignore local translations | DONE | Both local files preserved byte for byte |
+| R3 Restore environment template | DONE | Exact `cfe3521` bytes; local secrets untouched |
+| R4 Evidence dedupe and cap | DONE | Maximum 5 stored, 3 initially displayed |
+| R5 Research category validation | DONE | Invalid/blacklisted categories rejected before work |
+| R6 Explicit evidence kinds | DONE | Preferences/defaults carry no borrowed brand tags |
+| R7 Merchant exclusions | DONE | Live filtering and cached replay both covered |
+| R8 Judge comparison | DONE | Timing-safe byte comparison; header precedence retained |
+| R9 Progress reconciliation | DONE | Historical hashes verified; all checks and both fallback presets pass |
+
 ### R1: Match fallback brands by name — FAILED (verification blocked; implementation complete)
 - Date/time (UTC+8): 2026-10-24 18:04
 - What was done:
@@ -573,3 +585,24 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: compare byte lengths, not JavaScript string lengths; keep header precedence unchanged.
 - New dependencies: none (Node built-in crypto).
 - For Devin: no new action.
+
+### R9: Reconcile progress with the rewritten Git history — DONE
+- Date/time (UTC+8): 2026-10-24 18:12
+- What was done:
+  - Corrected all T1–T12 summary hashes from current Git history and added exact X1/X2 hashes.
+  - Updated current summary statements for fixed fallback matching, restored template, configured origin, and final verification.
+  - Added final statuses for R1–R9 while retaining earlier task/failure history.
+  - Completed final standard checks and both live fallback presets after all code changes.
+- Files touched: `docs/PROGRESS.md` only.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke
+  git log --oneline
+  git status --short
+  ```
+- Verification: PASS: 513 offline tests / 46 files, lint, typecheck, production build, rules (146 files), and diff whitespace. Every T/X summary hash resolves to its matching task subject. Build uses `NEXT_TELEMETRY_DISABLED=1` and the approved local worker-port permission.
+- Final live checks: Denver and Austin each resolved all 8 intended brand names with 0 unresolved, and each completed with 10 merchants and 10 template pitches in fallback mode. REI resolved to Recreational Equipment Inc. Denver plan/research: 7,284 / 19,101 ms; Austin: 1,584 / 13,918 ms. Repeat plans took 11 ms each (12 / 10 Qloo cache hits respectively). The Denver result omitted Rack Attack and the stadium store. The smoke command exited 0, used only memory cache, and wrote no response data to disk.
+- Open issues / decisions: R1's original WIP commit records its initial verification failure; R2 cleared that blocker and final R9 verification confirms R1 is DONE. T1/T10's earlier manual acceptance gaps remain historical owner items outside R1–R9. R9 does not embed its own hash, which would change that hash; the R1–R9 status table is independent of commit IDs.
+- New dependencies: none. No checker/ESLint protections were weakened. `.env.local` was never edited. Both local translation files remain intact and ignored.
+- For Devin: review the nine local commits; push/deploy remain owner actions and were not performed.
