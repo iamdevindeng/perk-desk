@@ -126,6 +126,17 @@ describe("request metadata", () => {
     expect(hasJudgeBypass(new Request("http://localhost", { headers: { "x-judge-code": "fake-judge-code" } }))).toBe(true);
     expect(hasJudgeBypass(new Request("http://localhost", { headers: { "x-judge-code": "wrong-code" } }))).toBe(false);
   });
+
+  it.each(["fake-judge-codE", "short", "fake-judge-code-too-long", "", "   "])("safely rejects incorrect code %j", (received) => {
+    vi.stubEnv("JUDGE_BYPASS_CODE", "fake-judge-code"); resetEnvForTests();
+    expect(hasJudgeBypass(new Request("http://localhost", { headers: { "x-judge-code": received } }))).toBe(false);
+  });
+
+  it("compares byte lengths safely for equal-length strings with multibyte text", () => {
+    vi.stubEnv("JUDGE_BYPASS_CODE", "éa"); resetEnvForTests();
+    expect(hasJudgeBypass(new Request("http://localhost", { headers: { "x-judge-code": "aa" } }))).toBe(false);
+    expect(hasJudgeBypass(new Request("http://localhost", { headers: { "x-judge-code": "éa" } }))).toBe(true);
+  });
 });
 
 function presetRun(): RunRequest {

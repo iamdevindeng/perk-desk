@@ -560,3 +560,16 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - New dependencies: none.
 - For Devin: no new action.
 - R7 follow-up before R8 commit: independent review found that old complete run envelopes could replay newly excluded names. Extracted `isTeamStore` into the existing chain helper and reject cached shortlists containing a national-chain/team-store name as misses. Three route regressions verify recomputation and replacement at unchanged keys. Additional files: `src/lib/merchants/chains.ts`, `src/app/api/run/route.ts`, `tests/unit/run-route.test.ts`. Full checks pass with this follow-up (513 tests including the pending R8 cases). The still-local R7 commit is amended to keep one commit for this task; no published history is rewritten.
+
+### R8: Compare judge codes with timingSafeEqual — DONE
+- Date/time (UTC+8): 2026-10-24 18:11
+- What was done:
+  - Compared UTF-8 buffers using Node's `timingSafeEqual`, after checking equal byte lengths.
+  - Preserved nonblank, exact-code semantics and documented the first forwarded IP choice on Vercel.
+  - Tested equal-length mismatches, shorter/longer/blank values, and multibyte strings without exceptions.
+- Files touched: `src/lib/store/rate-limit.ts`, `tests/unit/rate-limit.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
+- Verification: PASS: 513 tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace. Independent review found no remaining issue in R7's cache fix or R8.
+- Open issues / decisions: compare byte lengths, not JavaScript string lengths; keep header precedence unchanged.
+- New dependencies: none (Node built-in crypto).
+- For Devin: no new action.

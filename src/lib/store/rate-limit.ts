@@ -1,5 +1,6 @@
 // Enforces daily research budgets and verifies judge and preset exemptions.
 // Called by: plan/run routes and rate-limit unit tests
+import { timingSafeEqual } from "node:crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP } from "@/lib/config";
@@ -94,6 +95,7 @@ export async function checkLimit(scope: Scope, ip: string, options: { skipIp?: b
 }
 
 export function getClientIp(request: Request): string {
+  // Vercel supplies the client as the first forwarded address; later entries are proxy hops.
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || request.headers.get("x-real-ip")?.trim() || "unknown";
 }
@@ -101,7 +103,11 @@ export function getClientIp(request: Request): string {
 export function hasJudgeBypass(request: Request): boolean {
   const expected = getEnv().JUDGE_BYPASS_CODE;
   const received = request.headers.get("x-judge-code");
-  return Boolean(expected?.trim() && received?.trim() && received === expected);
+  if (!expected?.trim() || !received?.trim()) return false;
+  const expectedBytes = Buffer.from(expected, "utf8");
+  const receivedBytes = Buffer.from(received, "utf8");
+  // timingSafeEqual throws for unequal byte lengths, including multibyte text.
+  return expectedBytes.length === receivedBytes.length && timingSafeEqual(expectedBytes, receivedBytes);
 }
 
 function branchesMatch(actual: Branch[], expected: Branch[]): boolean {
