@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Hand-written list of US national chains (lowercase). Matched against normalized place names with word boundaries (see src/lib/merchants/chains.ts).",
+    "Hand-written US national chains: names use word boundaries; exactNames require the full normalized name after removing a store suffix (see src/lib/merchants/chains.ts).",
     "A match marks the place chainType='national' and it is EXCLUDED from results (members already get national-brand offers from card-linked platforms)."
   ],
   "names": [
@@ -37,7 +37,6 @@
     "chipotle",
     "club pilates",
     "cold stone",
-    "columbia sportswear",
     "corepower yoga",
     "costco",
     "cracker barrel",
@@ -49,7 +48,6 @@
     "dick's sporting goods",
     "domino's",
     "drybar",
-    "dsw",
     "dunkin",
     "dutch bros",
     "einstein bros",
@@ -64,6 +62,7 @@
     "foot locker",
     "free people",
     "gamestop",
+    "ganni",
     "gold's gym",
     "goodwill",
     "great clips",
@@ -111,7 +110,6 @@
     "pandora",
     "panera",
     "papa john's",
-    "patagonia",
     "peet's coffee",
     "pet supplies plus",
     "petco",
@@ -124,7 +122,6 @@
     "rack attack",
     "rainbow shops",
     "red robin",
-    "rei",
     "ross dress for less",
     "running warehouse",
     "safeway",
@@ -139,13 +136,13 @@
     "sonic drive-in",
     "sport clips",
     "sportsman's warehouse",
-    "sprouts",
     "starbucks",
     "subway",
     "supercuts",
     "t-mobile",
     "taco bell",
     "target",
+    "tecovas",
     "texas roadhouse",
     "the north face",
     "the ups store",
@@ -169,5 +166,18 @@
     "yogasix",
     "zales",
     "zara"
+  ],
+  "exactNames": [
+    "gap",
+    "gap factory",
+    "chico's",
+    "columbia",
+    "columbia sportswear",
+    "marmot",
+    "rei",
+    "dsw",
+    "patagonia",
+    "sprouts",
+    "sprouts farmers market"
   ]
 }

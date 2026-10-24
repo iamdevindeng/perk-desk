@@ -34,7 +34,10 @@ export const BlacklistSchema = z.object({
   brandTagTypeDenylist: z.array(z.string().min(1)),
 });
 
-export const NationalChainsSchema = z.object({ names: z.array(z.string().min(1)) });
+export const NationalChainsSchema = z.object({
+  names: z.array(z.string().min(1)),
+  exactNames: z.array(z.string().min(1)),
+});
 export type CategoryDefaults = z.infer<typeof CategoryDefaultsSchema>;
 export type Blacklist = z.infer<typeof BlacklistSchema>;
 export type NationalChains = z.infer<typeof NationalChainsSchema>;
@@ -64,6 +67,10 @@ export function getBlacklist(): Blacklist {
 
 export function getNationalChainNames(): string[] {
   return NATIONAL_CHAINS.names;
+}
+
+export function getExactNationalChainNames(): string[] {
+  return NATIONAL_CHAINS.exactNames;
 }
 
 export function getPresets(): Preset[] {

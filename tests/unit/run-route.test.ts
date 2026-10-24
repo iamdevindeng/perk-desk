@@ -139,7 +139,7 @@ describe("run cache and limits", () => {
     await traceFor(); expect(runResearch).toHaveBeenCalledOnce();
   });
 
-  it.each(["Rack Attack Denver", "Denver Broncos Stadium Store", "Fake Owls Team Store"])("refreshes cached runs containing excluded merchant %s", async (name) => {
+  it.each(["Rack Attack Denver", "Denver Broncos Stadium Store", "Fake Owls Team Store", "Chico's", "Gap Factory Store"])("refreshes cached runs containing excluded merchant %s", async (name) => {
     const merchant = FAKE_RUN_RESULT.merchants[0];
     const result = { ...FAKE_RUN_RESULT, merchants: [{ ...merchant, place: { ...merchant.place, name } }] };
     vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 0, result }] });

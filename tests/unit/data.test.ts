@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   BlacklistSchema, CategoryDefaultsSchema, NationalChainsSchema,
   findPreset, getBlacklist, getCategoryDefaults, getCategoryLabel,
-  getCities, getNationalChainNames, getPresets,
+  getCities, getExactNationalChainNames, getNationalChainNames, getPresets,
 } from "@/lib/data";
 import { CityListSchema, PresetSchema } from "@/lib/types";
 
@@ -61,10 +61,14 @@ describe("hand-written filtering data", () => {
   });
 
   it("validates chain names and rejects non-string or empty entries", () => {
-    expect(NationalChainsSchema.safeParse({ names: getNationalChainNames() }).success).toBe(true);
-    expect(getNationalChainNames().length).toBeGreaterThan(0);
-    expect(NationalChainsSchema.safeParse({ names: [12] }).success).toBe(false);
-    expect(NationalChainsSchema.safeParse({ names: [""] }).success).toBe(false);
+    const chains = { names: getNationalChainNames(), exactNames: getExactNationalChainNames() };
+    expect(NationalChainsSchema.safeParse(chains).success).toBe(true);
+    for (const field of ["names", "exactNames"] as const) {
+      expect(chains[field].length).toBeGreaterThan(0);
+      expect(NationalChainsSchema.safeParse({ ...chains, [field]: [12] }).success).toBe(false);
+      expect(NationalChainsSchema.safeParse({ ...chains, [field]: [""] }).success).toBe(false);
+    }
+    expect(chains.exactNames.some((name) => chains.names.includes(name))).toBe(false);
   });
 });
 

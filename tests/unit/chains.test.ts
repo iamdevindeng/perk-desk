@@ -10,7 +10,7 @@ describe("isNationalChain", () => {
     expect(isNationalChain("The Starbucks Coffee Co.")).toBe(true);
     expect(isNationalChain("Starbuck Lane Books")).toBe(false);
     expect(isNationalChain("Reiss Fake Shop")).toBe(false);
-    expect(isNationalChain("Fake REI Shop")).toBe(true);
+    expect(isNationalChain("Fake REI Shop")).toBe(false);
     expect(isNationalChain("")).toBe(false);
   });
 
@@ -26,12 +26,12 @@ describe("isNationalChain", () => {
   });
 
   it.each([
-    "Urban Outfitters", "Madewell", "Rainbow Shops", "Fleet Feet",
+    "Urban Outfitters", "Madewell", "Rainbow Shops", "Fleet Feet", "GANNI", "Tecovas",
     "Anthropologie", "Free People", "J.Crew", "JCrew", "Old Navy", "Banana Republic",
     "H&M", "Zara", "Uniqlo", "Lululemon", "Athleta", "Foot Locker", "Running Warehouse",
-    "Patagonia", "The North Face", "Columbia Sportswear", "Petco", "PetSmart", "Pet Supplies Plus",
+    "The North Face", "Petco", "PetSmart", "Pet Supplies Plus",
     "Orangetheory", "F45", "Planet Fitness", "CorePower Yoga", "Pure Barre", "Club Pilates",
-    "Abercrombie & Fitch", "American Eagle Outfitters", "Aeropostale", "DSW", "Famous Footwear",
+    "Abercrombie & Fitch", "American Eagle Outfitters", "Aeropostale", "Famous Footwear",
     "Shoe Carnival", "Sportsman's Warehouse", "Petsense", "Snap Fitness", "Solidcore",
     "Three Dog Bakery", "K&G Fashion Superstore", "Boot Barn",
   ])("excludes category chain %s and its branch names", (name) => {
@@ -49,8 +49,32 @@ describe("isNationalChain", () => {
   it.each([
     "Mind the Gap Cafe", "Columbia Coffee", "Marmot Mountain Cafe", "Chico's Cafe",
     "Fake Urban Outfittersmith", "Fake Madewells Bakery", "Fake Rainbow Shopscape",
-    "Fake Fleet Feetish Cafe", "Fake Athletarium", "Fake Pet Supplies Plusmore",
+    "Fake Fleet Feetish Cafe", "Fake Athletarium", "Fake Pet Supplies Plusmore", "Fake Gannicus Cafe",
   ])("preserves the independent name %s", (name) => {
+    expect(isNationalChain(name)).toBe(false);
+  });
+
+  it.each([
+    "Gap", "Gap Factory", "Chico's", "Columbia", "Columbia Sportswear", "Marmot",
+    "REI", "DSW", "Patagonia", "Sprouts", "Sprouts Farmers Market",
+  ])("blocks the exact chain %s and its retail suffixes", (name) => {
+    for (const suffix of ["", " Store", " Outlet", " Factory Store"]) {
+      expect(isNationalChain(`${name}${suffix}`)).toBe(true);
+    }
+    expect(isNationalChain(`${name} Fake Branch`)).toBe(false);
+  });
+
+  it.each(["  GAP  ", "Chico’s", "CHICO'S OUTLET!", "Columbia-Sportswear Store", "ＧＡＰ", "Sprouts   Farmers Market"])(
+    "normalizes exact-name case, punctuation, and spacing in %s", (name) => {
+      expect(isNationalChain(name)).toBe(true);
+    },
+  );
+
+  it.each([
+    "Mind the Gap Cafe", "Chico's Cafe", "Columbia Street Bakery", "Rei Sushi", "Patagonia Grill",
+    "Sprouts Juice Bar", "The Gap", "Gap Company", "Gap Factory Store Cafe", "Gap Outlet Books",
+    "Fake Columbia Sportswear", "Fake DSW", "Sprouts Farmers Marketplace", "Store", "!!!",
+  ])("keeps the full independent name %s", (name) => {
     expect(isNationalChain(name)).toBe(false);
   });
 });

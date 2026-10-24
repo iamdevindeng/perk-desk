@@ -44,12 +44,14 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - [ ] Open the downloaded CSV in a spreadsheet: native Numbers capture failed during T10; the browser download and CSV parser checks passed.
 - [ ] Review npm installation audit output (5 high-severity findings in the pinned dependency tree); no forced dependency upgrades were made.
 
-- [ ] Review the remaining ambiguous-name case: Austin still returns Chico's. A bare-name exclusion also rejects independent names such as Chico's Cafe; R11 keeps that name out under its explicit non-collision rule. More selective matching needs a separate decision.
+- [x] Review the remaining ambiguous-name case: R13 adds exact-name matching for Chico's and the other requested ambiguous chains. The fresh Austin smoke no longer returns Chico's; Chico's Cafe remains eligible. See the R13 entry for current smoke evidence.
 
 ## Decisions I made
 
 (Interpretations of unclear spec points, with the reason. One bullet each.)
 
+- R13–R15: the current user request explicitly authorizes pulling and pushing after all three items pass, superseding the older no-remote-actions rule for those Git operations. Keep one commit per item and leave deployment and resource provisioning out of scope.
+- R13: keep ambiguous-name normalization separate from general merchant matching so leading articles and legal-name words are not silently dropped. Use deterministic fallback with real Qloo calls and memory cache for both city smoke checks, matching the R11 baseline. Add GANNI and Tecovas to the unambiguous list because successive Austin shortlists exposed them after the requested exclusions; their official store locators confirm nationwide retail presence.
 - R12 coordinated finalization: the user's explicit push authorization supersedes the previous no-remote-actions blocker for publishing R11c/R12. The other active R12 chat confirmed its subagents and tool processes stopped; this chat owns final staging, verification, commit, and push. Deployment and resource provisioning remain out of scope.
 - R12 follow-up: interpret public SVG path data narrowly as numeric `d` attributes on `path` elements in the five existing exact asset paths. Mask that data only for IP/phone checks, preserving line positions; scan all original bytes for every other content rule. Add ICO to the image restriction so the exact Next.js favicon exception is meaningful. Preserve existing R12 work and include it in the completed local commit.
 - R11c/R12: R11a and R11b are already committed at task start; verify their implementation and continue with the remaining items in order. Automatic approval review blocked the requested pull because of the older remote-action rule. Continue authorized local work while explicit confirmation for pull/push is pending; do not bypass that block.
@@ -832,3 +834,35 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
    24 files changed, 1088 insertions(+), 42 deletions(-)
   ```
 - Open issues / decisions: no remaining implementation blocker for R12. The authorized push follows this recorded verification; existing deployment and manual product-review items remain separate.
+
+### R13: Exact-name chains and fresh two-city smoke checks — DONE
+- Date/time (UTC+8): 2026-10-24 19:32
+- What was done:
+  - Added an explicit validated `exactNames` list with all 11 requested ambiguous chains and removed overlapping entries from the existing word-boundary list.
+  - Matched exact names after case, punctuation, whitespace, and terminal store/outlet/factory-store normalization while preserving other words and independent-name collisions.
+  - Covered required examples, retail suffixes, normalization, list validation, and stale cached results containing Chico's or Gap.
+  - Added GANNI and Tecovas to the unambiguous list after successive live Austin audits exposed them. Official references: [GANNI stores](https://www.ganni.com/us/stores-find) and [Tecovas stores](https://www.tecovas.com/stores). Added matching regressions.
+  - Re-ran both live fallback presets using memory cache; no provider response files were saved. This entry supersedes the earlier R11 smoke names and ambiguous-name limitation.
+- Files touched: `src/data/national-chains.json`, `src/lib/data.ts`, `src/lib/merchants/chains.ts`, `tests/unit/{chains,data,run-route}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke
+  git diff --check
+  ```
+- Verification: PASS: 863 offline tests / 58 files, lint, typecheck, production build, repository/privacy rules (171 files), and whitespace checks. Independent review found no actionable issue in exact matching or cache coverage. All automated rounds passed; the first two live name audits exposed GANNI and then Tecovas, both fixed before acceptance.
+- Final smoke: both cities resolved all 8 brands with 0 unresolved names, returned 10 merchants / 10 template pitches, and reported 0 national-chain/team-store matches. No remaining known national chain was identified in the returned-name audit. Regional multi-location flags and visibility remain unchanged.
+- Denver: plan/research 5,339 / 21,498 ms; 12 / 34 Qloo calls; category independent counts 6, 6, 10, 7. Repeat plan 18 ms with 12 cache hits. Names: Two Pals & A Pup; Mouthfuls; Chewy's Bonetique; SloHi Bike Co.; Mike's Bikes of Denver Downtown; Wilderness Exchange Unlimited; Little Brown Dog; Z Cycle Shop; evo Denver; Arvada Army Navy Surplus.
+- Austin: plan/research 2,322 / 12,881 ms; 10 / 30 Qloo calls; category independent counts 4 (replaced), 20, 18, 16, 6. Repeat plan 11 ms with 10 cache hits. Names: Allens Boots; Tom's Dive & Swim; Atown; Monkies Vintage & Thrift; Flat Track Coffee; University Co-op; STAG Provisions For Men; YTX Yoga, Strength, Pilates, & Recovery; Clown Dog Bikes; Blue Velvet.
+- Open issues / decisions: normalization intentionally keeps extra words for exact-only entries; this is a maintained chain list, not a claim of exhaustive business classification. No new dependency, key changes, or resource provisioning. Names/counts above are the smoke evidence explicitly requested by R13; no IDs or response bodies are recorded.
+- Staged change list before adding this progress entry (`git diff --cached --stat`):
+  ```text
+   src/data/national-chains.json | 22 ++++++++++++++++------
+   src/lib/data.ts               |  9 ++++++++-
+   src/lib/merchants/chains.ts   | 15 +++++++++++++--
+   tests/unit/chains.test.ts     | 34 +++++++++++++++++++++++++++++-----
+   tests/unit/data.test.ts       | 14 +++++++++-----
+   tests/unit/run-route.test.ts  |  2 +-
+   6 files changed, 76 insertions(+), 20 deletions(-)
+  ```
+- For Devin: no new action required; R14 and R15 follow before the authorized push.
