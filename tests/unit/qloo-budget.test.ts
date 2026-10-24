@@ -31,10 +31,9 @@ function expectUsage(scope: "run" | "plan", count: number): void {
 }
 
 describe("per-request Qloo budget", () => {
-  it.each([{ scope: "run" as const, cap: 120 }, { scope: "plan" as const, cap: 30 }])(
+  it.each([{ scope: "run" as const, cap: RUN_QLOO_CALL_CAP }, { scope: "plan" as const, cap: PLAN_QLOO_CALL_CAP }])(
     "rejects the first excess $scope attempt before fetching",
     async ({ scope, cap }) => {
-      expect(scope === "run" ? RUN_QLOO_CALL_CAP : PLAN_QLOO_CALL_CAP).toBe(cap);
       const work = usage.withRunUsage("192.0.2.1", async () => {
         expect(usage.isQlooBudgetReached()).toBe(false);
         for (let index = 0; index < cap; index += 1) await client.qlooGet("/search", {});

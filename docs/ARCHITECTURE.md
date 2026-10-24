@@ -320,7 +320,7 @@ For one category: merge seeded and baseline lists per branch into `MerchantCandi
 
 **Presets:** `src/data/presets/*.json` hold only hand-written inputs (fictional institution, branches with coords, lists, brand names). The first run computes results live and caches them under `plan:`/`run:` keys; later runs replay from cache. No preset results are committed.
 
-**Usage visibility** (`usage.ts`): `withRunUsage<T>(ip, work, scope = "run")` uses Node's `AsyncLocalStorage` to isolate concurrent request counters and emits one structured server log line when live research finishes or fails: `[usage] scope=plan|run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. `recordUsageCall("qloo" | "llm")` counts each outbound HTTP attempt, including retries and failed attempts; cache hits add zero. The IP is represented only by the first `USAGE_IP_HASH_LENGTH` (12) SHA-256 hex characters; no raw IP or secret values are logged. Cached replays do not emit a live usage line. Devin can inspect the counts in Vercel logs. The same context enforces `PLAN_QLOO_CALL_CAP = 30` and `RUN_QLOO_CALL_CAP = 120`; the Qloo client checks it before fetching and throws a non-retryable `budget` error when the cap is reached. A limited run uses gathered candidates, emits "Stopped early to stay within the research budget", and is not cached.
+**Usage visibility** (`usage.ts`): `withRunUsage<T>(ip, work, scope = "run")` uses Node's `AsyncLocalStorage` to isolate concurrent request counters and emits one structured server log line when live research finishes or fails: `[usage] scope=plan|run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. `recordUsageCall("qloo" | "llm")` counts each outbound HTTP attempt, including retries and failed attempts; cache hits add zero. The IP is represented only by the first `USAGE_IP_HASH_LENGTH` (12) SHA-256 hex characters; no raw IP or secret values are logged. Cached replays do not emit a live usage line. Devin can inspect the counts in Vercel logs. The same context enforces `PLAN_QLOO_CALL_CAP = 70` and `RUN_QLOO_CALL_CAP = 120`; the Qloo client checks it before fetching and throws a non-retryable `budget` error when the cap is reached. A limited run uses gathered candidates, emits "Stopped early to stay within the research budget", and is not cached.
 
 ## 8. Fallback (`src/lib/fallback/*`)
 
@@ -373,7 +373,7 @@ If `react-leaflet@^5` has a peer conflict with the installed React, use the newe
 | `SCORE_WEIGHTS` | `{ affinity: 0.4, lift: 0.25, distance: 0.2, rating: 0.15 }` | scoring |
 | `PLAN_LIMIT_PER_IP` / `PLAN_LIMIT_GLOBAL` | 30 / 300 | per day |
 | `RUN_LIMIT_PER_IP` / `RUN_LIMIT_GLOBAL` | 10 / 150 | per day |
-| `PLAN_QLOO_CALL_CAP` / `RUN_QLOO_CALL_CAP` | 30 / 120 | Qloo attempts per live request |
+| `PLAN_QLOO_CALL_CAP` / `RUN_QLOO_CALL_CAP` | 70 / 120 | Qloo attempts per live request |
 | `USAGE_IP_HASH_LENGTH` | 12 | hex characters in the logged IP hash |
 | `SHARED_LIMIT_CONFIG_MESSAGE` | "Live research is disabled: shared rate-limit store not configured." | production HTTP 503 for missing Upstash configuration |
 | `SHARED_LIMIT_UNAVAILABLE_MESSAGE` | "Live research is disabled: shared rate-limit store unavailable." | production HTTP 503 for rate-limit failures/timeouts |

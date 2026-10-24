@@ -1378,3 +1378,29 @@ Verification: all checks passed; 1118 offline tests / 78 files. The initial defa
 Decisions I made: use public/opengraph-image.png with explicit metadata URLs because the protected privacy scanner forbids PNG files under src/app. This preserves the requested social-card behavior without weakening or whitelisting privacy checks. Used the already cached Playwright CLI and installed Chrome without installing dependencies. The CSV hours-column decision is recorded under R26.
 
 Open issues: no remaining R16–R29 implementation work. All 14 items are completed in order with one local commit per item. No live provider calls, push, deployment, remote resources, or remote cache edits occurred. Devin must approve the push and refresh both demos after deployment as recorded under R27.
+
+## R30 — Raise the per-plan Qloo call cap (2026-10-24)
+
+Status: DONE
+
+- Raised the plan cap to 70 Qloo attempts and updated current README and architecture references.
+- Retained the 120-call research cap and all daily per-IP/global limits.
+- Made transport-budget tests use the configured caps; configuration tests lock the requested values.
+
+Files touched / staged list (before this log):
+```text
+ README.md                      | 2 +-
+ docs/ARCHITECTURE.md           | 4 ++--
+ src/lib/config.ts              | 2 +-
+ tests/unit/config.test.ts      | 6 ++++++
+ tests/unit/qloo-budget.test.ts | 3 +--
+ 5 files changed, 11 insertions(+), 6 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1119 offline tests / 78 files. The first build failed because the sandbox blocked Turbopack's local CSS worker port. Moved only generated .next output aside and rebuilt successfully with local worker permission and provider keys cleared. No live provider calls.
+
+Decisions I made: current documentation uses 70; historical FIXES instructions and completed PROGRESS entries retain their original numbers. Request shapes, defaults, presets, hashing and cache keys are unchanged.
+
+Open issues: none. No push or remote action.
