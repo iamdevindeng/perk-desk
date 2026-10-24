@@ -31,7 +31,8 @@ function normalizeExactChainName(name: string, qualifiers: string[]): string {
 
 function chainQualifiers(city?: string): string[] {
   const labels = [...getCities().map((entry) => entry.label), city ?? ""];
-  const cityWords = labels.flatMap((label) => chainWords(label).split(" ")).filter(Boolean);
+  // State codes such as CO must not strip a business suffix; explicit co-op qualifiers stay intact.
+  const cityWords = labels.flatMap((label) => chainWords(label).split(" ")).filter((word) => word.length > 0 && word.length !== 2);
   return [...RETAIL_QUALIFIERS, ...new Set(cityWords)];
 }
 

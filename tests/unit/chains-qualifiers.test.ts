@@ -46,7 +46,8 @@ describe("chain qualifier regressions", () => {
 
   it("adds request city and neighbourhood words without treating unknown words as qualifiers", () => {
     expect(isNationalChain("REI Boise Store")).toBe(false);
-    expect(isNationalChain("REI Boise ID Store", "Boise, ID")).toBe(true);
+    expect(isNationalChain("REI Boise Store", "Boise, ID")).toBe(true);
+    expect(isNationalChain("REI Boise ID Store", "Boise, ID")).toBe(false);
     expect(isNationalChain("Patagonia North End Outlet", "Boise, ID - North End")).toBe(true);
     expect(isNationalChain("Marmot Unknown Store", "Boise, ID")).toBe(false);
     expect(isNationalChain("Rei Sushi Boise Store", "Boise, ID")).toBe(false);
@@ -54,6 +55,12 @@ describe("chain qualifier regressions", () => {
 });
 
 describe("independent merchant preservation", () => {
+  it.each(["Rei Co", "Columbia Co"])("keeps %s when city labels include state codes", (name) => {
+    expect(isNationalChain(name)).toBe(false);
+    expect(isNationalChain(name, "Denver, CO")).toBe(false);
+    expect(isNationalChain(name, "Austin, TX")).toBe(false);
+  });
+
   it.each([
     "Mind the Gap Cafe", "Chico's Cafe", "Columbia Street Bakery", "Rei Sushi", "Patagonia Grill",
     "Sprouts Juice Bar", "Marmot Mountain Cafe", "The Rei Sushi Denver Store", "Columbia Street Bakery Austin",

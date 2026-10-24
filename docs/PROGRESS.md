@@ -1459,3 +1459,26 @@ Verification: all checks passed; 1151 offline tests / 79 files. Independent revi
 Decisions I made: retain only the actual existing confirmed names, without promoting former keyword matches into new exceptions. Family membership is exact on the final genre segment, so unknown suffixes remain eligible. Restaurant allowances apply only to drinking genres. No request shapes, defaults, preset data, hashing, cache keys, or cache prefixes changed.
 
 Open issues: the existing R27 instruction to re-warm Denver and Austin once after deploy covers this change. Later category mismatches belong in README limitations, not new individual rules.
+
+## R33 — Exclude state codes from chain qualifiers (2026-10-24)
+
+Status: DONE
+
+- Excluded two-letter tokens from city-derived chain qualifiers so state codes cannot erase business-name suffixes.
+- Preserved the explicit co-op/coop retail qualifiers and all other matching behavior.
+- Added independent-name regressions and separated city-word recognition from state-code rejection.
+
+Files touched / staged list (before this log):
+```text
+ src/lib/merchants/chains.ts          | 3 ++-
+ tests/unit/chains-qualifiers.test.ts | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1153 offline tests / 79 files, including every requested chain example and all 19 cached names. Independent review found no issues. Production build used local worker permission and cleared provider keys. No live provider calls.
+
+Decisions I made: exclude exactly two-letter city tokens as requested; keep explicit retail qualifiers separate. No preset data or cache identity changes.
+
+Open issues: none. No push or remote action.
