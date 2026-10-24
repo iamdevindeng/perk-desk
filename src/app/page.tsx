@@ -2,19 +2,20 @@
 // Coordinates the editable program profile, planning request, and branch map.
 // Called by: Next.js App Router as the single Perk Desk page
 import dynamic from "next/dynamic";
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import PresetPicker from "@/components/PresetPicker";
 import ProfileForm from "@/components/ProfileForm";
 import TasteInput from "@/components/TasteInput";
 import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
+import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
 import { postPlan, streamRun } from "@/lib/run-client";
-import { ProfileSchema, type CategoryTag, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
+import { ProfileSchema, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
   ssr: false, loading: () => <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" aria-label="Loading map" />,
@@ -99,23 +100,19 @@ function useResearch(input: ResearchInputs) {
   return { runEvents, result, clear, startRun };
 }
 
-function ResultPreview({ result }: { result: RunResult }): ReactElement {
-  return <section className="rounded-xl border border-teal-200 bg-teal-50 p-5" aria-label="Research result">
-    <h2 className="font-semibold text-teal-950">{result.merchants.length} merchants found · {result.mode === "agent" ? "Agent" : "Fallback"}</h2>
-    <ul className="mt-3 space-y-1 text-sm">{result.merchants.map((merchant) => <li key={merchant.place.entityId}>{merchant.place.name}</li>)}</ul>
-  </section>;
-}
-
 export default function Home(): ReactElement {
   const { profile, updateProfile, ready } = useSavedProfile();
   const [brandsText, setBrandsText] = useState("");
   const [presetId, setPresetId] = useState<string>();
   const [stage, setStage] = useState<Stage>("edit");
   const [pickingBranchId, setPickingBranchId] = useState<string>();
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string>();
+  const [independentsOnly, setIndependentsOnly] = useState(false);
   const inputs = { profile, brandsText, presetId, updateProfile, setStage };
   const planning = usePlanning(inputs);
   const research = useResearch({ ...inputs, plan: planning.plan, categories: planning.confirmedCategories,
     overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
+  const visibleMerchants = useMemo(() => (research.result?.merchants ?? []).filter((merchant) => !independentsOnly || !merchant.multiLocation), [research.result, independentsOnly]);
   const { plan, errorMessage } = planning;
   const busy = stage === "planning" || stage === "running";
   const center = getCities().find((city) => city.label === profile.city) ?? plan?.city ?? getCities()[0];
@@ -131,6 +128,13 @@ export default function Home(): ReactElement {
   function pickLocation(point: { lat: number; lon: number }): void {
     editProfile({ ...profile, branches: profile.branches.map((branch) => branch.id === pickingBranchId ? { ...branch, ...point, locationSource: "map" } : branch) });
     setPickingBranchId(undefined);
+  }
+  function changeStatus(merchant: MerchantResult, status: MerchantStatus): void {
+    updateProfile({ ...profile, merchantStatus: { ...profile.merchantStatus,
+      [merchant.place.entityId]: { name: merchant.place.name, status, updatedAt: new Date().toISOString() } } });
+  }
+  function selectMapMerchant(entityId: string): void {
+    setSelectedMerchantId(entityId); document.getElementById(`merchant-${entityId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function startPlan(): void { research.clear(); setPickingBranchId(undefined); void planning.startPlan(); }
   const trace = research.runEvents.length ? research.runEvents : plan?.trace ?? [];
@@ -160,10 +164,12 @@ export default function Home(): ReactElement {
           onReplan={startPlan} onConfirm={research.startRun} />}
         {visibleTrace.length > 0 && <AgentTrace events={visibleTrace} disabled={busy}
           onRetry={research.runEvents.length ? research.startRun : startPlan} />}
-        {research.result && <ResultPreview result={research.result} />}
+        {research.result && <MerchantResults result={research.result} profile={profile} selectedMerchantId={selectedMerchantId}
+          independentsOnly={independentsOnly} onIndependentsOnlyChange={setIndependentsOnly}
+          onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}
       </div>
       <aside className="min-w-0 lg:sticky lg:top-6">
-        <MerchantMap center={center} branches={profile.branches} merchants={[]} onSelectMerchant={() => undefined}
+        <MerchantMap center={center} branches={profile.branches} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>
       </aside>

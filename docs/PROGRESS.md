@@ -28,6 +28,7 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - [ ] Optional: create an Upstash Redis database and add its REST URL/token.
 - [ ] Review the pre-existing deletion of `.env.example`; Codex leaves it untouched and outside task commits.
 - [ ] Retry shadcn registry installation when reachable; T1 uses small native UI wrappers after initialization and direct registry downloads failed.
+- [ ] Open the downloaded CSV in a spreadsheet: native Numbers capture failed during T10; the browser download and CSV parser checks passed.
 - [ ] Review npm installation audit output (5 high-severity findings in the pinned dependency tree); no forced dependency upgrades were made.
 
 ## Decisions I made
@@ -65,6 +66,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T9: A changed brand candidate disables confirmation until re-planning refreshes evidence. Category edits clear previous research results and trace; profile/brand edits also invalidate the plan.
 - T9: Fix T8 request building to research only branches that survived location resolution, while keeping unresolved branches visible for repair. Preserve current edits on resolved branches and show readable validation errors instead of raw schema output.
 - T9: The stream client requires one terminal outcome followed by done, handles UTF-8/chunk boundaries, and skips malformed lines with a static warning. A truncated stream is an error rather than an indefinitely running UI.
+
+- T10: Export the currently visible merchant list, matching the map and Independents only filter. Label exclusion totals as candidate matches because repeated branch/category candidates are not distinct merchants. Display ratings with one decimal to avoid provider floating-point artifacts.
 
 ## Review guide (filled in at T12)
 
@@ -270,3 +273,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: evidence cards arrive in T10; this task displays a merchant-name result preview. Invalid/truncated stream behavior is covered offline. The existing local dev server stays running for the next browser check.
 - New dependencies: none.
 - For Devin: no new owner-only action.
+
+### T10: Evidence cards, map selection, CSV, and follow-up status — PARTIAL
+- Date/time (UTC+8): 2026-10-24 10:32
+- What was done:
+  - Added branch-grouped cards with available evidence, ratings, links, pitches, copy feedback, and saved follow-up statuses.
+  - Added result/category/exclusion summaries, independent filtering, and agent/fallback labels.
+  - Added selectable merchant markers, keyboard activation, two-way selection, card scrolling, and result bounds fitting.
+  - Added CSV export with exact column order, RFC 4180 escaping, text formula protection, and status lookup.
+- Files touched: `src/app/page.tsx`, `src/components/{MerchantCard,MerchantMap,ExportButton}.tsx`, `src/lib/{config,csv}.ts`, `tests/unit/csv.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run dev
+  ```
+  Denver demo → Plan → Confirm → copy a pitch, select a card/marker, export CSV, mark a merchant Not a fit, and Confirm again.
+- Verification: PASS (380 tests, production build, lint, rules). Independent review fixed stale Copied feedback after a later clipboard failure; browser inspection prompted one-decimal rating display. Final standard checks passed after both changes.
+- Live checks: Denver produced 10 cards and 10 merchant markers. Copy showed Copied; card selection changed the matching marker; clicking a marker highlighted and scrolled its card. CSV downloaded after an overnight browser permission wait; an offline parser verified 10 data rows and 16 columns. Marked Denver ChopHouse & Brewery Not a fit; the next completed 10-merchant run omitted it and showed one status exclusion. Screenshot saved outside the repository.
+- Open issues / decisions: implementation is complete, but opening CSV in a native spreadsheet remains unverified. Attempting Numbers failed with ScreenCaptureKit capture error -3811 before the file could be opened. No approval bypass or alternative UI automation was attempted. This manual acceptance gap makes the task PARTIAL; independent work continues under the unattended rule.
+- New dependencies: none.
+- For Devin: open the downloaded CSV in a spreadsheet (also in Waiting for Devin).
