@@ -1,7 +1,7 @@
 // Validates plan choices, category evidence, and recruiting pitches against observed data.
 // Called by: submitPlan, fallback validation, pitch generation, and guard unit tests.
 import { z } from "zod";
-import { PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX, PITCH_MAX_CHARACTERS, PITCH_MAX_SENTENCES, PITCH_CALL_MINUTES } from "@/lib/config";
+import { CATEGORY_EVIDENCE_MAX, PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX, PITCH_MAX_CHARACTERS, PITCH_MAX_SENTENCES, PITCH_CALL_MINUTES } from "@/lib/config";
 import { getBlacklist } from "@/lib/data";
 import { filterAllowedBrandTags } from "@/lib/qloo/search";
 import { CategoryTagIdSchema } from "@/lib/types";
@@ -18,6 +18,27 @@ export const PlanSubmissionSchema = z.object({
 export type PlanSubmission = z.infer<typeof PlanSubmissionSchema>;
 type EvidenceSubmission = z.infer<typeof EvidenceSubmissionSchema>;
 type GuardResult = { kept: PlannedCategory[]; errors: string[] };
+
+function evidenceStrength(evidence: CategoryEvidence): number {
+  return /^(Quick-segment default:|Generic fallback|Saved institution preference)/.test(evidence.reason) ? 0 : 1;
+}
+
+function compareEvidence(first: CategoryEvidence, second: CategoryEvidence): number {
+  const strength = evidenceStrength(second) - evidenceStrength(first);
+  // Without a tag hierarchy, longer multi-word names are our specificity heuristic.
+  const firstWords = first.brandTagName.trim().split(/\s+/).length;
+  const secondWords = second.brandTagName.trim().split(/\s+/).length;
+  return strength || secondWords - firstWords || second.brandTagName.length - first.brandTagName.length;
+}
+
+export function compactCategoryEvidence(evidence: CategoryEvidence[]): CategoryEvidence[] {
+  const unique = new Map<string, CategoryEvidence>();
+  for (const item of [...evidence].sort(compareEvidence)) {
+    const key = JSON.stringify([item.brandEntityId, item.brandTagId]);
+    if (!unique.has(key)) unique.set(key, item);
+  }
+  return [...unique.values()].slice(0, CATEGORY_EVIDENCE_MAX);
+}
 
 export function checkCategoryCandidate(
   tagId: string, candidates: Map<string, string>, blacklist: string[] = getBlacklist().categorySlugKeywords,
@@ -94,7 +115,7 @@ function buildEvidence(
       brandTagName: tag.name, reason: item.reason.trim(),
     });
   }
-  return evidence;
+  return compactCategoryEvidence(evidence);
 }
 
 export function applyPlanGuards(submission: unknown, context: PlanContext): GuardResult {

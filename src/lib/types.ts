@@ -1,7 +1,7 @@
 // Defines validated shared shapes for profiles, Qloo data, plans, runs, and trace events.
 // Called by: server boundaries, client state, data loaders, and schema tests
 import { z } from "zod";
-import { DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { CATEGORY_EVIDENCE_MAX, DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
 
 export const CategoryTagIdSchema = z.string().regex(/^urn:tag:category:place:[a-z0-9_]+$/);
 export const EntityIdSchema = z.string().min(8).max(64);
@@ -50,7 +50,7 @@ export const CategoryEvidenceSchema = z.object({
   brandTagName: z.string(), reason: z.string().max(200),
 });
 export const PlannedCategorySchema = z.object({
-  tagId: CategoryTagIdSchema, label: z.string(), evidence: z.array(CategoryEvidenceSchema).min(1),
+  tagId: CategoryTagIdSchema, label: z.string(), evidence: z.array(CategoryEvidenceSchema).min(1).max(CATEGORY_EVIDENCE_MAX),
   source: z.enum(["agent", "fallback"]), knownIndependents: z.number().int().optional(),
 });
 export const PlanRequestSchema = z.object({

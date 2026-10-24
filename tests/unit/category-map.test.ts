@@ -55,6 +55,14 @@ describe("fallback category rules", () => {
     expect(categories.find((category) => category.tagId === "urn:tag:category:place:health_food_restaurant")?.evidence).toHaveLength(1);
   });
 
+  it("caps stored evidence after ranking categories by their full distinct support", () => {
+    const coffee = Array.from({ length: 6 }, (_, index) => `Coffee option ${index}`);
+    const wine = Array.from({ length: 7 }, (_, index) => `Wine option ${index}`);
+    const categories = mapBrandTagsToCategories([brandWithTags([...coffee, ...wine])]);
+    expect(categories[0].tagId).toBe("urn:tag:category:place:wine_bar");
+    expect(categories.every((category) => category.evidence.length === 5)).toBe(true);
+  });
+
   it("uses quick-segment defaults with explicit default evidence", () => {
     const brand = { ...brandWithTags(["Unclassified"]), name: "Fake Unknown" };
     const seeded = { ...brand, name: "Starbucks" };

@@ -100,6 +100,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - R1 review fixes: the current user explicitly authorized `git pull` and forbade pushing; only the pull overrides the older remote-action restriction. R1–R9 use separate local commits under the requested author.
 - R1: use whole-word prefixes so REI cannot match Reiss; calculate acronyms before stripping corporate suffixes. Add optional `ambiguousBrands` to PlanResponse so unmatched names can be explicitly chosen without a guessed entity. PresetSchema has no brandOverrides, so preset JSON stays unchanged. Smoke now checks both presets sequentially.
 
+- R4: no tag hierarchy is available in CategoryEvidence, so specificity uses tag-name word count then character length, with stable ties. Sort stronger agent/rule evidence first, dedupe by brand/tag pair, and cap only after category frequency ranking. Native details/summary provides the requested keyboard-accessible expansion. R6 will replace legacy reason-prefix classification with explicit kinds.
+
 ## Review guide
 
 1. `src/lib/types.ts`: follow the validated profile, plan, run, and trace shapes.
@@ -499,5 +501,19 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`; compare `.env.example` with `git show cfe3521:.env.example`.
 - Verification: PASS: 479 tests / 45 files, lint, typecheck, production build, rules (145 files), and diff whitespace.
 - Open issues / decisions: exact historical bytes take precedence over reformatting the template.
+- New dependencies: none.
+- For Devin: no new action.
+
+### R4: Deduplicate and limit category evidence — DONE
+- Date/time (UTC+8): 2026-10-24 18:06
+- What was done:
+  - Shared evidence compaction between agent guards and fallback mapping: strength/specificity sort, pair dedupe, maximum five.
+  - Preserved full distinct-support counts for fallback category ranking before trimming evidence.
+  - Added the schema cap, configurable limits, and top-three display with a closed +N more details control.
+  - Added pure, agent/fallback integration, and rendered confirmation tests with synthetic evidence.
+- Files touched: `src/lib/{config,types,agent/guards,fallback/category-map}.ts`, `src/components/CategoryConfirm.tsx`, `tests/unit/{category-evidence,category-map,guards}.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
+- Verification: PASS: 490 offline tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace. New test-file lint/typecheck and the full test suite passed after the independent test contribution arrived.
+- Open issues / decisions: specificity is a documented heuristic, not a Qloo strength score. Agent evidence still passes layer 2 before compaction. Cached plans exceeding five records fail schema validation and refresh normally.
 - New dependencies: none.
 - For Devin: no new action.

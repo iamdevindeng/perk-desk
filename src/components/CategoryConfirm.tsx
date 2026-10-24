@@ -2,7 +2,7 @@
 // Presents brand choices and category evidence for explicit confirmation before merchant research.
 // Called by: the main page after planning and before Confirm & find merchants.
 import type { ReactElement } from "react";
-import { RUN_MAX_CATEGORIES } from "@/lib/config";
+import { CATEGORY_EVIDENCE_VISIBLE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCategoryDefaults } from "@/lib/data";
 import type { CategoryTag, PlannedCategory, PlanResponse, ResolvedBrand } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -42,9 +42,20 @@ function BrandChoice({ brand, selectedId, disabled, onChange }: BrandChoiceProps
 
 function CategoryEvidence({ planned }: { planned?: PlannedCategory }): ReactElement {
   if (!planned) return <p className="text-xs leading-relaxed text-slate-500">Added by you. Research will check local options in this category.</p>;
+  const extraCount = planned.evidence.length - CATEGORY_EVIDENCE_VISIBLE;
+  return <div className="space-y-2">
+    <EvidenceList evidence={planned.evidence.slice(0, CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} />
+    {extraCount > 0 && <details>
+      <summary className="cursor-pointer text-xs font-medium text-teal-800">+{extraCount} more</summary>
+      <div className="mt-2"><EvidenceList evidence={planned.evidence.slice(CATEGORY_EVIDENCE_VISIBLE)} label={planned.label} /></div>
+    </details>}
+  </div>;
+}
+
+function EvidenceList({ evidence, label }: { evidence: PlannedCategory["evidence"]; label: string }): ReactElement {
   return <ul className="space-y-2 text-xs leading-relaxed text-slate-600">
-    {planned.evidence.map((evidence, index) => <li key={`${evidence.brandEntityId}-${evidence.brandTagId}-${index}`} className="break-words">
-      <span className="font-medium">{evidence.brandName}</span> → {evidence.brandTagName} → {planned.label}: {evidence.reason}
+    {evidence.map((item, index) => <li key={`${item.brandEntityId}-${item.brandTagId}-${index}`} className="break-words">
+      <span className="font-medium">{item.brandName}</span> → {item.brandTagName} → {label}: {item.reason}
     </li>)}
   </ul>;
 }
