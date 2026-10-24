@@ -38,7 +38,7 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
 - [ ] Review the UI in a real browser, including mobile layout, keyboard use, and accessibility; check recognized brand choices before confirming, especially in fallback mode (see T12).
 - [ ] Optional: create an Upstash Redis database and add its REST URL/token.
-- [ ] Review the pre-existing deletion of `.env.example`; Codex leaves it untouched and outside task commits.
+- [x] Restore `.env.example`: completed by R3 from `cfe3521`; `.env.local` remains untouched.
 - [ ] Retry shadcn registry installation when reachable; T1 uses small native UI wrappers after initialization and direct registry downloads failed.
 - [ ] Open the downloaded CSV in a spreadsheet: native Numbers capture failed during T10; the browser download and CSV parser checks passed.
 - [ ] Review npm installation audit output (5 high-severity findings in the pinned dependency tree); no forced dependency upgrades were made.
@@ -486,5 +486,18 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`; `git check-ignore docs/translate/PROGRESS.md docs/translate/TASKS.md`.
 - Verification: PASS: 479 tests / 45 files, lint, typecheck, production build, rules (144 files), diff whitespace. Both local translations remain intact and ignored.
 - Open issues / decisions: R1 now passes every standard check; its earlier FAILED entry and WIP commit remain as required history. R1 final status is DONE after this revalidation.
+- New dependencies: none.
+- For Devin: no new action.
+
+### R3: Restore the committed environment template — DONE
+- Date/time (UTC+8): 2026-10-24 18:04
+- What was done:
+  - Restored `.env.example` directly from `cfe3521` and checked byte-for-byte equality.
+  - Preserved the README copy command and Git ignore exception.
+  - Left `.env.local` untouched and closed the old template-restoration waiting item.
+- Files touched: `.env.example`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`; compare `.env.example` with `git show cfe3521:.env.example`.
+- Verification: PASS: 479 tests / 45 files, lint, typecheck, production build, rules (145 files), and diff whitespace.
+- Open issues / decisions: exact historical bytes take precedence over reformatting the template.
 - New dependencies: none.
 - For Devin: no new action.
