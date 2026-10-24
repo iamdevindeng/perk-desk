@@ -1058,3 +1058,33 @@ Verification: all checks passed; 973 offline tests / 66 files. All 19 demo names
 Decisions I made: R18 explicitly requires Marmot Boulder to be excluded although Boulder is absent from cities.json, so Boulder is a fixed qualifier without editing preset city data. Existing R13 assertions that The Gap, Gap Company and restored multi-word chain forms remain independent directly contradict R18; updated only those superseded assertions and preserved all unrelated tests. No demo cache keys or request inputs changed.
 
 Open issues: none for R18.
+
+## R19 — Guided mobile flow and accessible focus (2026-10-24)
+
+Status: DONE
+
+- Added one post-render scroll/focus transition for preset selection, successful planning, confirmation, and result arrival.
+- Respected reduced-motion preferences and made section headings programmatically focusable.
+- Rendered progress immediately on Confirm, before streamed events arrive.
+- Added a mobile View map link targeting a stable wrapper, including while the map chunk is loading.
+- Tested transitions against the real page with deferred offline transports and mocked DOM scroll/focus, including stale navigation and rerenders.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                   |  25 +++---
+ src/components/AgentTrace.tsx      |   2 +-
+ src/components/CategoryConfirm.tsx |   2 +-
+ src/components/MerchantCard.tsx    |   9 ++-
+ src/components/MerchantMap.tsx     |   2 +-
+ src/lib/page-navigation.ts         |  27 +++++++
+ tests/unit/page-navigation.test.ts | 155 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 207 insertions(+), 15 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 977 offline tests / 67 files. React accessibility/effect review passed. No live provider calls.
+
+Decisions I made: added the single-purpose src/lib/page-navigation.ts helper inside the existing lib directory to keep the page within readability limits; this is a documented addition to the architecture file list. Navigation is consumed after React commits, so headings exist before scrolling. The map link targets its stable wrapper to support lazy loading.
+
+Open issues: none for R19.

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DEFAULT_RADIUS_M, LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
+import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
 import { postPlan, streamRun } from "@/lib/run-client";
 import { ProfileSchema, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
@@ -65,7 +66,7 @@ function useSavedProfile() {
   return { profile, updateProfile, ready };
 }
 
-type PlanInputs = { profile: Profile; brandsText: string; presetId?: string; updateProfile: (profile: Profile) => void; setStage: (stage: Stage) => void };
+type PlanInputs = { navigation: PageNavigation; profile: Profile; brandsText: string; presetId?: string; updateProfile: (profile: Profile) => void; setStage: (stage: Stage) => void };
 
 function usePlanning(input: PlanInputs) {
   const versionRef = useRequestVersion();
@@ -75,18 +76,19 @@ function usePlanning(input: PlanInputs) {
   const [errorMessage, setErrorMessage] = useState("");
   async function startPlan(): Promise<void> {
     const requestVersion = ++versionRef.current;
-    input.setStage("planning"); setErrorMessage("");
+    input.navigation.cancel(); input.setStage("planning"); setErrorMessage("");
     try {
       const response = await postPlan(buildPlanRequest(input.profile, input.brandsText, input.presetId, brandOverrides));
       if (requestVersion !== versionRef.current) return;
       setPlan(response); setConfirmedCategories(response.categories.slice(0, RUN_MAX_CATEGORIES)); input.setStage("confirm");
+      if (!response.limited) input.navigation.navigate("category-confirm-heading");
       input.updateProfile({ ...input.profile, branches: input.profile.branches.map((branch) => response.branches.find((located) => located.id === branch.id) ?? branch) });
     } catch (error) {
       if (requestVersion !== versionRef.current) return;
       setErrorMessage(requestError(error)); input.setStage("edit");
     }
   }
-  function clear(): void { versionRef.current += 1; setPlan(null); setBrandOverrides({}); setConfirmedCategories([]); setErrorMessage(""); }
+  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setPlan(null); setBrandOverrides({}); setConfirmedCategories([]); setErrorMessage(""); }
   const needsReplan = plan !== null && Object.entries(brandOverrides).some(([name, entityId]) => plan.brands.find((brand) => brand.inputName === name)?.entityId !== entityId);
   return { plan, confirmedCategories, setConfirmedCategories, brandOverrides, setBrandOverrides, needsReplan, errorMessage, setErrorMessage, startPlan, clear };
 }
@@ -97,10 +99,10 @@ function useResearch(input: ResearchInputs) {
   const versionRef = useRequestVersion();
   const [runEvents, setRunEvents] = useState<TraceEvent[]>([]);
   const [result, setResult] = useState<RunResult | null>(null);
-  function clear(): void { versionRef.current += 1; setRunEvents([]); setResult(null); }
+  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setRunEvents([]); setResult(null); }
   async function startRun(): Promise<void> {
     if (!input.plan || input.needsReplan || !input.categories.length) return;
-    clear(); input.setStage("running"); input.setErrorMessage("");
+    clear(); input.setStage("running"); input.setErrorMessage(""); input.navigation.navigate("research-progress-heading");
     const requestVersion = versionRef.current;
     let succeeded = false;
     try {
@@ -110,10 +112,11 @@ function useResearch(input: ResearchInputs) {
       await streamRun(request, (event) => {
         if (requestVersion !== versionRef.current) return;
         setRunEvents((previous) => [...previous, event]);
-        if (event.type === "result") { setResult(event.result); succeeded = true; }
+        if (event.type === "result") { setResult(event.result); succeeded = true; input.navigation.navigate("merchant-results-heading"); }
       });
     } catch (error) {
       if (requestVersion !== versionRef.current) return;
+      input.navigation.cancel();
       const message = requestError(error);
       setRunEvents((previous) => [...previous, { type: "error", at: 0, code: "internal", message }]);
       input.setErrorMessage(message); setResult(null); succeeded = false;
@@ -132,7 +135,8 @@ export default function Home(): ReactElement {
   const [pickingBranchId, setPickingBranchId] = useState<string>();
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>();
   const [independentsOnly, setIndependentsOnly] = useState(false);
-  const inputs = { profile, brandsText, presetId, updateProfile, setStage };
+  const navigation = usePageNavigation();
+  const inputs = { profile, brandsText, presetId, updateProfile, setStage, navigation };
   const planning = usePlanning(inputs);
   const research = useResearch({ ...inputs, plan: planning.plan, categories: planning.confirmedCategories,
     overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
@@ -148,6 +152,7 @@ export default function Home(): ReactElement {
   function selectPreset(preset: Preset): void {
     updateProfile(ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) }));
     setBrandsText(preset.brandsText); setPresetId(preset.id); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
+    navigation.navigate("plan-categories-button");
   }
   function pickLocation(point: { lat: number; lon: number }): void {
     if (busyRef.current || !pickingBranchId) return;
@@ -179,7 +184,7 @@ export default function Home(): ReactElement {
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
         <TasteInput value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
-        <Button onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900">
+        <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900">
           {stage === "planning" ? "Planning…" : "Plan merchant categories"}
         </Button>
         {stage === "planning" && <p role="status" className="text-sm text-slate-500">Resolving brands and finding supported categories…</p>}
@@ -188,13 +193,13 @@ export default function Home(): ReactElement {
           brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy}
           onBrandOverride={(name, entityId) => { planning.setBrandOverrides({ ...planning.brandOverrides, [name]: entityId }); research.clear(); }}
           onReplan={startPlan} onConfirm={startRun} />}
-        {visibleTrace.length > 0 && <AgentTrace events={visibleTrace} disabled={busy}
+        {(stage === "running" || visibleTrace.length > 0) && <AgentTrace events={visibleTrace} disabled={busy}
           onRetry={research.runEvents.length ? startRun : startPlan} />}
         {research.result && <MerchantResults result={research.result} profile={profile} selectedMerchantId={selectedMerchantId}
           independentsOnly={independentsOnly} onIndependentsOnlyChange={setIndependentsOnly}
           onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}
       </div>
-      <aside className="min-w-0 lg:sticky lg:top-6">
+      <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 scroll-mt-6 lg:sticky lg:top-6">
         <MerchantMap center={center} branches={profile.branches} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={!busy && pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>

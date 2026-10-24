@@ -4,6 +4,7 @@
 import { useState, type ReactElement } from "react";
 import { DISTANCE_DECIMALS, METERS_PER_KILOMETER, RATING_DECIMALS } from "@/lib/config";
 import { getCategoryLabel } from "@/lib/data";
+import { scrollToElement } from "@/lib/page-navigation";
 import { MerchantStatusSchema, type MerchantResult, type MerchantStatus, type Profile, type RunResult } from "@/lib/types";
 import ExportButton from "@/components/ExportButton";
 import { Badge } from "@/components/ui/badge";
@@ -146,10 +147,14 @@ export function MerchantResults({ result, profile, selectedMerchantId, independe
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle id="merchant-results-heading">Your merchant shortlist</CardTitle>
+          <CardTitle id="merchant-results-heading" tabIndex={-1} className="scroll-mt-6">Your merchant shortlist</CardTitle>
           <Badge variant={result.mode === "fallback" ? "secondary" : "outline"}>{result.mode === "fallback" ? "Fallback mode" : "Agent mode"}</Badge>
         </div>
-        <p className="text-sm text-slate-500">Showing {visible.length} of {result.merchants.length} merchants</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-slate-500">Showing {visible.length} of {result.merchants.length} merchants</p>
+          <a href="#merchant-map-card" className="text-sm text-teal-800 underline underline-offset-2 lg:hidden"
+            onClick={(event) => { event.preventDefault(); scrollToElement("merchant-map-card"); }}>View map</a>
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
