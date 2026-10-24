@@ -8,8 +8,16 @@ import { compactCategoryEvidence } from "@/lib/agent/guards";
 import type { CategoryEvidence } from "@/lib/types";
 import { FAKE_CATEGORY, FAKE_EVIDENCE, FAKE_PLAN_RESPONSE } from "../fixtures/fake-plan";
 
-function evidence(tagId: string, tagName: string, reason = "Observed tag supports this category."): CategoryEvidence {
+function evidence(tagId: string, tagName: string, reason = "Observed tag supports this category."): typeof FAKE_EVIDENCE {
   return { ...FAKE_EVIDENCE, brandTagId: tagId, brandTagName: tagName, reason };
+}
+
+function renderEvidence(records: CategoryEvidence[]): string {
+  const plan = { ...FAKE_PLAN_RESPONSE, categories: [{ ...FAKE_CATEGORY, evidence: records }] };
+  return renderToStaticMarkup(createElement(CategoryConfirm, {
+    plan, confirmedCategories: plan.categories, brandOverrides: {}, onChange: vi.fn(),
+    onBrandOverride: vi.fn(), onReplan: vi.fn(), onConfirm: vi.fn(),
+  }));
 }
 
 describe("category evidence compaction", () => {
@@ -24,10 +32,10 @@ describe("category evidence compaction", () => {
     expect(compacted).toContainEqual(otherBrand);
   });
 
-  it("retains the stronger record when a duplicate pair has different evidence kinds", () => {
-    const fallback = evidence("fake:coffee", "Coffee", "Generic fallback default; confirm this category.");
-    const rule = { ...fallback, reason: "Rule: tag contains 'coffee'" };
-    expect(compactCategoryEvidence([fallback, rule])).toEqual([rule]);
+  it("retains the more specific record when a brand and tag pair is repeated", () => {
+    const broad = evidence("fake:coffee", "Coffee");
+    const specific = { ...broad, brandTagName: "Specialty coffee roasting equipment" };
+    expect(compactCategoryEvidence([broad, specific])).toEqual([specific]);
   });
 
   it("caps each category at five strongest distinct records", () => {
@@ -39,14 +47,29 @@ describe("category evidence compaction", () => {
   });
 
   it("places agent and rule evidence ahead of defaults and saved preferences", () => {
-    const rule = evidence("fake:rule", "Coffee", "Rule: tag contains 'coffee'");
+    const rule: CategoryEvidence = { ...evidence("fake:rule", "Coffee"), kind: "rule", reason: "Rule: tag contains 'coffee'" };
     const agent = evidence("fake:agent", "Tea");
-    const defaults = [
-      evidence("fake:segment", "Very specific coffee roasting equipment", "Quick-segment default: Fake segment; confirm this category."),
-      evidence("fake:generic", "Very specific coffee roasting equipment", "Generic fallback default; confirm this category."),
-      evidence("fake:preference", "Very specific coffee roasting equipment", "Saved institution preference; confirm this category."),
+    const defaults: CategoryEvidence[] = [
+      { kind: "default", reason: "Quick-segment default: Fake segment; confirm this category." },
+      { kind: "default", reason: "Generic fallback default; confirm this category." },
+      { kind: "preference", reason: "Saved institution preference; confirm this category." },
     ];
     expect(compactCategoryEvidence([...defaults, agent, rule])).toEqual([rule, agent, ...defaults]);
+  });
+
+  it("uses explicit kinds instead of inferring evidence strength from reason text", () => {
+    const agent = evidence("fake:agent", "Coffee", "Generic fallback text appears in this explanation.");
+    const fallback: CategoryEvidence = { kind: "default", reason: "Rule: this remains a default suggestion." };
+    expect(compactCategoryEvidence([fallback, agent])).toEqual([agent, fallback]);
+  });
+
+  it("deduplicates non-brand evidence by kind and reason without merging distinct suggestions", () => {
+    const fallback: CategoryEvidence = { kind: "default", reason: "Confirm this suggestion." };
+    const preference: CategoryEvidence = { kind: "preference", reason: "Confirm this suggestion." };
+    const otherDefault: CategoryEvidence = { kind: "default", reason: "Another quick-segment suggestion." };
+    expect(compactCategoryEvidence([fallback, preference, { ...fallback }, otherDefault])).toEqual([
+      fallback, preference, otherDefault,
+    ]);
   });
 
   it("orders specificity by word count before name length", () => {
@@ -80,11 +103,7 @@ describe("category evidence compaction", () => {
 describe("category evidence confirmation", () => {
   it("shows three records initially and groups the remaining two under a toggle", () => {
     const records = ["First", "Second", "Third", "Fourth", "Fifth"].map((name) => evidence(`fake:${name}`, `${name} evidence tag`));
-    const plan = { ...FAKE_PLAN_RESPONSE, categories: [{ ...FAKE_CATEGORY, evidence: records }] };
-    const html = renderToStaticMarkup(createElement(CategoryConfirm, {
-      plan, confirmedCategories: plan.categories, brandOverrides: {}, onChange: vi.fn(),
-      onBrandOverride: vi.fn(), onReplan: vi.fn(), onConfirm: vi.fn(),
-    }));
+    const html = renderEvidence(records);
     const details = html.match(/<details\b[^>]*>[\s\S]*?<\/details>/)?.[0] ?? "";
     const initiallyVisible = html.replace(details, "");
     expect(details).toContain("+2 more");
@@ -94,5 +113,24 @@ describe("category evidence confirmation", () => {
       expect(details).toContain(`${name} evidence tag`);
       expect(initiallyVisible).not.toContain(`${name} evidence tag`);
     }
+  });
+
+  it.each([
+    { kind: "preference", label: "Saved preference" },
+    { kind: "default", label: "Default suggestion" },
+  ] as const)("labels $kind evidence without a borrowed brand-tag arrow", ({ kind, label }) => {
+    const html = renderEvidence([{ kind, reason: "Confirm this suggested category." }]);
+    expect(html).toContain(label);
+    expect(html).toContain("Confirm this suggested category.");
+    expect(html).not.toContain("→");
+    expect(html).not.toContain("undefined");
+  });
+
+  it.each(["agent", "rule"] as const)("keeps the observed brand and tag arrow for %s evidence", (kind) => {
+    const html = renderEvidence([{ ...evidence("fake:observed", "Observed specialty coffee"), kind }]);
+    expect(html).toContain("Observed specialty coffee");
+    expect(html).toContain("→");
+    expect(html).not.toContain("Default suggestion");
+    expect(html).not.toContain("Saved preference");
   });
 });

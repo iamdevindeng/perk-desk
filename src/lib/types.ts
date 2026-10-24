@@ -45,10 +45,11 @@ export const ResolvedBrandSchema = z.object({
   matchKind: z.enum(["exact", "prefix", "agent", "user", "fallback"]),
   candidates: z.array(BrandCandidateSchema.omit({ tags: true })).max(3),
 });
-export const CategoryEvidenceSchema = z.object({
-  brandEntityId: EntityIdSchema, brandName: z.string(), brandTagId: z.string(),
-  brandTagName: z.string(), reason: z.string().max(200),
-});
+export const CategoryEvidenceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.enum(["agent", "rule"]), brandEntityId: EntityIdSchema, brandName: z.string(),
+    brandTagId: z.string(), brandTagName: z.string(), reason: z.string().max(200) }),
+  z.object({ kind: z.enum(["preference", "default"]), reason: z.string().max(200) }),
+]);
 export const PlannedCategorySchema = z.object({
   tagId: CategoryTagIdSchema, label: z.string(), evidence: z.array(CategoryEvidenceSchema).min(1).max(CATEGORY_EVIDENCE_MAX),
   source: z.enum(["agent", "fallback"]), knownIndependents: z.number().int().optional(),

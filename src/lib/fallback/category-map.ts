@@ -1,7 +1,7 @@
 // Maps permitted brand-tag names to deterministic fallback categories with honest evidence.
 // Called by: fallback-plan and category-map unit tests.
 import { FALLBACK_MAX_CATEGORIES } from "@/lib/config";
-import { compactCategoryEvidence } from "@/lib/agent/guards";
+import { categoryEvidenceKey, compactCategoryEvidence } from "@/lib/agent/guards";
 import { getCategoryDefaults, getCategoryLabel } from "@/lib/data";
 import { normalizeName } from "@/lib/merchants/name-match";
 import { filterAllowedBrandTags } from "@/lib/qloo/search";
@@ -34,7 +34,7 @@ export const CATEGORY_RULES: { keywords: string[]; categories: string[] }[] = [
 ].map((rule) => ({ ...rule, categories: rule.categories.map((slug) => `urn:tag:category:place:${slug}`) }));
 
 function evidenceFor(brand: BrandCandidate, tag: TagRef, reason: string): CategoryEvidence {
-  return { brandEntityId: brand.entityId, brandName: brand.name, brandTagId: tag.id, brandTagName: tag.name, reason };
+  return { kind: "rule", brandEntityId: brand.entityId, brandName: brand.name, brandTagId: tag.id, brandTagName: tag.name, reason };
 }
 
 function addCategory(categories: Map<string, PlannedCategory>, tagId: string, evidence: CategoryEvidence): void {
@@ -43,8 +43,7 @@ function addCategory(categories: Map<string, PlannedCategory>, tagId: string, ev
     categories.set(tagId, { tagId, label: getCategoryLabel(tagId), source: "fallback", evidence: [evidence] });
     return;
   }
-  const alreadyCounted = existing.evidence.some((item) =>
-    item.brandEntityId === evidence.brandEntityId && item.brandTagId === evidence.brandTagId);
+  const alreadyCounted = existing.evidence.some((item) => categoryEvidenceKey(item) === categoryEvidenceKey(evidence));
   if (!alreadyCounted) existing.evidence.push(evidence);
 }
 
@@ -90,15 +89,14 @@ function isSegmentBrand(brand: BrandCandidate, seedBrands: string[]): boolean {
 function defaultCategories(brands: BrandCandidate[]): PlannedCategory[] {
   const categories = new Map<string, PlannedCategory>();
   for (const segment of getCategoryDefaults().quickSegments) {
-    for (const brand of brands.filter((candidate) => candidate.tags.length && isSegmentBrand(candidate, segment.seedBrands))) {
-      const evidence = evidenceFor(brand, brand.tags[0], `Quick-segment default: ${segment.label}; confirm this category.`);
-      addRuleCategories(categories, segment.categories, evidence);
-    }
+    if (!brands.some((brand) => isSegmentBrand(brand, segment.seedBrands))) continue;
+    addRuleCategories(categories, segment.categories, {
+      kind: "default", reason: `Quick-segment default: ${segment.label}; confirm this category.`,
+    });
   }
   if (categories.size) return [...categories.values()];
-  const brand = brands.find((candidate) => candidate.tags.length);
-  if (!brand) return [];
-  const evidence = evidenceFor(brand, brand.tags[0], "Generic fallback default; no matching keyword rule. Confirm this category.");
+  if (!brands.length) return [];
+  const evidence: CategoryEvidence = { kind: "default", reason: "Generic fallback default; no matching keyword rule. Confirm this category." };
   const defaults = ["coffee_shop", "brunch_restaurant", "brewery", "gift_shop"];
   addRuleCategories(categories, defaults.map((slug) => `urn:tag:category:place:${slug}`), evidence);
   return [...categories.values()];

@@ -37,7 +37,8 @@ describe("fallback category rules", () => {
     ] };
     const categories = mapBrandTagsToCategories([brand]);
     expect(categories.some((category) => category.tagId === "urn:tag:category:place:wine_bar")).toBe(false);
-    expect(categories.every((category) => category.evidence[0].brandTagName === "Unclassified")).toBe(true);
+    expect(categories.every((category) => category.evidence[0].kind === "default")).toBe(true);
+    expect(categories.every((category) => !("brandTagId" in category.evidence[0]))).toBe(true);
   });
 
   it("ranks distinct supporting tags by frequency and resolves ties by rule order", () => {
@@ -72,10 +73,13 @@ describe("fallback category rules", () => {
       "urn:tag:category:place:dessert_shop", "urn:tag:category:place:ice_cream_shop",
     ]);
     expect(categories.every((category) => category.evidence[0].reason.startsWith("Quick-segment default:"))).toBe(true);
+    expect(categories.every((category) => category.evidence[0].kind === "default" && !("brandTagId" in category.evidence[0]))).toBe(true);
   });
 
-  it("never invents evidence for brands without allowed tags", () => {
-    expect(mapBrandTagsToCategories([{ ...FAKE_BRAND, tags: [] }])).toEqual([]);
+  it("offers explicit defaults without inventing brand evidence when tags are absent", () => {
+    const categories = mapBrandTagsToCategories([{ ...FAKE_BRAND, tags: [] }]);
+    expect(categories.length).toBeGreaterThan(0);
+    expect(categories.every((category) => category.evidence[0].kind === "default" && !("brandEntityId" in category.evidence[0]))).toBe(true);
     expect(mapBrandTagsToCategories([])).toEqual([]);
   });
 

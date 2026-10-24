@@ -19,22 +19,23 @@ export type PlanSubmission = z.infer<typeof PlanSubmissionSchema>;
 type EvidenceSubmission = z.infer<typeof EvidenceSubmissionSchema>;
 type GuardResult = { kept: PlannedCategory[]; errors: string[] };
 
-function evidenceStrength(evidence: CategoryEvidence): number {
-  return /^(Quick-segment default:|Generic fallback|Saved institution preference)/.test(evidence.reason) ? 0 : 1;
+export function categoryEvidenceKey(evidence: CategoryEvidence): string {
+  return "brandEntityId" in evidence ? JSON.stringify([evidence.brandEntityId, evidence.brandTagId])
+    : JSON.stringify([evidence.kind, evidence.reason]);
 }
 
 function compareEvidence(first: CategoryEvidence, second: CategoryEvidence): number {
-  const strength = evidenceStrength(second) - evidenceStrength(first);
+  const firstName = "brandTagName" in first ? first.brandTagName.trim() : "";
+  const secondName = "brandTagName" in second ? second.brandTagName.trim() : "";
+  const strength = Number("brandEntityId" in second) - Number("brandEntityId" in first);
   // Without a tag hierarchy, longer multi-word names are our specificity heuristic.
-  const firstWords = first.brandTagName.trim().split(/\s+/).length;
-  const secondWords = second.brandTagName.trim().split(/\s+/).length;
-  return strength || secondWords - firstWords || second.brandTagName.length - first.brandTagName.length;
+  return strength || secondName.split(/\s+/).length - firstName.split(/\s+/).length || secondName.length - firstName.length;
 }
 
 export function compactCategoryEvidence(evidence: CategoryEvidence[]): CategoryEvidence[] {
   const unique = new Map<string, CategoryEvidence>();
   for (const item of [...evidence].sort(compareEvidence)) {
-    const key = JSON.stringify([item.brandEntityId, item.brandTagId]);
+    const key = categoryEvidenceKey(item);
     if (!unique.has(key)) unique.set(key, item);
   }
   return [...unique.values()].slice(0, CATEGORY_EVIDENCE_MAX);
@@ -111,7 +112,7 @@ function buildEvidence(
     const tag = filterAllowedBrandTags(context.brandTags.get(item.brandEntityId) ?? []).find((entry) => entry.id === item.brandTagId);
     if (!brand || !tag) continue;
     evidence.push({
-      brandEntityId: brand.entityId, brandName: brand.name, brandTagId: tag.id,
+      kind: "agent", brandEntityId: brand.entityId, brandName: brand.name, brandTagId: tag.id,
       brandTagName: tag.name, reason: item.reason.trim(),
     });
   }

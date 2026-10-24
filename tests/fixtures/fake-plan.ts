@@ -30,7 +30,7 @@ export const FAKE_RESOLVED_BRAND = {
   candidates: [{ entityId: FAKE_BRAND_ID, name: FAKE_BRAND.name, popularity: 0.4, shortDescription: FAKE_BRAND.shortDescription }],
 } satisfies ResolvedBrand;
 export const FAKE_EVIDENCE = {
-  brandEntityId: FAKE_BRAND_ID, brandName: FAKE_BRAND.name, brandTagId: FAKE_TAG.id,
+  kind: "agent", brandEntityId: FAKE_BRAND_ID, brandName: FAKE_BRAND.name, brandTagId: FAKE_TAG.id,
   brandTagName: FAKE_TAG.name, reason: "Coffee interests support looking for a local coffee shop.",
 } satisfies CategoryEvidence;
 export const FAKE_CATEGORY = {

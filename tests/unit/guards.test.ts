@@ -89,6 +89,15 @@ describe("plan guards", () => {
     expect(result.errors).toHaveLength(2);
   });
 
+  it("does not let the model disguise unsupported evidence as a default", () => {
+    const context = makeContext();
+    const forged = { ...FAKE_EVIDENCE, kind: "default", brandTagId: "invented" };
+    expect(applyPlanGuards({ categories: [{ tagId: FAKE_CATEGORY_ID, evidence: [forged] }] }, context).kept).toEqual([]);
+    const valid = { ...FAKE_EVIDENCE, kind: "default" };
+    const result = applyPlanGuards({ categories: [{ tagId: FAKE_CATEGORY_ID, evidence: [valid] }] }, context);
+    expect(result.kept[0].evidence[0].kind).toBe("agent");
+  });
+
   it("deduplicates and caps valid evidence in an agent submission", () => {
     const context = makeContext();
     const tags = Array.from({ length: 7 }, (_, index) => ({ ...FAKE_TAG, id: `fake:tag:${index}` }));
@@ -96,7 +105,7 @@ describe("plan guards", () => {
     const evidence = tags.map((tag) => ({ ...FAKE_EVIDENCE, brandTagId: tag.id }));
     const result = applyPlanGuards({ categories: [{ tagId: FAKE_CATEGORY_ID, evidence: [evidence[0], ...evidence] }] }, context);
     expect(result.kept[0].evidence).toHaveLength(5);
-    expect(new Set(result.kept[0].evidence.map((item) => item.brandTagId)).size).toBe(5);
+    expect(new Set(result.kept[0].evidence.map((item) => "brandTagId" in item ? item.brandTagId : "")).size).toBe(5);
   });
 
   it("deduplicates and caps categories in submitted order", () => {

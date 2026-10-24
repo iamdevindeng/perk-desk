@@ -31,7 +31,8 @@ export function selectFallbackBrand(inputName: string, candidates: BrandCandidat
 }
 
 export function chooseFallbackBrands(context: PlanContext): BrandCandidate[] {
-  const preservedIds = new Set(context.plan?.flatMap((category) => category.evidence.map((item) => item.brandEntityId)) ?? []);
+  const preservedIds = new Set(context.plan?.flatMap((category) =>
+    category.evidence.flatMap((item) => "brandEntityId" in item ? [item.brandEntityId] : [])) ?? []);
   const brands: BrandCandidate[] = [];
   for (const resolution of context.brandsByInput.values()) {
     const preserve = resolution.chosen && (resolution.matchKind === "user" ||
@@ -50,21 +51,17 @@ export function chooseFallbackBrands(context: PlanContext): BrandCandidate[] {
   return brands;
 }
 
-function preferenceCategories(context: PlanContext, brands: BrandCandidate[]): PlannedCategory[] {
-  const brand = brands.find((candidate) => candidate.tags.length);
-  if (!brand) return [];
-  const tag = brand.tags[0];
+function preferenceCategories(context: PlanContext): PlannedCategory[] {
   return context.request.preferences.added.map((tagId) => ({
     tagId, label: getCategoryLabel(tagId), source: "fallback",
-    evidence: [{ brandEntityId: brand.entityId, brandName: brand.name, brandTagId: tag.id, brandTagName: tag.name,
-      reason: "Saved institution preference; confirm this category." }],
+    evidence: [{ kind: "preference", reason: "Saved institution preference; confirm this category." }],
   }));
 }
 
-function applyPreferences(context: PlanContext, brands: BrandCandidate[], mapped: PlannedCategory[]): PlannedCategory[] {
+function applyPreferences(context: PlanContext, mapped: PlannedCategory[]): PlannedCategory[] {
   const categories = new Map<string, PlannedCategory>();
   // Added preferences lead; a removed category wins if both lists contain the same ID.
-  for (const category of [...preferenceCategories(context, brands), ...mapped]) {
+  for (const category of [...preferenceCategories(context), ...mapped]) {
     if (context.request.preferences.removed.includes(category.tagId) || categories.has(category.tagId)) continue;
     categories.set(category.tagId, category);
   }
@@ -76,7 +73,9 @@ function guardedCategory(category: PlannedCategory, context: PlanContext, chosen
     context.emit({ type: "guard", at: 0, layer: 1, summary: "Dropped a fallback category not returned by category search." });
     return null;
   }
-  const evidence = category.evidence.filter((item) => checkEvidence(item, context.brandTags, chosenIds));
+  // Non-brand suggestions are created only by trusted fallback code, after guard 1.
+  const evidence = category.evidence.filter((item) => item.kind === "preference" || item.kind === "default" ||
+    checkEvidence(item, context.brandTags, chosenIds));
   if (!evidence.length) {
     context.emit({ type: "guard", at: 0, layer: 2, summary: "Dropped a fallback category without valid observed brand evidence." });
     return null;
@@ -93,11 +92,7 @@ export async function buildFallbackPlan(context: PlanContext): Promise<PlannedCa
     return [];
   }
   const mapped = mapBrandTagsToCategories(brands);
-  if (!mapped.length) {
-    context.warnings.push("Resolved brands have no permitted evidence tags; fallback cannot justify any category.");
-    return [];
-  }
-  const proposed = applyPreferences(context, brands, mapped);
+  const proposed = applyPreferences(context, mapped);
   const categories: PlannedCategory[] = [];
   const chosenIds = new Set(brands.map((brand) => brand.entityId));
   for (const category of proposed) {

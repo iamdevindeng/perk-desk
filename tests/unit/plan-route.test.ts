@@ -125,6 +125,15 @@ describe("preset expansion and cache", () => {
     expect(runPlan).toHaveBeenCalledOnce();
   });
 
+  it("refreshes legacy plans whose evidence has no explicit kind", async () => {
+    const category = FAKE_PLAN_RESPONSE.categories[0];
+    const legacyEvidence = Object.fromEntries(Object.entries(category.evidence[0]).filter(([key]) => key !== "kind"));
+    vi.mocked(getJson).mockResolvedValue({ ...FAKE_PLAN_RESPONSE, categories: [{ ...category, evidence: [legacyEvidence] }] });
+    expect((await POST(request(FAKE_PLAN_REQUEST))).status).toBe(200);
+    expect(runPlan).toHaveBeenCalledOnce();
+    expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S);
+  });
+
   it("does not cache plans with no categories", async () => {
     vi.mocked(runPlan).mockResolvedValue({ ...FAKE_PLAN_RESPONSE, categories: [] });
     expect((await POST(request(FAKE_PLAN_REQUEST))).status).toBe(200);

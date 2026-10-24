@@ -54,15 +54,17 @@ function CategoryEvidence({ planned }: { planned?: PlannedCategory }): ReactElem
 
 function EvidenceList({ evidence, label }: { evidence: PlannedCategory["evidence"]; label: string }): ReactElement {
   return <ul className="space-y-2 text-xs leading-relaxed text-slate-600">
-    {evidence.map((item, index) => <li key={`${item.brandEntityId}-${item.brandTagId}-${index}`} className="break-words">
-      <span className="font-medium">{item.brandName}</span> → {item.brandTagName} → {label}: {item.reason}
+    {evidence.map((item, index) => <li key={index} className="break-words">
+      {"brandEntityId" in item ? <><span className="font-medium">{item.brandName}</span> → {item.brandTagName} → {label}: {item.reason}</>
+        : <><span className="font-medium">{item.kind === "preference" ? "Saved preference" : "Default suggestion"}</span>: {item.reason}</>}
     </li>)}
   </ul>;
 }
 
 function CategoryChoice({ category, planned, selected, disabled, onToggle }: CategoryChoiceProps): ReactElement {
-  const source = !planned ? "You added" : planned.source === "agent" ? "Brand evidence"
-    : planned.evidence.some((evidence) => evidence.reason.startsWith("Rule:")) ? "Rule" : "Default";
+  const source = !planned ? "You added" : planned.evidence.some((item) => item.kind === "agent") ? "Brand evidence"
+    : planned.evidence.some((item) => item.kind === "rule") ? "Rule"
+      : planned.evidence.some((item) => item.kind === "preference") ? "Saved preference" : "Default suggestion";
   return <div className={`space-y-3 rounded-xl border p-4 ${selected ? "border-teal-200 bg-teal-50/40" : "border-slate-200 bg-white"}`}>
     <div className="flex items-start justify-between gap-3">
       <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-slate-900">

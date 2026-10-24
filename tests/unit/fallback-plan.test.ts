@@ -78,15 +78,16 @@ describe("fallback plan", () => {
     expect(context.warnings.length).toBeGreaterThan(0);
   });
 
-  it("returns a warning and no invented evidence for brands without allowed tags", async () => {
+  it("offers guarded defaults without borrowing a tag when brands have no allowed tags", async () => {
     const context = makeContext();
     const resolution = context.brandsByInput.get(FAKE_BRAND.name);
     if (!resolution) throw new Error("Missing fake resolution");
     resolution.chosen = { ...FAKE_BRAND, tags: [] };
     resolution.candidates = [resolution.chosen];
-    expect(await buildFallbackPlan(context)).toEqual([]);
-    expect(context.warnings.join(" ")).toContain("no permitted evidence tags");
-    expect(searchCategoriesForContext).not.toHaveBeenCalled();
+    const categories = await buildFallbackPlan(context);
+    expect(categories.length).toBeGreaterThan(0);
+    expect(categories.every((category) => category.evidence[0].kind === "default" && !("brandTagId" in category.evidence[0]))).toBe(true);
+    expect(searchCategoriesForContext).toHaveBeenCalled();
   });
 
   it("prioritizes added preferences and honors removals without inventing keyword matches", async () => {
@@ -95,5 +96,6 @@ describe("fallback plan", () => {
     const categories = await buildFallbackPlan(context);
     expect(categories.map((category) => category.tagId)).toEqual([BAKERY_ID, FAKE_CATEGORY_ID]);
     expect(categories[0].evidence[0].reason).toBe("Saved institution preference; confirm this category.");
+    expect(categories[0].evidence[0]).toEqual({ kind: "preference", reason: "Saved institution preference; confirm this category." });
   });
 });

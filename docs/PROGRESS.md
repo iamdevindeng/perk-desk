@@ -102,6 +102,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - R4: no tag hierarchy is available in CategoryEvidence, so specificity uses tag-name word count then character length, with stable ties. Sort stronger agent/rule evidence first, dedupe by brand/tag pair, and cap only after category frequency ranking. Native details/summary provides the requested keyboard-accessible expansion. R6 will replace legacy reason-prefix classification with explicit kinds.
 
+- R6: extend CategoryEvidence with a required discriminant: agent/rule carry real brand/tag fields; preference/default carry only kind and reason. Defaults can therefore be suggested for resolved brands with no permitted tags, while still passing the observed-category guard. Non-brand suggestions dedupe by kind/reason. Missing-kind cached plans are misses at the same keys; no cache flush or migration is needed.
+
 ## Review guide
 
 1. `src/lib/types.ts`: follow the validated profile, plan, run, and trace shapes.
@@ -528,5 +530,19 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
 - Verification: PASS: 494 tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace. First attempt exposed an old outage test using a now-rejected hospital category; replaced that setup with an unavailable bakery lookup and added the healthy-merchant assertion. Second attempt passed.
 - Open issues / decisions: a syntactically valid category outside the hand-written defaults remains allowed unless blacklisted, matching the existing category helper.
+- New dependencies: none.
+- For Devin: no new action.
+
+### R6: Make category evidence provenance explicit — DONE
+- Date/time (UTC+8): 2026-10-24 18:09
+- What was done:
+  - Added explicit agent/rule/preference/default evidence shapes; suggestions contain no brand or tag fields.
+  - Removed borrowed first tags from saved preferences, quick-segment defaults, and generic defaults.
+  - Displayed Saved preference / Default suggestion without evidence arrows; kept rule/agent arrows and the R4 expansion control.
+  - Preserved agent layer-2 validation and trusted server stamping of kind; added forged-kind and legacy-cache tests.
+- Files touched: `src/lib/{types,agent/guards,agent/plan-agent,fallback/category-map,fallback/fallback-plan}.ts`, `src/components/CategoryConfirm.tsx`, `scripts/smoke.ts`, `tests/fixtures/fake-plan.ts`, `tests/unit/{category-evidence,category-map,fallback-plan,guards,plan-route}.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
+- Verification: PASS: 502 offline tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace. Independent targeted evidence tests (15 cases) and read-only semantic review also passed.
+- Open issues / decisions: the evidence union is the explicit R6 extension to architecture shapes. Existing generated plans need refresh because old evidence has no kind; route regression confirms replacement at the unchanged key. The model cannot bypass observed-tag checks by claiming default provenance.
 - New dependencies: none.
 - For Devin: no new action.

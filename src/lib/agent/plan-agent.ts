@@ -119,7 +119,7 @@ async function completeBrandResolution(context: PlanContext): Promise<void> {
   const chosenIds = new Set(chooseFallbackBrands(context).map((brand) => brand.entityId));
   // An implicit first-candidate choice must not survive through an earlier partial plan.
   if (context.plan) context.plan = context.plan.map((category) => ({ ...category,
-    evidence: category.evidence.filter((item) => chosenIds.has(item.brandEntityId)),
+    evidence: category.evidence.filter((item) => !("brandEntityId" in item) || chosenIds.has(item.brandEntityId)),
   })).filter((category) => category.evidence.length);
 }
 

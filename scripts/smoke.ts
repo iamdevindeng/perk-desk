@@ -14,7 +14,7 @@ function printPlan(plan: PlanResponse, durationMs: number): void {
   console.info(`Resolved brands: ${plan.brands.map((brand) => `${brand.inputName} → ${brand.name}`).join(", ")}`);
   console.info(`Unresolved names: ${plan.unresolved.join(", ")}`);
   console.table(plan.categories.map((category) => ({ category: category.label,
-    "evidence brands": [...new Set(category.evidence.map((evidence) => evidence.brandName))].join(", ") })));
+    "evidence brands": [...new Set(category.evidence.flatMap((evidence) => "brandName" in evidence ? [evidence.brandName] : []))].join(", ") })));
   const calls = plan.trace.filter((event) => event.type === "qloo_call");
   console.info(`Plan Qloo calls: ${calls.length}; cache hits: ${calls.filter((event) => event.cached).length}; durationMs: ${durationMs}`);
 }
