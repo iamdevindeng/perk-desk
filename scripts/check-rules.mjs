@@ -1,5 +1,6 @@
-// Checks repo rules that ESLint cannot: file headers, allowed directories, fake fixture IDs, no secrets, no raw data.
+// Checks repo rules that ESLint cannot, including headers, directories, fake IDs, secrets, and local paths.
 // Called by: `npm run check:rules` (AGENTS.md §2, after every task). Exit code 1 = at least one violation.
+import { isUtf8 } from "node:buffer";
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -26,8 +27,17 @@ const problems = [];
 
 function listRepoFiles() {
   // Tracked + untracked-but-not-ignored files: exactly what the next commit could contain.
-  const output = execSync("git ls-files --cached --others --exclude-standard", { encoding: "utf8" });
-  return output.split("\n").filter((file) => file && existsSync(file) && statSync(file).isFile());
+  const output = execSync("git ls-files -z --cached --others --exclude-standard", { encoding: "utf8" });
+  return output.split("\0").filter((file) => file && existsSync(file) && statSync(file).isFile());
+}
+
+function checkLocalPaths(file, contents) {
+  // Scan every text file, including lockfiles/SVGs, but avoid decoding binary assets as text.
+  if (contents.includes(0) || !isUtf8(contents)) return;
+  const lines = contents.toString("utf8").split("\n");
+  for (const [index, line] of lines.entries()) {
+    if (/\/(?:Users|home)\//.test(line)) problems.push(`local machine path in ${file}:${index + 1}`);
+  }
 }
 
 function checkDirectories(files) {
@@ -95,8 +105,10 @@ function main() {
   const secretValues = readSecretValues();
   checkDirectories(files);
   for (const file of files) {
+    const contents = readFileSync(file);
+    checkLocalPaths(file, contents);
     if (file === "package-lock.json" || /\.(png|ico|svg|woff2?)$/.test(file)) continue;
-    const text = readFileSync(file, "utf8");
+    const text = contents.toString("utf8");
     checkHeader(file, text);
     checkJson(file);
     checkFixtureIds(file, text);
