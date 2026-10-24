@@ -87,6 +87,31 @@ describe("merchant research", () => {
     expect(context.excludedCounts).toEqual({ closed: 1, nationalChain: 0, noiseGenre: 0, signedOrExcluded: 0 });
     expect(context.results.get(COFFEE)!.candidates[0].score).toBeLessThan(0.6);
   });
+
+  it.each([
+    [COFFEE, "Coffee shop", "Fake Coffee Bar", "cocktail_bar", "Fake Candy Shop"],
+    ["urn:tag:category:place:gym", "Gym", "Fake Neighborhood Fitness", "country_club", "Fake Campus Fitness"],
+  ])("filters mismatches for %s without extra calls or changing survivor rankings", async (tagId, label, name, deniedGenre, deniedName) => {
+    const context = createRunContext({ ...FAKE_RUN_REQUEST, categories: [{ tagId, label }] });
+    const places = [
+      makeFakePlace(10, { name, affinity: 0.25 }),
+      makeFakePlace(11, { name: "Fake Mislabelled Place", primaryGenreId: `urn:tag:genre:place:${deniedGenre}`, affinity: 1 }),
+      makeFakePlace(12, { name: "Fake Local Favorite", affinity: 0.75 }),
+      makeFakePlace(13, { name: deniedName, affinity: 0 }),
+    ];
+    vi.mocked(findPlaces).mockResolvedValue(places);
+    expect(await findMerchantsForCategory({ tagId }, context)).toMatchObject({
+      independentCount: 2, thin: true, sampleNames: [places[2].name, places[0].name],
+    });
+    const candidates = context.results.get(tagId)!.candidates;
+    expect(candidates.map((candidate) => candidate.place)).toEqual([places[2], places[0]]);
+    expect(candidates.map(({ seededRank, baselineRank, score }) => ({ seededRank, baselineRank, score }))).toEqual([
+      { seededRank: 3, baselineRank: 3, score: 0.745 }, { seededRank: 1, baselineRank: 1, score: 0.545 },
+    ]);
+    expect(context.excludedCounts).toEqual({ closed: 0, nationalChain: 0, noiseGenre: 2, signedOrExcluded: 0 });
+    expect(findPlaces).toHaveBeenCalledTimes(2);
+    expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${tagId}`, { count: 2, complete: true }, DENSITY_TTL_S, expect.any(AbortSignal));
+  });
 });
 
 describe("replacement guard", () => {

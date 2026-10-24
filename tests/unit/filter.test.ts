@@ -75,4 +75,21 @@ describe("filterPlaces", () => {
     const candidate = makeFakeCandidate(1, { place: makeFakePlace(1, { name: "Cafe Fake Corner" }) });
     expect(filterPlaces([candidate], { signedNames: ["Cafe"], excludeEntityIds: [] }).kept).toEqual([candidate]);
   });
+
+  it("keeps valid mixed categories unchanged and counts category mismatches once", () => {
+    const gym = { categoryTagId: "urn:tag:category:place:gym", categoryLabel: "Gym" };
+    const candidates = [
+      makeFakeCandidate(1, { place: makeFakePlace(1, { name: "Fake Espresso Bar" }), score: 0.8 }),
+      makeFakeCandidate(2, { ...gym, place: makeFakePlace(2, { name: "Fake Local Fitness" }), score: 0.7 }),
+      makeFakeCandidate(3, { place: makeFakePlace(3, { name: "Fake Candy Shop" }) }),
+      makeFakeCandidate(4, { ...gym, place: makeFakePlace(4, { name: "Fake Campus Gym" }) }),
+      makeFakeCandidate(5, { ...gym, place: makeFakePlace(5, { name: "Fake Country Club", isClosed: true }) }),
+      makeFakeCandidate(6, { place: makeFakePlace(6, { name: "Fake Signed Cafe" }) }),
+    ];
+    const result = filterPlaces(candidates, { signedNames: ["Fake Campus Gym", "Fake Signed Cafe"], excludeEntityIds: [] });
+    expect(result.kept).toEqual(candidates.slice(0, 2));
+    expect(result.kept[0]).toBe(candidates[0]);
+    expect(result.kept[1]).toBe(candidates[1]);
+    expect(result.excludedCounts).toEqual({ nationalChain: 0, noiseGenre: 2, closed: 1, signedOrExcluded: 1 });
+  });
 });

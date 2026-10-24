@@ -6,6 +6,7 @@ import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_DEADLINE_MS, RUN_REPLAY_DELAY_MS 
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
+import { isCategoryMismatch } from "@/lib/merchants/category-sanity";
 import { createQlooError } from "@/lib/qloo/client";
 import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { getJson, setJson } from "@/lib/store/cache";
@@ -46,8 +47,9 @@ async function cachedEvents(key: string, signal: AbortSignal, city: string): Pro
   if (events.at(-1)?.type !== "result" || events.filter((event) => event.type === "result").length !== 1) return null;
   if (events.some((event) => ["error", "limited", "done"].includes(event.type))) return null;
   const result = events.find((event) => event.type === "result")?.result;
-  // A cached shortlist must obey today's name exclusions too, without flushing unrelated runs.
-  if (result?.merchants.some(({ place }) => isNationalChain(place.name, city) || isTeamStore(place.name))) return null;
+  // Recheck stored names and genres so noisy demo shortlists refresh naturally (FIXES-R6.md R27).
+  if (result?.merchants.some(({ place, categoryTagId }) => isNationalChain(place.name, city) || isTeamStore(place.name)
+    || isCategoryMismatch(place, categoryTagId))) return null;
   return events;
 }
 

@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R27: re-warm Denver and Austin once after deploy by opening each demo. Known category mismatches invalidate only their cached run, so the next run stores a clean result; this supersedes the R20 manual-key-deletion suggestion. No remote cache was changed here.
+
 - [ ] R20: re-warm Austin once after deploy if a full ten-card cached demo is wanted; the client removes its duplicate immediately. R27 will also handle stale category caches.
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
@@ -1288,3 +1290,35 @@ Verification: all checks passed; 1058 offline tests / 74 files, plus focused dro
 Decisions I made: CSV previously had no hours field, so append hours as column 17 while preserving the original 16 column positions. Added one pure display helper within src/lib to share client rendering and export behavior. Keep full candidate labels to prevent shortened aliases from hiding the distinction between choices. Cache requests and keys remain unchanged.
 
 Open issues: none.
+
+## R27 — Reject obvious category mismatches (2026-10-24)
+
+Devin: re-warm Denver and Austin once after deploy. Open each demo after deployment; stale mismatched shortlists become cache misses and a healthy run replaces them at the same key. This also covers the R20 Austin refresh; no manual Redis deletion is needed.
+
+Status: DONE
+
+- Added small Coffee shop/Gym deny rules using stored names and genre words, including the owner-confirmed noisy names.
+- Applied the same predicate to merchant filtering and cached results; clean cached runs replay unchanged.
+- Preserved coffee/espresso bars and ordinary athletic clubs where no contradictory signal exists.
+- Added the README explanation and offline deny-map, cache, filtering, ranking, density, and call-count checks.
+
+Files touched / staged list (before this log):
+```text
+ README.md                               |  2 +
+ src/app/api/run/route.ts                |  6 ++-
+ src/lib/merchants/category-sanity.ts    | 33 ++++++++++++++
+ src/lib/merchants/filter.ts             |  2 +
+ tests/unit/category-sanity.test.ts      | 78 +++++++++++++++++++++++++++++++++
+ tests/unit/filter.test.ts               | 17 +++++++
+ tests/unit/find-merchants.test.ts       | 25 +++++++++++
+ tests/unit/run-cache-categories.test.ts | 76 ++++++++++++++++++++++++++++++++
+ 8 files changed, 237 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1109 offline tests / 76 files. No live demo runs, extra provider calls, or remote cache edits.
+
+Decisions I made: integrate through filterPlaces, which find-merchants already calls, so exclusion counts and scoring order stay consistent. The helper is one small file within the existing merchants directory. No existing find-merchants snapshot was present; added explicit deterministic survivor/rank/count assertions instead. Request shapes and cache keys remain unchanged; only cached shortlists containing a denied place are refreshed.
+
+Open issues: the post-deployment demo refresh above requires Devin.
