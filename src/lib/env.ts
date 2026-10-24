@@ -12,6 +12,7 @@ const AppEnvSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   JUDGE_BYPASS_CODE: z.string().optional(),
   PD_AGENT_DISABLED: z.string().optional(),
+  VERCEL_ENV: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof AppEnvSchema>;
@@ -42,6 +43,10 @@ export function hasUpstash(): boolean {
 
 export function isAgentDisabled(): boolean {
   return getEnv().PD_AGENT_DISABLED === "1";
+}
+
+export function isVercelProduction(): boolean {
+  return getEnv().VERCEL_ENV === "production";
 }
 
 export function resetEnvForTests(): void {

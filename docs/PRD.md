@@ -28,7 +28,7 @@
 4. **Run** (`/api/run`): the page shows each agent step live (trace), then results: ~10 merchants grouped by branch, as evidence cards + map.
 5. **Follow-up:** each merchant can be marked `To contact` / `Contacted` / `Signed` / `Not a fit`. On the next run, `Signed` and `Not a fit` merchants are excluded automatically. Export the list as CSV; copy each pitch with one click.
 
-**Presets:** two fictional institutions (Denver CU with 3 branches; Austin CU with 2 branches) fill every field with one click. Judges never need to upload or type anything. Preset runs are not rate-limited (see ARCHITECTURE §7).
+**Presets:** two fictional institutions (Denver CU with 3 branches; Austin CU with 2 branches) fill every field with one click. Judges never need to upload or type anything. Cached preset requests are unlimited. Presets without cached results skip the per-IP limit but still use the global budget and require a shared rate-limit store in production (see ARCHITECTURE §7).
 
 ## 3. Agent steps (what the user sees in the trace)
 
@@ -78,7 +78,9 @@ Plus: temperature 0; an eval set of ~15 brand lists with expected categories mea
 ## 7. Reliability and judge access
 
 - If DeepSeek fails or times out: deterministic fallback (rule-based brand-tag → category mapping, quick-segment defaults, template pitches). Results still appear, labeled "Fallback mode".
-- Live runs: ~20 per IP per day plus a global daily budget. A judge bypass code (env `JUDGE_BYPASS_CODE`) lifts limits. Over the limit, cached results are shown when available; otherwise a friendly message pointing to the presets. Never a raw error.
+- Daily live budgets: 30 plans per IP and 200 plans globally; 10 research runs per IP and 60 runs globally. A judge access code (env `JUDGE_BYPASS_CODE`) skips only the per-IP limit; the global budget still applies. Cached requests are unlimited. Over the limit, cached results are shown when available; otherwise show a friendly limit message.
+- Vercel production (`VERCEL_ENV=production`) requires both Upstash environment values for live requests. Missing shared-store configuration or a rate-limit service failure/timeout returns HTTP 503 before any live research. Cached results, including demo presets, remain available when readable. Local development and preview deployments keep the in-memory fallback and its warning.
+- Each live research run writes one structured server usage line with a short SHA-256 IP hash and Qloo/LLM call counts. Logs contain no raw IP or API keys.
 - Target: plan ≤ 20 s, run 30–60 s.
 
 ## 8. Out of scope

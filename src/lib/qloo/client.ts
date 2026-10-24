@@ -7,6 +7,7 @@ import {
 import { getEnv } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { getJson, setJson } from "@/lib/store/cache";
+import { recordUsageCall } from "@/lib/store/usage";
 
 export type QlooPath = "/search" | "/v2/tags" | "/v2/insights";
 export type QlooParams = Record<string, string | number | boolean>;
@@ -60,6 +61,8 @@ async function waitForCallSlot(): Promise<void> {
 async function fetchResponse(url: URL, apiKey: string): Promise<Response> {
   await waitForCallSlot();
   try {
+    // Count each transport attempt, including a retried 429 or a failed fetch (FIXES-R2 R10c).
+    recordUsageCall("qloo");
     return await fetch(url, {
       headers: { "X-Api-Key": apiKey }, signal: AbortSignal.timeout(QLOO_TIMEOUT_MS), redirect: "error",
     });

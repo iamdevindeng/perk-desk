@@ -156,11 +156,15 @@ describe("plan request limits", () => {
     expect(checkLimit).toHaveBeenCalledWith("plan", "unknown", { skipIp: true });
   });
 
-  it("skips every limit for a valid judge code", async () => {
+  it("skips only the per-IP limit for a valid judge code", async () => {
     vi.stubEnv("JUDGE_BYPASS_CODE", "fake-judge-code"); resetEnvForTests();
     const input = request(FAKE_PLAN_REQUEST); input.headers.set("x-judge-code", "fake-judge-code");
     expect((await POST(input)).status).toBe(200);
-    expect(checkLimit).not.toHaveBeenCalled();
+    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown", { skipIp: true });
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "global" });
+    const blocked = request(FAKE_PLAN_REQUEST); blocked.headers.set("x-judge-code", "fake-judge-code");
+    expect(await (await POST(blocked)).json()).toMatchObject({ limited: true });
+    expect(runPlan).toHaveBeenCalledOnce();
   });
 });
 

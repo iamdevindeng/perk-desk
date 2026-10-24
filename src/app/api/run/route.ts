@@ -10,6 +10,7 @@ import { createQlooError } from "@/lib/qloo/client";
 import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { getJson, setJson } from "@/lib/store/cache";
 import { checkLimit, getClientIp, hasJudgeBypass, isPresetRun } from "@/lib/store/rate-limit";
+import { withRunUsage } from "@/lib/store/usage";
 import { createEmitter, createNdjsonResponse, type Emit } from "@/lib/stream";
 import { RunRequestSchema, RunResultSchema, TraceEventSchema, type RunRequest, type TraceEvent } from "@/lib/types";
 
@@ -58,14 +59,7 @@ async function replay(events: TraceEvent[], emit: Emit): Promise<void> {
   }
 }
 
-async function runWork(request: Request, input: RunRequest, emit: Emit): Promise<void> {
-  const key = cacheKey("run", input);
-  const cached = await cachedEvents(key);
-  if (cached) { await replay(cached, emit); return; }
-  if (!hasJudgeBypass(request)) {
-    const limit = await checkLimit("run", getClientIp(request), { skipIp: await isPresetRun(input) });
-    if (!limit.ok) { emit({ type: "limited", at: 0, message: LIVE_LIMIT_MESSAGE }); return; }
-  }
+async function runWork(input: RunRequest, key: string, emit: Emit): Promise<void> {
   if (!hasQlooKey()) throw createQlooError("config", null, "Server is missing its Qloo key.");
   const events: TraceEvent[] = [];
   const collect = createEmitter((event) => { events.push(event); emit(event); });
@@ -79,5 +73,14 @@ async function runWork(request: Request, input: RunRequest, emit: Emit): Promise
 export async function POST(request: Request): Promise<Response> {
   const input = await validateRequest(request);
   if (input instanceof Response) return input;
-  return createNdjsonResponse(async (emit) => { await runWork(request, input, emit); });
+  const key = cacheKey("run", input);
+  const cached = await cachedEvents(key);
+  if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit); });
+  // Check shared budgets before opening the stream so store failures can return HTTP 503.
+  const ip = getClientIp(request);
+  const skipIp = hasJudgeBypass(request) || await isPresetRun(input);
+  const limit = await checkLimit("run", ip, { skipIp });
+  if (limit.reason === "store") return Response.json({ error: "config", message: limit.message }, { status: 503 });
+  if (!limit.ok) return createNdjsonResponse(async (emit) => { emit({ type: "limited", at: 0, message: LIVE_LIMIT_MESSAGE }); });
+  return createNdjsonResponse(async (emit) => { await withRunUsage(ip, async () => { await runWork(input, key, emit); }); });
 }

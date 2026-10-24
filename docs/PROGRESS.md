@@ -23,7 +23,7 @@ Optional extras: X1 list uploads are DONE in `c12eab3`; X2 business-member match
 
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
-Latest automated verification after the R1–R9 second review: 524 offline tests across 48 files, lint, typecheck, production build, and repository rules all pass. Fresh Denver/Austin agent and fallback smoke checks also pass; see the second-review entry below. The category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
+Latest automated verification after R10: 555 offline tests across 51 files, lint, typecheck, production build, and repository rules all pass. R10 lowers daily budgets, requires shared rate limits for live Vercel production requests, and logs private usage counts. The R1–R9 second review passed 524 offline tests across 48 files plus fresh Denver/Austin agent and fallback smoke checks; see that entry below. The category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
 
 Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback uses name matching and asks for a user choice when names do not match; cache/rate state without Upstash is per process; locations and live category coverage may vary. The requested pull completed; no push or deployment was performed during R1–R9. R3 restored `.env.example` exactly from the original docs commit.
 
@@ -33,11 +33,11 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
 
-- [ ] Push the local commits to the configured `origin` when ready; this R1–R9 run must not push.
-- [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, optional UPSTASH_*, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
+- [x] Authorize publishing the local commits: the R10 request explicitly permits the agent to push the rebased R1–R9/review commits together with R10 after verification, superseding the earlier no-push instruction.
+- [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, required UPSTASH_* for production live work, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
 - [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
 - [ ] Review the UI in a real browser, including mobile layout, keyboard use, and accessibility; check recognized brand choices before confirming, especially in fallback mode (see T12).
-- [ ] Optional: create an Upstash Redis database and add its REST URL/token.
+- [ ] Before enabling live Vercel production research, create an Upstash Redis database and add both REST URL/token values. R10 returns HTTP 503 for live cache misses without them; validate this behavior in the deployed environment.
 - [x] Restore `.env.example`: completed by R3 from `cfe3521`; `.env.local` remains untouched.
 - [ ] Retry shadcn registry installation when reachable; T1 uses small native UI wrappers after initialization and direct registry downloads failed.
 - [ ] Open the downloaded CSV in a spreadsheet: native Numbers capture failed during T10; the browser download and CSV parser checks passed.
@@ -105,6 +105,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - R6: extend CategoryEvidence with a required discriminant: agent/rule carry real brand/tag fields; preference/default carry only kind and reason. Defaults can therefore be suggested for resolved brands with no permitted tags, while still passing the observed-category guard. Non-brand suggestions dedupe by kind/reason. Missing-kind cached plans are misses at the same keys; no cache flush or migration is needed.
 
 - R1–R9 second review: preserve explicit agent/user brand choices independently of which evidence survives the cap. Successful agent completion keeps its observed exact/prefix matches; failed/disabled planning still ranks implicit choices by name then popularity. Backfill reuses finalized choices so it cannot detach retained evidence. Merge saved-preference and observed rule evidence for the same category without changing preference order or removal precedence.
+
+- R10: The current user explicitly authorized `git pull --rebase` and a combined push after completing R10. This overrides the older remote-action ban for those Git operations only; deployment and provisioning remain owner actions. The pull preserved ten local commits by rebasing them onto the remote R10 task document.
+- R10: Every cache miss, including judge and cold-preset requests, needs the global budget and a working shared store in Vercel production. Cached results remain unlimited. Judge codes bypass only per-IP limits. Both routes return the existing client-compatible `config` error code with the requested safe message and HTTP 503 on store failure.
+- R10: Add `src/lib/store/usage.ts` (also listed in ARCHITECTURE §2) to separate usage counting from rate limiting. Node's built-in AsyncLocalStorage isolates concurrent live runs without threading counters through every helper; no dependency was added. Log actual outbound HTTP attempts including retries/failures, excluding cache hits. Existing result/trace logical Qloo counts keep their current meaning.
 
 ## Review guide
 
@@ -632,3 +636,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: both smoke runs used only in-memory cache and wrote no provider response data to disk. Real browser interaction was not repeated because these repairs affect server planning; existing UI and request-flow tests passed. T1/T10 acceptance gaps remain outside R1–R9. The repairs use one additional local commit without rewriting the nine task commits.
 - New dependencies: none. `.env.local`, the restored template, and both ignored translations remain untouched.
 - For Devin: review the local repair commit; no push or deployment was performed.
+
+### R10: Protect live API quotas and expose private usage counts — DONE
+- Date/time (UTC+8): 2026-10-24 18:31
+- What was done:
+  - Lowered daily limits to 10 runs per IP / 60 globally and 30 plans per IP / 200 globally. Judge codes skip only per-IP limits; cached responses remain unlimited.
+  - Added Vercel production detection only in `env.ts`. Missing either Upstash credential, rejected rate-limit operations, and SDK fail-open timeouts now deny live work with HTTP 503 before any research or streaming starts.
+  - Preserved local/preview memory fallback and its fixed warning, cached preset access, existing Redis prefixes, and global limits for cold presets.
+  - Added one structured server usage line per accepted live run, including failed runs: a 12-character SHA-256 IP hash plus actual Qloo/LLM HTTP attempt counts. Retries count; cache hits do not; concurrent requests remain isolated.
+  - Updated README/PRD/ARCHITECTURE and added regression coverage for production gates, cache access, judge limits, transport retries/failures, privacy, and concurrent usage accounting.
+- Files touched: `src/lib/{config,env}.ts`, `src/lib/store/{rate-limit,usage}.ts`, `src/lib/qloo/client.ts`, `src/lib/agent/model.ts`, `src/app/api/{plan,run}/route.ts`, `tests/unit/{config,rate-limit,plan-route,run-route,production-limits,usage,usage-transport}.test.ts`, `README.md`, `docs/{PRD,ARCHITECTURE,PROGRESS}.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules
+  npx vitest run tests/unit/production-limits.test.ts tests/unit/usage.test.ts tests/unit/usage-transport.test.ts tests/unit/plan-route.test.ts tests/unit/run-route.test.ts tests/unit/rate-limit.test.ts
+  git diff --check
+  ```
+- Verification: PASS: 555 offline tests / 51 files, lint, typecheck, production build, repository rules (153 files), and diff whitespace. Independent final review found no actionable issues and passed 106 focused tests across six files. The first verification attempt reached a sandbox-only Turbopack worker-port failure after lint/typecheck/tests passed; moved generated `.next` into a unique `/private/tmp/perk-desk-r10-build.*` backup and reran the production build with approved local worker-port access, then rules passed. No source change was needed for the build.
+- Open issues / decisions: runtime Upstash failures were simulated with mocked Redis transport and real route/limiter code; no live Redis, Qloo, or DeepSeek calls, deployment, or resource provisioning were needed. R10 explicitly permits the README/PRD/ARCHITECTURE updates. Client error handling already shows the safe 503 messages. The user's requested combined push follows this verified commit; `git pull --rebase` already succeeded.
+- New dependencies: none. Secrets, preset data, cache key formats, and dependency versions remain unchanged.
+- For Devin: provision/configure Upstash before live Vercel production use and verify the deployed behavior; the top waiting list records this requirement.

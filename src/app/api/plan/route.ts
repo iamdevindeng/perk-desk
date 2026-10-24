@@ -50,9 +50,9 @@ function errorResponse(error: unknown): Response {
 }
 
 async function limitedResponse(request: Request, input: PlanRequest): Promise<Response | null> {
-  if (hasJudgeBypass(request)) return null;
-  const limit = await checkLimit("plan", getClientIp(request), { skipIp: Boolean(input.presetId) });
+  const limit = await checkLimit("plan", getClientIp(request), { skipIp: hasJudgeBypass(request) || Boolean(input.presetId) });
   if (limit.ok) return null;
+  if (limit.reason === "store") return Response.json({ error: "config", message: limit.message }, { status: 503 });
   return Response.json(PlanResponseSchema.parse({
     mode: "fallback", limited: true, message: LIVE_LIMIT_MESSAGE,
     branches: [], brands: [], unresolved: [], categories: [], candidateCategories: [], trace: [], warnings: [],

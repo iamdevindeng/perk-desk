@@ -3,15 +3,15 @@
 import { timingSafeEqual } from "node:crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP } from "@/lib/config";
+import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
 import { findPreset } from "@/lib/data";
-import { getEnv, hasUpstash } from "@/lib/env";
+import { getEnv, hasUpstash, isVercelProduction } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { getJson } from "@/lib/store/cache";
 import { PlanRequestSchema, PlanResponseSchema, type Branch, type RunRequest } from "@/lib/types";
 
 type Scope = "plan" | "run";
-type LimitResult = { ok: boolean; reason?: "ip" | "global" };
+type LimitResult = { ok: boolean; reason?: "ip" | "global" | "store"; message?: string };
 const memory = new Map<string, { count: number; windowStart: number }>();
 const redisExhaustedUntil = new Map<string, number>();
 const limiters = new Map<string, Ratelimit>();
@@ -65,7 +65,7 @@ function limiter(scope: Scope, kind: "ip" | "global"): Ratelimit {
 
 async function consumeRedis(scope: Scope, kind: "ip" | "global", identifier: string): Promise<boolean> {
   const result = await limiter(scope, kind).limit(identifier);
-  // Upstash's timeout response permits traffic by default; apply our local budget instead.
+  // Upstash's timeout response permits traffic by default; production must fail closed.
   if (result.reason === "timeout") throw new Error("Rate limit service timed out.");
   const key = `${scope}:${kind}:${identifier}`;
   if (!result.success || result.remaining === 0) {
@@ -80,7 +80,10 @@ async function consumeRedis(scope: Scope, kind: "ip" | "global", identifier: str
 
 export async function checkLimit(scope: Scope, ip: string, options: { skipIp?: boolean } = {}): Promise<LimitResult> {
   const skipIp = options.skipIp ?? false;
-  if (!hasUpstash()) return memoryLimit(scope, ip, skipIp);
+  if (!hasUpstash()) {
+    if (isVercelProduction()) return { ok: false, reason: "store", message: SHARED_LIMIT_CONFIG_MESSAGE };
+    return localFallback(scope, ip, skipIp);
+  }
   try {
     if (!skipIp && !await consumeRedis(scope, "ip", ip)) return { ok: false, reason: "ip" };
     if (!await consumeRedis(scope, "global", "all")) return { ok: false, reason: "global" };
@@ -88,10 +91,15 @@ export async function checkLimit(scope: Scope, ip: string, options: { skipIp?: b
     shadowUsage(scope, ip, skipIp);
     return { ok: true };
   } catch {
-    if (!warned) console.warn("Rate limit service unavailable; using local limits.");
-    warned = true;
-    return memoryLimit(scope, ip, skipIp);
+    if (isVercelProduction()) return { ok: false, reason: "store", message: SHARED_LIMIT_UNAVAILABLE_MESSAGE };
+    return localFallback(scope, ip, skipIp);
   }
+}
+
+function localFallback(scope: Scope, ip: string, skipIp: boolean): LimitResult {
+  if (!warned) console.warn("Rate limit service unavailable; using local limits.");
+  warned = true;
+  return memoryLimit(scope, ip, skipIp);
 }
 
 export function getClientIp(request: Request): string {

@@ -22,7 +22,8 @@ vi.mock("@/lib/store/cache", () => ({ getJson: vi.fn() }));
 beforeEach(() => {
   vi.clearAllMocks(); resetMemoryLimitsForTests();
   vi.stubEnv("UPSTASH_REDIS_REST_URL", ""); vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
-  vi.stubEnv("JUDGE_BYPASS_CODE", ""); resetEnvForTests();
+  vi.stubEnv("JUDGE_BYPASS_CODE", ""); vi.stubEnv("VERCEL_ENV", "development"); resetEnvForTests();
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
   UPSTASH.limit.mockReset().mockResolvedValue({ success: true });
   vi.mocked(getJson).mockReset().mockResolvedValue(null);
 });
@@ -34,7 +35,7 @@ function enableRedis(): void {
 }
 
 describe("daily budgets", () => {
-  it("allows exactly 20 run requests per IP and keeps plan scope separate", async () => {
+  it("allows exactly 10 run requests per IP and keeps plan scope separate", async () => {
     for (let index = 0; index < RUN_LIMIT_PER_IP; index++) expect(await checkLimit("run", "fake-ip")).toEqual({ ok: true });
     expect(await checkLimit("run", "fake-ip")).toEqual({ ok: false, reason: "ip" });
     expect(await checkLimit("run", "another-ip")).toEqual({ ok: true });
