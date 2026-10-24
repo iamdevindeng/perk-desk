@@ -866,3 +866,33 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
    6 files changed, 76 insertions(+), 20 deletions(-)
   ```
 - For Devin: no new action required; R14 and R15 follow before the authorized push.
+
+### R14: Install Git hooks directly and skip CI/Vercel — DONE
+- Date/time (UTC+8): 2026-10-24 19:34
+- What was done:
+  - Removed `simple-git-hooks` and its package configuration; the lockfile changes only remove that dependency.
+  - Replaced the third-party installer with built-in filesystem calls that write both shell hooks and explicitly set executable permissions, including when replacing old files.
+  - Kept the prepare script and the exact pre-commit/privacy/author and pre-push/lint/typecheck/test/rules/privacy command chains, with failure propagation through `&&`.
+  - Skipped all hook writes for CI, Vercel, and missing or non-directory Git metadata, with one short message.
+  - Extended isolated repository tests for fresh skips, existing-hook preservation, replacement permissions, missing hooks directories, filesystem failure, and unchanged author checks.
+  - Verified actual offline clean installs under both CI and Vercel in a disposable repository, then local preparation; also installed and inspected the real local hooks.
+- Files touched: `package.json`, `package-lock.json`, `scripts/install-hooks.mjs`, `tests/unit/git-hooks.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run prepare
+  npm test -- tests/unit/git-hooks.test.ts
+  npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules
+  git diff --check
+  ```
+  For the clean-install lifecycle check, copy `package.json`, `package-lock.json`, and `scripts/install-hooks.mjs` (preserving its directory) to a temporary Git repository. Run `CI=1 npm ci --offline --no-audit --no-fund`, then `VERCEL=1 npm ci --offline --no-audit --no-fund`; assert neither `pre-commit` nor `pre-push` exists. Run `npm run prepare` with both variables unset and assert both hook files are executable.
+- Verification: PASS on the first round: 868 offline tests / 58 files, including 17 hook tests; lint, typecheck, production build, repository/privacy rules (171 files), and whitespace checks. Both actual clean-install variants printed the skip message and created neither hook. Local preparation created both executable hooks with the required commands. The disposable repository was removed afterward.
+- Open issues / decisions: R14 explicitly authorizes replacing the protected installer. No privacy or author checker was changed. A `.git` file is treated as a non-directory install per the task's explicit directory condition. No new dependency or remote resource action.
+- Staged change list before adding this progress entry (`git diff --cached --stat`):
+  ```text
+   package-lock.json            | 12 ---------
+   package.json                 |  6 -----
+   scripts/install-hooks.mjs    | 31 +++++++++++++++-------
+   tests/unit/git-hooks.test.ts | 63 +++++++++++++++++++++++++++++++++++---------
+   4 files changed, 73 insertions(+), 39 deletions(-)
+  ```
+- For Devin: no new action required; R15 follows before the authorized push.
