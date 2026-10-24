@@ -6,7 +6,7 @@ import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { nameMatches } from "@/lib/merchants/name-match";
 import type { MerchantCandidate, RunResult } from "@/lib/types";
 
-export type FilterRules = { signedNames: string[]; excludeEntityIds: string[] };
+export type FilterRules = { signedNames: string[]; excludeEntityIds: string[]; city?: string };
 type ExcludedCounts = RunResult["excludedCounts"];
 export type FilteredPlaces = { kept: MerchantCandidate[]; excludedCounts: ExcludedCounts };
 
@@ -20,7 +20,7 @@ function exclusionReason(candidate: MerchantCandidate, rules: FilterRules): keyo
   if (rules.excludeEntityIds.includes(place.entityId) || nameMatches(place.name, rules.signedNames)) {
     return "signedOrExcluded";
   }
-  if (isNationalChain(place.name)) return "nationalChain";
+  if (isNationalChain(place.name, rules.city)) return "nationalChain";
   return null;
 }
 

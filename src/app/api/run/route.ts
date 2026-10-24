@@ -38,7 +38,7 @@ async function validateRequest(request: Request): Promise<RunRequest | Response>
   return parsed.data;
 }
 
-async function cachedEvents(key: string, signal: AbortSignal): Promise<TraceEvent[] | null> {
+async function cachedEvents(key: string, signal: AbortSignal, city: string): Promise<TraceEvent[] | null> {
   const parsed = CachedRunSchema.safeParse(await getJson(key, signal));
   if (!parsed.success) return null;
   const events = parsed.data.events;
@@ -47,7 +47,7 @@ async function cachedEvents(key: string, signal: AbortSignal): Promise<TraceEven
   if (events.some((event) => ["error", "limited", "done"].includes(event.type))) return null;
   const result = events.find((event) => event.type === "result")?.result;
   // A cached shortlist must obey today's name exclusions too, without flushing unrelated runs.
-  if (result?.merchants.some(({ place }) => isNationalChain(place.name) || isTeamStore(place.name))) return null;
+  if (result?.merchants.some(({ place }) => isNationalChain(place.name, city) || isTeamStore(place.name))) return null;
   return events;
 }
 
@@ -86,7 +86,7 @@ export async function POST(request: Request): Promise<Response> {
   const input = await validateRequest(request);
   if (input instanceof Response) return input;
   const key = cacheKey("run", input);
-  const cached = await cachedEvents(key, signal);
+  const cached = await cachedEvents(key, signal, input.city);
   if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit, clientSignal); }, streamOptions);
   if (clientSignal.aborted) return new Response(null, { status: 204 });
   // Check shared budgets before opening the stream so store failures can return HTTP 503.

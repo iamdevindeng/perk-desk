@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Hand-written US national chains: names use word boundaries; exactNames require the full normalized name after removing a store suffix (see src/lib/merchants/chains.ts).",
+    "Hand-written US national chains: names use word boundaries; exactNames match a core after documented delimiters and known retail or city suffixes are removed (see src/lib/merchants/chains.ts).",
     "A match marks the place chainType='national' and it is EXCLUDED from results (members already get national-brand offers from card-linked platforms)."
   ],
   "names": [
@@ -33,10 +33,12 @@
     "caribou coffee",
     "cheesecake factory",
     "chick-fil-a",
+    "chico's off the rack",
     "chili's",
     "chipotle",
     "club pilates",
     "cold stone",
+    "columbia sportswear",
     "corepower yoga",
     "costco",
     "cracker barrel",
@@ -48,6 +50,7 @@
     "dick's sporting goods",
     "domino's",
     "drybar",
+    "dsw designer shoe warehouse",
     "dunkin",
     "dutch bros",
     "einstein bros",
@@ -63,6 +66,9 @@
     "free people",
     "gamestop",
     "ganni",
+    "gap factory",
+    "gap kids",
+    "gapkids",
     "gold's gym",
     "goodwill",
     "great clips",
@@ -122,6 +128,7 @@
     "rack attack",
     "rainbow shops",
     "red robin",
+    "rei co-op",
     "ross dress for less",
     "running warehouse",
     "safeway",
@@ -136,6 +143,7 @@
     "sonic drive-in",
     "sport clips",
     "sportsman's warehouse",
+    "sprouts farmers market",
     "starbucks",
     "subway",
     "supercuts",
@@ -169,15 +177,12 @@
   ],
   "exactNames": [
     "gap",
-    "gap factory",
     "chico's",
     "columbia",
-    "columbia sportswear",
     "marmot",
     "rei",
     "dsw",
     "patagonia",
-    "sprouts",
-    "sprouts farmers market"
+    "sprouts"
   ]
 }

@@ -1030,3 +1030,31 @@ Verification: all commands passed; 907 offline tests / 65 files. Full-tree priva
 Decisions I made: the overall deadline also covers Redis cache waits, because an optional storage outage must not prevent partial completion. Signal-aware Redis operations use the installed SDK signal callback and an abort race with listener cleanup. Healthy empty research remains a valid result; interrupted empty research returns upstream. Normal cache keys, defaults and TTLs remain unchanged.
 
 Open issues: none for R17.
+
+## R18 — Bounded chain-name qualifiers (2026-10-24)
+
+Status: DONE
+
+- Restored the eight unambiguous word-boundary chain forms, keeping the two chain lists disjoint.
+- Normalized ambiguous chain cores using only the documented separators, leading article, fixed retail qualifiers, and known/request-city words.
+- Passed request city labels into live merchant filtering and cached-result validation.
+- Added regressions for every listed chain variant, independent examples, custom city qualifiers, and all 19 cached demo names.
+
+Files touched / staged list (before this log):
+```text
+ src/app/api/run/route.ts             |  6 +--
+ src/data/national-chains.json        | 15 +++++---
+ src/lib/merchants/chains.ts          | 39 +++++++++++++++----
+ src/lib/merchants/filter.ts          |  4 +-
+ tests/unit/chains-qualifiers.test.ts | 75 ++++++++++++++++++++++++++++++++++++
+ tests/unit/chains.test.ts            |  8 ++--
+ 6 files changed, 126 insertions(+), 21 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 973 offline tests / 66 files. All 19 demo names remain eligible in default, Denver and Austin contexts; no live calls.
+
+Decisions I made: R18 explicitly requires Marmot Boulder to be excluded although Boulder is absent from cities.json, so Boulder is a fixed qualifier without editing preset city data. Existing R13 assertions that The Gap, Gap Company and restored multi-word chain forms remain independent directly contradict R18; updated only those superseded assertions and preserved all unrelated tests. No demo cache keys or request inputs changed.
+
+Open issues: none for R18.
