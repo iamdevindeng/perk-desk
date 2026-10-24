@@ -1345,3 +1345,36 @@ Verification: all checks passed; 1113 offline tests / 77 files. No live calls. T
 Decisions I made: explicitly retain zoomControl and use Leaflet's mobile detection for both dragging and touchZoom. The map remains loaded through the existing client-only dynamic import. Cache requests and keys are unchanged.
 
 Open issues: none for the requested automated checks.
+
+## R29 — Add sharing metadata and finish public-page cleanup (2026-10-24)
+
+Status: DONE
+
+- Added the deployed metadata base, matching Open Graph/Twitter titles and descriptions, and a static 1200 by 630 PNG preview.
+- Captured the real results view using fictional fixtures with provider/store keys empty, PD_AGENT_DISABLED=1, mocked Plan/Run responses, and external browser requests blocked.
+- Added MIT License and Source on GitHub footer links and the requested deployed README status.
+- Removed five unused boilerplate SVGs after confirming no runtime references; protected scanner references remain intact.
+- Fixed both preset buttons to fill their width with left-aligned text and verified the rendered text starts 17 pixels from each button edge.
+
+Files touched / staged list (before this log):
+```text
+ README.md                       |   2 +-
+ public/file.svg                 |   1 -
+ public/globe.svg                |   1 -
+ public/next.svg                 |   1 -
+ public/opengraph-image.png      | Bin 0 -> 78441 bytes
+ public/vercel.svg               |   1 -
+ public/window.svg               |   1 -
+ src/app/layout.tsx              |  24 ++++++++++++++++--
+ src/components/PresetPicker.tsx |   6 ++---
+ tests/unit/metadata.test.ts     |  54 ++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 80 insertions(+), 11 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test -- --maxWorkers=2 && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1118 offline tests / 78 files. The initial default-worker test run timed out in the existing privacy lockfile fixture at its 5-second limit; the complete suite passed with two workers without changing tests, timeouts, or protection rules. PNG signature/dimensions are tested. Browser inspection confirmed the real social image URL, summary_large_image card, and a successful image/png response. The screenshot contains fictional data only and was visually reviewed; blocked external map tiles leave a plain background. Temporary browser sessions and the local dev server were closed.
+
+Decisions I made: use public/opengraph-image.png with explicit metadata URLs because the protected privacy scanner forbids PNG files under src/app. This preserves the requested social-card behavior without weakening or whitelisting privacy checks. Used the already cached Playwright CLI and installed Chrome without installing dependencies. The CSV hours-column decision is recorded under R26.
+
+Open issues: no remaining R16–R29 implementation work. All 14 items are completed in order with one local commit per item. No live provider calls, push, deployment, remote resources, or remote cache edits occurred. Devin must approve the push and refresh both demos after deployment as recorded under R27.

@@ -10,7 +10,7 @@ Merchant categories come from Qloo place tags; obvious category mismatches are f
 
 **Merchant-selection tool. Not used for any credit decision or consumer ad targeting.** Uses aggregated brand data only; no age, gender, income or ZIP data.
 
-_Status: local prototype implemented; owner review and deployment remain. See `docs/PROGRESS.md` for verification results and known issues._
+_Status: Deployed at https://perk-desk.vercel.app; demo presets replay cached research. See `docs/PROGRESS.md` for verification results and known issues._
 
 ## Run locally
 
