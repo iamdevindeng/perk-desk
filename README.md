@@ -44,6 +44,12 @@ npm run smoke
 
 The smoke check makes live Qloo calls and uses DeepSeek when configured. To check fallback mode explicitly, run `PD_AGENT_DISABLED=1 npm run smoke`.
 
+## Known limitations
+
+- Category tags come from Qloo and may still be imperfect.
+- Live research can take a few minutes.
+- Daily live limits apply to everyone; cached results are unlimited.
+
 ## Docs
 - `docs/PRD.md`: product requirements
 - `docs/ARCHITECTURE.md`: design

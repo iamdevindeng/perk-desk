@@ -7,11 +7,18 @@ import { FAKE_RESOLVED_BRAND } from "../fixtures/fake-plan";
 it.each([
   "Mon–Sun 00:00–00:00", "Mon–Sun 00:00–24:00",
   "Mon–Fri 00:00–00:00 · Sat–Sun 00:00–24:00",
+  "Monday-Sunday: 00:00-24:00",
+  ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => `${day} 00:00–00:00`).join("; "),
 ])("displays full-day cached hours %s clearly", (text) => {
   expect(displayHours(text)).toBe("Open 24 hours");
 });
 
-it.each([undefined, "", "Mon–Fri 09:00–17:00", "Mon–Fri 00:00–24:00 · Sat 09:00–12:00", "Call for hours"])(
+it.each([
+  undefined, "", "Mon–Fri 09:00–17:00", "Mon–Fri 00:00–24:00 · Sat 09:00–12:00", "Call for hours",
+  "Mon–Fri 00:00–00:00", "Mon–Fri 00:00–24:00", "Mon 00:00–00:00 · Thu 00:00–24:00",
+  "Mon–Sat 00:00–00:00 · Sun closed", "Mon–Fri 00:00–00:00 · Mon–Tue 00:00–24:00",
+  Array.from({ length: 7 }, () => "Mon 00:00–00:00").join(" · "), "Sun–Mon 00:00–24:00",
+])(
   "preserves ordinary, mixed, or missing hours %s", (text) => { expect(displayHours(text)).toBe(text); },
 );
 

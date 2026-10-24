@@ -83,11 +83,23 @@ describe("opening hours", () => {
     expect(formatHours(Object.fromEntries(days.map((day) => [day, hours])))).toBe("Open 24 hours");
   });
 
-  it("accepts mixed midnight formats across all listed days", () => {
+  it("preserves partial schedules even when every listed day is a full day", () => {
     expect(formatHours({
       monday: [{ opens: "00:00", closes: "00:00" }],
       thursday: [{ opens: "00:00", closes: "24:00" }],
-    })).toBe("Open 24 hours");
+    })).toBe("Mon 00:00–00:00 · Thu 00:00–24:00");
+  });
+
+  it.each(["00:00", "24:00"])("preserves weekday-only full days closing at %s", (closes) => {
+    const hours = [{ opens: "00:00", closes }];
+    const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    expect(formatHours(Object.fromEntries(weekdays.map((day) => [day, hours])))).toBe(`Mon–Fri 00:00–${closes}`);
+  });
+
+  it("accepts mixed midnight formats only across a complete week", () => {
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    const entries = days.map((day, index) => [day, [{ opens: "00:00", closes: index % 2 ? "00:00" : "24:00" }]]);
+    expect(formatHours(Object.fromEntries(entries))).toBe("Open 24 hours");
   });
 
   it("keeps ordinary and closed days in mixed schedules", () => {

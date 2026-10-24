@@ -133,7 +133,9 @@ export function formatHours(hours: unknown): string | undefined {
     }
   }
   if (!groups.length) return undefined;
-  if (groups.every((group) => group.hours === "00:00–00:00" || group.hours === "00:00–24:00")) return "Open 24 hours";
+  // Unlisted days are unknown, so a partial schedule cannot claim all-week opening (FIXES-R7 R35).
+  const allDaysPresent = DAYS.every((day) => parsed.data[day] !== undefined);
+  if (allDaysPresent && groups.every((group) => group.hours === "00:00–00:00" || group.hours === "00:00–24:00")) return "Open 24 hours";
   return groups.map((group) => {
     const dayRange = group.start === group.end ? DAY_LABELS[group.start] : `${DAY_LABELS[group.start]}–${DAY_LABELS[group.end]}`;
     return `${dayRange} ${group.hours}`;

@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R7: review and push the R6 + R7 commits together when ready. Replace the public social preview with a real demo screenshot after the existing R27 demo re-warm.
+
 - [ ] R31: verify the public limit/retry flow after deployment and remove the retired access-code variable from Vercel settings.
 
 - [ ] R27: re-warm Denver and Austin once after deploy by opening each demo. Known category mismatches invalidate only their cached run, so the next run stores a clean result; this supersedes the R20 manual-key-deletion suggestion. No remote cache was changed here.
@@ -1505,3 +1507,31 @@ Verification: all checks passed; 1153 offline tests / 79 files. Existing compone
 Decisions I made: use the exact requested wording in the existing wrapping paragraph. Only text and its assertion changed; no layout or interaction changes. Physical-device layout was not retested.
 
 Open issues: none for the requested change. No push or remote action.
+
+## R35 — Require a full week for all-day opening hours (2026-10-24)
+
+Status: DONE
+
+- Require all seven named days in raw hours before showing Open 24 hours.
+- Expand cached day ranges and count unique days, preserving ordinary text for partial, repeated, or overlapping incomplete schedules.
+- Keep both midnight closing formats and existing malformed/mixed schedule handling.
+- Added the final README Known limitations list covering category accuracy, live research time, and daily limits.
+
+Files touched / staged list (before this log):
+```text
+ README.md                           |  6 ++++++
+ docs/PROGRESS.md                    |  2 ++
+ src/lib/merchant-display.ts         | 15 +++++++++++++--
+ src/lib/qloo/insights.ts            |  4 +++-
+ tests/unit/merchant-display.test.ts |  9 ++++++++-
+ tests/unit/qloo-insights.test.ts    | 16 ++++++++++++++--
+ 6 files changed, 46 insertions(+), 6 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1165 offline tests / 79 files. Full-week, weekday-only, mixed-midnight, repeated-day, overlapping-range, normal, and malformed schedules are covered. Independent review found no issues. Production build used local worker permission and cleared provider keys. No live provider calls.
+
+Decisions I made: cached day ranges follow the existing Monday-to-Sunday formatter order; reversed ranges remain unchanged as ordinary text. Day coverage is a set so duplicated days cannot stand in for missing days. Added only the three requested README limitations and retained the R27 category sentence.
+
+Open issues: none for R30–R35. This final code round is complete in order with one local commit per item. Request shapes/defaults, presets, canonical hashing, cache keys/prefixes, daily limits, and protection scripts/hooks remain unchanged. No push, deployment, live provider call, or remote cache action occurred. Owner follow-ups for the combined R6/R7 push, demo re-warm, real social screenshot, and retired environment setting remain in Waiting for Devin.
