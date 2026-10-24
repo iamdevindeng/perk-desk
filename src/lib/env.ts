@@ -10,7 +10,6 @@ const AppEnvSchema = z.object({
   DEEPSEEK_MODEL: z.string().optional().default("deepseek-flash"),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
-  JUDGE_BYPASS_CODE: z.string().optional(),
   PD_AGENT_DISABLED: z.string().optional(),
   VERCEL_ENV: z.string().optional(),
 });

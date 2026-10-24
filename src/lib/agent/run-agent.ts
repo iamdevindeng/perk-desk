@@ -50,7 +50,7 @@ async function tryResearchAgent(context: RunContext, options: RunOptions): Promi
       model: options.model ?? agentModel(), instructions: RUN_SYSTEM_PROMPT, prompt: buildRunUserPrompt(context),
       tools: { findMerchants: buildFindMerchantsTool(context), searchCategories: buildSearchCategoriesTool(context), finishResearch: buildFinishTool(context) },
       toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.timeout(RUN_AGENT_TIMEOUT_MS),
-      stopWhen: [isStepCount(RUN_MAX_STEPS), () => context.finished || context.fatalError !== null],
+      stopWhen: [isStepCount(RUN_MAX_STEPS), () => context.finished || context.fatalError !== null || context.budgetReached],
       onStepFinish: (finishedStep) => {
         if (finishedStep.text.trim()) context.emit({ type: "agent_note", at: 0, text: finishedStep.text.slice(0, TRACE_SUMMARY_MAX) });
       },
@@ -71,6 +71,7 @@ function markKnownBrand(entityId: string, context: RunContext): void {
 async function checkMerchantBrands(candidates: MerchantCandidate[], context: RunContext): Promise<MerchantCandidate[]> {
   const checked = candidates.map((candidate) => ({ ...candidate }));
   for (const candidate of checked.slice(0, BRAND_CHECK_MAX)) {
+    if (context.budgetReached) break;
     try {
       const brand = await searchBrandExact(candidate.place.name, contextQlooOptions(context));
       if (brand && normalizeName(brand.name) === normalizeName(candidate.place.name) && brand.popularity >= BRAND_CHECK_MIN_POPULARITY) {
@@ -107,7 +108,7 @@ async function finishMerchants(context: RunContext, mode: RunResult["mode"], opt
   const shortlist = await checkMerchantBrands(buildShortlist(candidates, context.request.branches), context);
   const cards = shortlist.map(resultCard);
   let pitches = new Map<string, string>();
-  if (mode === "agent") {
+  if (mode === "agent" && !context.budgetReached) {
     try { pitches = await writePitches(cards, context.request.institutionName, options); }
     catch {
       const reason = "Pitch writing was unavailable; template pitches were used.";
@@ -160,7 +161,7 @@ export async function runResearch(request: RunRequest, emit: (event: TraceEvent)
   step(context, "rank_pitch", "start", "Balancing the shortlist and preparing pitches");
   const finished = await finishMerchants(context, mode, options);
   const { merchants } = finished;
-  options.onCacheable?.(context.cacheable && context.request.categories.every((category) => context.results.get(category.tagId)?.complete) &&
+  options.onCacheable?.(!context.budgetReached && context.cacheable && context.request.categories.every((category) => context.results.get(category.tagId)?.complete) &&
     [...context.results.values()].every((outcome) => outcome.complete));
   step(context, "rank_pitch", "done", `Prepared ${merchants.length} merchants`);
   return RunResultSchema.parse({ mode: finished.mode, merchants, categories: categoryReports(context), excludedCounts: context.excludedCounts,

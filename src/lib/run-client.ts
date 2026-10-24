@@ -1,19 +1,13 @@
 // Sends validated planning/research requests and reads JSON or streamed trace responses.
 // Called by: the page and client-request unit tests
 import { z } from "zod";
-import { loadJudgeCode } from "@/lib/profile-storage";
 import { ErrorCodeSchema, PlanRequestSchema, PlanResponseSchema, RunRequestSchema, TraceEventSchema, type PlanRequest, type PlanResponse, type RunRequest, type TraceEvent } from "@/lib/types";
 
 const ErrorResponseSchema = z.object({ error: ErrorCodeSchema, message: z.string().optional() });
 
-function requestHeaders(): HeadersInit {
-  const judgeCode = loadJudgeCode();
-  return judgeCode ? { "content-type": "application/json", "x-judge-code": judgeCode } : { "content-type": "application/json" };
-}
-
 async function planResponse(request: PlanRequest): Promise<Response> {
   try {
-    return await fetch("/api/plan", { method: "POST", headers: requestHeaders(), body: JSON.stringify(request) });
+    return await fetch("/api/plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
   } catch {
     throw new Error("Could not reach Perk Desk. Check your connection and try again.");
   }
@@ -65,7 +59,7 @@ function deliverCompleteLines(state: StreamState, onEvent: (event: TraceEvent) =
 async function researchResponse(request: RunRequest): Promise<Response> {
   let response: Response;
   try {
-    response = await fetch("/api/run", { method: "POST", headers: requestHeaders(), body: JSON.stringify(request) });
+    response = await fetch("/api/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(request) });
   } catch { throw new Error("Could not reach Perk Desk. Check your connection and try again."); }
   if (response.ok) return response;
   let body: unknown;

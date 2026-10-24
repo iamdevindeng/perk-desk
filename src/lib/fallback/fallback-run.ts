@@ -20,10 +20,12 @@ async function researchCategory(tagId: string, context: RunContext, replacesTagI
 
 export async function runFallbackResearch(context: RunContext, tryAdjacent = true): Promise<void> {
   for (const category of context.request.categories) {
+    if (context.budgetReached) break;
     if (!context.results.has(category.tagId)) await researchCategory(category.tagId, context);
   }
   if (!tryAdjacent) return;
   for (const category of context.request.categories) {
+    if (context.budgetReached) break;
     const outcome = context.results.get(category.tagId);
     if (!outcome?.complete || outcome.independentCount >= MIN_INDEPENDENTS || context.replacements.has(category.tagId)) continue;
     const defaults = getCategoryDefaults().categories.find((entry) => entry.tagId === category.tagId);

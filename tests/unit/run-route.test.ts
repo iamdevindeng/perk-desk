@@ -8,14 +8,14 @@ import { resetEnvForTests } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError } from "@/lib/qloo/client";
 import { getJson, setJson } from "@/lib/store/cache";
-import { checkLimit, hasJudgeBypass, isPresetRun } from "@/lib/store/rate-limit";
+import { checkLimit } from "@/lib/store/rate-limit";
 import { TraceEventSchema, type TraceEvent } from "@/lib/types";
 import { FAKE_RUN_REQUEST, FAKE_RUN_RESULT } from "../fixtures/fake-plan";
 
 vi.mock("@/lib/agent/run-agent", () => ({ runResearch: vi.fn() }));
 vi.mock("@/lib/store/cache", () => ({ getJson: vi.fn(), setJson: vi.fn() }));
 vi.mock("@/lib/store/rate-limit", () => ({
-  checkLimit: vi.fn(), getClientIp: () => "fake-ip", hasJudgeBypass: vi.fn(), isPresetRun: vi.fn(),
+  checkLimit: vi.fn(), getClientIp: () => "fake-ip",
 }));
 
 function request(body: unknown = FAKE_RUN_REQUEST): Request {
@@ -37,8 +37,6 @@ beforeEach(() => {
   vi.mocked(getJson).mockReset().mockResolvedValue(null);
   vi.mocked(setJson).mockReset().mockResolvedValue(undefined);
   vi.mocked(checkLimit).mockReset().mockResolvedValue({ ok: true });
-  vi.mocked(hasJudgeBypass).mockReset().mockReturnValue(false);
-  vi.mocked(isPresetRun).mockReset().mockResolvedValue(false);
   vi.stubEnv("QLOO_API_KEY", "fake-run-key"); resetEnvForTests();
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); resetEnvForTests(); });
@@ -50,7 +48,7 @@ describe("run route boundaries", () => {
     expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S);
     const saved = vi.mocked(setJson).mock.calls[0][1] as { events: TraceEvent[] };
     expect(saved.events.map((event) => event.type)).toEqual(["step", "result"]);
-    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip", { skipIp: false });
+    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip");
     expect(maxDuration).toBe(300);
     expect(console.info).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[usage\] scope=run ip_hash=[a-f0-9]{12} qloo_calls=0 llm_calls=0$/));
   });
@@ -129,7 +127,6 @@ describe("run cache and limits", () => {
     expect(trace[1]).toMatchObject({ cached: true });
     expect(trace[1].at).toBeLessThan(1000);
     expect(checkLimit).not.toHaveBeenCalled();
-    expect(hasJudgeBypass).not.toHaveBeenCalled();
     expect(runResearch).not.toHaveBeenCalled();
     expect(console.info).not.toHaveBeenCalled();
   });
@@ -160,19 +157,32 @@ describe("run cache and limits", () => {
     expect(console.info).not.toHaveBeenCalled();
   });
 
-  it("keeps the global limit for a validated judge code", async () => {
-    vi.mocked(hasJudgeBypass).mockReturnValue(true);
-    await traceFor();
-    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip", { skipIp: true }); expect(isPresetRun).not.toHaveBeenCalled();
-    expect(runResearch).toHaveBeenCalledOnce();
-    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "global" });
-    expect((await traceFor()).map((event) => event.type)).toEqual(["limited", "done"]);
+  it("ignores an obsolete bypass header and applies the ordinary IP limit", async () => {
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
+    const input = request(); input.headers.set("x-judge-code", "fake-old-code");
+    const response = await POST(input);
+    expect(await response.text()).toContain('"type":"limited"');
+    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip");
+    expect(runResearch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { categories: [{ tagId: "urn:tag:category:place:bakery", label: "Bakery" }] },
+    { excludeEntityIds: ["00000000-0000-4000-8000-000000000099"] },
+  ])("checks the ordinary IP limit for altered preset research", async (change) => {
+    const input = { ...FAKE_RUN_REQUEST, presetId: "denver-demo", ...change };
+    await traceFor(input);
+    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip");
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
+    expect((await traceFor(input)).map((event) => event.type)).toEqual(["limited", "done"]);
     expect(runResearch).toHaveBeenCalledOnce();
   });
 
-  it("skips only per-IP limits for a validated preset", async () => {
-    vi.mocked(isPresetRun).mockResolvedValue(true);
-    await traceFor({ ...FAKE_RUN_REQUEST, presetId: "denver-demo" });
-    expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip", { skipIp: true });
+  it.each(["ip", "global"] as const)("serves a cached preset when the %s limit is exhausted", async (reason) => {
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason });
+    vi.mocked(getJson).mockResolvedValue({ complete: true, events: stored });
+    expect((await traceFor({ ...FAKE_RUN_REQUEST, presetId: "denver-demo" })).map((event) => event.type)).toContain("result");
+    expect(checkLimit).not.toHaveBeenCalled();
+    expect(runResearch).not.toHaveBeenCalled();
   });
 });

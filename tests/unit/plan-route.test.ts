@@ -31,11 +31,11 @@ beforeEach(() => {
   vi.mocked(setJson).mockReset().mockResolvedValue(undefined);
   vi.mocked(checkLimit).mockReset().mockResolvedValue({ ok: true });
   vi.stubEnv("QLOO_API_KEY", "fake-route-key");
-  vi.stubEnv("JUDGE_BYPASS_CODE", "");
   resetEnvForTests();
+  vi.spyOn(console, "info").mockImplementation(() => undefined);
 });
 
-afterEach(() => { vi.unstubAllEnvs(); resetEnvForTests(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); resetEnvForTests(); });
 
 describe("plan route validation", () => {
   it("returns a schema-valid plan and caches it with the canonical request", async () => {
@@ -45,6 +45,7 @@ describe("plan route validation", () => {
     expect(runPlan).toHaveBeenCalledWith(FAKE_PLAN_REQUEST, {});
     expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S);
     expect(maxDuration).toBe(300);
+    expect(console.info).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[usage\] scope=plan ip_hash=[a-f0-9]{12} qloo_calls=0 llm_calls=0$/));
   });
 
   it.each([{}, null, [], { ...FAKE_PLAN_REQUEST, brandNames: [] }])("rejects an invalid body before reading cache", async (body) => {
@@ -151,20 +152,29 @@ describe("plan request limits", () => {
     expect(setJson).not.toHaveBeenCalled();
   });
 
-  it("skips only per-IP limits for canonical presets", async () => {
-    await POST(request({ ...FAKE_PLAN_REQUEST, presetId: "denver-demo" }));
-    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown", { skipIp: true });
+  it("checks the per-IP limit for altered preset preferences", async () => {
+    const input = { ...FAKE_PLAN_REQUEST, presetId: "denver-demo", preferences: { removed: ["urn:tag:category:place:cafe"], added: [] } };
+    await POST(request(input));
+    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown");
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
+    expect(await (await POST(request(input))).json()).toMatchObject({ limited: true });
+    expect(runPlan).toHaveBeenCalledOnce();
   });
 
-  it("skips only the per-IP limit for a valid judge code", async () => {
-    vi.stubEnv("JUDGE_BYPASS_CODE", "fake-judge-code"); resetEnvForTests();
-    const input = request(FAKE_PLAN_REQUEST); input.headers.set("x-judge-code", "fake-judge-code");
-    expect((await POST(input)).status).toBe(200);
-    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown", { skipIp: true });
-    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "global" });
-    const blocked = request(FAKE_PLAN_REQUEST); blocked.headers.set("x-judge-code", "fake-judge-code");
-    expect(await (await POST(blocked)).json()).toMatchObject({ limited: true });
-    expect(runPlan).toHaveBeenCalledOnce();
+  it("ignores an obsolete bypass header and applies the ordinary IP limit", async () => {
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
+    const input = request(FAKE_PLAN_REQUEST); input.headers.set("x-judge-code", "fake-old-code");
+    expect(await (await POST(input)).json()).toMatchObject({ limited: true });
+    expect(checkLimit).toHaveBeenCalledWith("plan", "unknown");
+    expect(runPlan).not.toHaveBeenCalled();
+  });
+
+  it.each(["ip", "global"] as const)("serves a cached preset when the %s limit is exhausted", async (reason) => {
+    vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason });
+    vi.mocked(getJson).mockResolvedValue(FAKE_PLAN_RESPONSE);
+    expect((await POST(request({ ...FAKE_PLAN_REQUEST, presetId: "denver-demo" }))).status).toBe(200);
+    expect(checkLimit).not.toHaveBeenCalled();
+    expect(runPlan).not.toHaveBeenCalled();
   });
 });
 

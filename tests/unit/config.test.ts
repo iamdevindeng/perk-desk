@@ -13,9 +13,9 @@ import {
 } from "@/lib/config";
 
 describe("shared configuration", () => {
-  it("caps daily live work to the R10 judging budgets", () => {
-    expect([PLAN_LIMIT_PER_IP, PLAN_LIMIT_GLOBAL]).toEqual([30, 200]);
-    expect([RUN_LIMIT_PER_IP, RUN_LIMIT_GLOBAL]).toEqual([10, 60]);
+  it("caps daily live work to the R16 public-site budgets", () => {
+    expect([PLAN_LIMIT_PER_IP, PLAN_LIMIT_GLOBAL]).toEqual([30, 300]);
+    expect([RUN_LIMIT_PER_IP, RUN_LIMIT_GLOBAL]).toEqual([10, 150]);
   });
 
   it("assigns a total scoring weight of one", () => {

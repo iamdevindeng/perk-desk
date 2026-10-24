@@ -5,7 +5,7 @@ import { POST as planPost } from "@/app/api/plan/route";
 import { POST as runPost } from "@/app/api/run/route";
 import { expandPlanRequest, runPlan } from "@/lib/agent/plan-agent";
 import { runResearch } from "@/lib/agent/run-agent";
-import { PLAN_LIMIT_GLOBAL, RUN_LIMIT_GLOBAL, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
+import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
 import { resetEnvForTests } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { clearMemoryCacheForTests, setJson } from "@/lib/store/cache";
@@ -25,7 +25,6 @@ vi.mock("@/lib/agent/run-agent", () => ({ runResearch: vi.fn() }));
 beforeEach(() => {
   vi.stubEnv("VERCEL_ENV", "production"); vi.stubEnv("QLOO_API_KEY", "fake-qloo-key");
   vi.stubEnv("UPSTASH_REDIS_REST_URL", ""); vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
-  vi.stubEnv("JUDGE_BYPASS_CODE", "fake-judge-code");
   resetEnvForTests(); clearMemoryCacheForTests(); resetMemoryLimitsForTests();
   vi.mocked(runPlan).mockReset().mockResolvedValue(FAKE_PLAN_RESPONSE);
   vi.mocked(runResearch).mockReset().mockResolvedValue(FAKE_RUN_RESULT);
@@ -40,11 +39,11 @@ function configureStore(url = "https://fake.example", token = "fake-store-token"
   vi.stubEnv("UPSTASH_REDIS_REST_URL", url); vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", token); resetEnvForTests();
 }
 
-function request(scope: "plan" | "run", preset = false, judge = false): Request {
+function request(scope: "plan" | "run", preset = false): Request {
   const body = scope === "plan" ? FAKE_PLAN_REQUEST : FAKE_RUN_REQUEST;
   return new Request(`http://localhost/api/${scope}`, { method: "POST",
     body: JSON.stringify({ ...body, ...(preset ? { presetId: "denver-demo" } : {}) }),
-    headers: { "x-forwarded-for": "fake-private-ip", ...(judge ? { "x-judge-code": "fake-judge-code" } : {}) },
+    headers: { "x-forwarded-for": "fake-private-ip" },
   });
 }
 
@@ -52,10 +51,10 @@ describe.each(["plan", "run"] as const)("%s shared production budget", (scope) =
   const post = scope === "plan" ? planPost : runPost;
 
   it.each([["", ""], ["https://fake.example", ""], ["", "fake-store-token"], [" ", " "]])(
-    "returns HTTP 503 for missing credentials (%j, %j), even for judges and cold presets", async (url, token) => {
+    "returns HTTP 503 for missing credentials (%j, %j), including cold presets", async (url, token) => {
       configureStore(url, token);
-      for (const [preset, judge] of [[false, false], [false, true], [true, false]]) {
-        const response = await post(request(scope, preset, judge));
+      for (const preset of [false, true]) {
+        const response = await post(request(scope, preset));
         expect(response.status).toBe(503);
         expect(response.headers.get("content-type")).toContain("application/json");
         expect(await response.json()).toEqual({ error: "config", message: SHARED_LIMIT_CONFIG_MESSAGE });
@@ -68,8 +67,11 @@ describe.each(["plan", "run"] as const)("%s shared production budget", (scope) =
   it("serves cached demo presets with exhausted budgets and no store or provider key", async () => {
     vi.stubEnv("VERCEL_ENV", "development"); vi.stubEnv("QLOO_API_KEY", ""); resetEnvForTests();
     const maximum = scope === "plan" ? PLAN_LIMIT_GLOBAL : RUN_LIMIT_GLOBAL;
-    for (let index = 0; index < maximum; index++) await checkLimit(scope, "fake-private-ip", { skipIp: true });
-    expect(await checkLimit(scope, "fake-private-ip", { skipIp: true })).toEqual({ ok: false, reason: "global" });
+    const perIp = scope === "plan" ? PLAN_LIMIT_PER_IP : RUN_LIMIT_PER_IP;
+    for (let index = 0; index < perIp; index++) await checkLimit(scope, "fake-private-ip");
+    expect(await checkLimit(scope, "fake-private-ip")).toEqual({ ok: false, reason: "ip" });
+    for (let index = perIp; index < maximum; index++) await checkLimit(scope, `fake-ip-${index}`);
+    expect(await checkLimit(scope, "fresh-ip")).toEqual({ ok: false, reason: "global" });
     const input = scope === "plan" ? expandPlanRequest({ ...FAKE_PLAN_REQUEST, presetId: "denver-demo" }) : { ...FAKE_RUN_REQUEST, presetId: "denver-demo" };
     const value = scope === "plan" ? FAKE_PLAN_RESPONSE : { complete: true, events: [{ type: "result", at: 0, result: FAKE_RUN_RESULT }] };
     await setJson(cacheKey(scope, input), value, 60);
@@ -88,8 +90,8 @@ describe.each(["plan", "run"] as const)("%s shared production budget", (scope) =
     expect(scope === "plan" ? runPlan : runResearch).toHaveBeenCalledOnce();
     expect(console.warn).toHaveBeenCalledExactlyOnceWith("Rate limit service unavailable; using local limits.");
     const maximum = scope === "plan" ? PLAN_LIMIT_GLOBAL : RUN_LIMIT_GLOBAL;
-    for (let index = 1; index < maximum; index++) expect(await checkLimit(scope, "fake-private-ip", { skipIp: true })).toEqual({ ok: true });
-    expect(await checkLimit(scope, "fake-private-ip", { skipIp: true })).toEqual({ ok: false, reason: "global" });
+    for (let index = 1; index < maximum; index++) expect(await checkLimit(scope, `fake-ip-${index}`)).toEqual({ ok: true });
+    expect(await checkLimit(scope, "fresh-ip")).toEqual({ ok: false, reason: "global" });
   });
 
   it.each(["ip", "global"])("fails closed on Redis %s exceptions and fail-open timeouts", async (kind) => {
@@ -100,7 +102,7 @@ describe.each(["plan", "run"] as const)("%s shared production budget", (scope) =
         if (timeout) return { success: true, reason: "timeout" };
         throw new Error("private store token detail");
       });
-      const response = await post(request(scope, false, kind === "global"));
+      const response = await post(request(scope));
       expect(response.status).toBe(503);
       expect(await response.json()).toEqual({ error: "config", message: SHARED_LIMIT_UNAVAILABLE_MESSAGE });
     }
@@ -120,4 +122,26 @@ describe.each(["plan", "run"] as const)("%s shared production budget", (scope) =
     expect(scope === "plan" ? runPlan : runResearch).toHaveBeenCalledOnce();
     expect(console.warn).toHaveBeenCalledExactlyOnceWith("Rate limit service unavailable; using local limits.");
   });
+});
+
+it.each([
+  { scope: "plan", change: { preferences: { removed: ["urn:tag:category:place:cafe"], added: [] } } },
+  { scope: "run", change: { categories: [{ tagId: "urn:tag:category:place:bakery", label: "Bakery" }] } },
+  { scope: "run", change: { excludeEntityIds: ["00000000-0000-4000-8000-000000000099"] } },
+] as const)("charges altered $scope presets against the real per-IP budget", async ({ scope, change }) => {
+  vi.stubEnv("VERCEL_ENV", "development"); resetEnvForTests();
+  const maximum = scope === "plan" ? PLAN_LIMIT_PER_IP : RUN_LIMIT_PER_IP;
+  const body = { ...(scope === "plan" ? FAKE_PLAN_REQUEST : FAKE_RUN_REQUEST), presetId: "denver-demo", ...change };
+  const input = (): Request => new Request(`http://localhost/api/${scope}`, {
+    method: "POST", body: JSON.stringify(body), headers: { "x-forwarded-for": "fake-private-ip" },
+  });
+  const post = scope === "plan" ? planPost : runPost;
+  const response = await post(input());
+  expect(response.status).toBe(200); await response.text();
+  for (let index = 1; index < maximum; index++) expect(await checkLimit(scope, "fake-private-ip")).toEqual({ ok: true });
+  expect(await checkLimit(scope, "fake-private-ip")).toEqual({ ok: false, reason: "ip" });
+  clearMemoryCacheForTests();
+  const blocked = await post(input());
+  expect(await blocked.text()).toContain(scope === "plan" ? '"limited":true' : '"type":"limited"');
+  expect(scope === "plan" ? runPlan : runResearch).toHaveBeenCalledOnce();
 });

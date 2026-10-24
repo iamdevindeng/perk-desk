@@ -1,7 +1,7 @@
-// Checks profile and judge-code persistence under normal, corrupt, and unavailable storage.
+// Checks profile persistence under normal, corrupt, and unavailable storage.
 // Called by: npm test with a small in-memory browser-storage substitute
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadJudgeCode, loadProfile, saveJudgeCode, saveProfile } from "@/lib/profile-storage";
+import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { FAKE_PROFILE } from "../fixtures/fake-plan";
 
 const values = new Map<string, string>();
@@ -34,21 +34,10 @@ describe("browser profile storage", () => {
     expect(loadProfile()).toEqual(FAKE_PROFILE);
   });
 
-  it("keeps the optional judge code separate and trims whitespace", () => {
-    expect(loadJudgeCode()).toBe("");
-    saveJudgeCode("  review-code  ");
-    expect(values.get("perkdesk:v1:judge")).toBe("review-code");
-    expect(loadJudgeCode()).toBe("review-code");
-    saveJudgeCode("");
-    expect(loadJudgeCode()).toBe("");
-  });
-
   it("is safe during server rendering", () => {
     vi.stubGlobal("window", undefined);
     expect(loadProfile()).toBeNull();
-    expect(loadJudgeCode()).toBe("");
     expect(() => saveProfile(FAKE_PROFILE)).not.toThrow();
-    expect(() => saveJudgeCode("review-code")).not.toThrow();
   });
 
   it("ignores blocked storage getters and write-quota errors", () => {
@@ -56,6 +45,6 @@ describe("browser profile storage", () => {
     expect(loadProfile()).toBeNull();
     expect(() => saveProfile(FAKE_PROFILE)).not.toThrow();
     vi.stubGlobal("window", { localStorage: { setItem: () => { throw new Error("Full"); } } });
-    expect(() => saveJudgeCode("review-code")).not.toThrow();
+    expect(() => saveProfile(FAKE_PROFILE)).not.toThrow();
   });
 });

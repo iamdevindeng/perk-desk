@@ -2,16 +2,13 @@
 // Called by: npm test
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { postPlan } from "@/lib/run-client";
-import { loadJudgeCode } from "@/lib/profile-storage";
 import { FAKE_PLAN_REQUEST, FAKE_PLAN_RESPONSE } from "../fixtures/fake-plan";
 
-vi.mock("@/lib/profile-storage", () => ({ loadJudgeCode: vi.fn() }));
 const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
-  vi.mocked(loadJudgeCode).mockReturnValue("");
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -22,15 +19,6 @@ describe("postPlan", () => {
     fetchMock.mockResolvedValueOnce(Response.json(FAKE_PLAN_RESPONSE));
     expect(await postPlan(FAKE_PLAN_REQUEST)).toEqual(FAKE_PLAN_RESPONSE);
     expect(fetchMock).toHaveBeenCalledWith("/api/plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(FAKE_PLAN_REQUEST) });
-  });
-
-  it("sends a judge code only in the header", async () => {
-    vi.mocked(loadJudgeCode).mockReturnValue("review-code");
-    fetchMock.mockResolvedValueOnce(Response.json(FAKE_PLAN_RESPONSE));
-    await postPlan(FAKE_PLAN_REQUEST);
-    const options = fetchMock.mock.calls[0][1];
-    expect(options?.headers).toEqual({ "content-type": "application/json", "x-judge-code": "review-code" });
-    expect(options?.body).not.toContain("review-code");
   });
 
   it("shows mapped server messages and a friendly validation error", async () => {

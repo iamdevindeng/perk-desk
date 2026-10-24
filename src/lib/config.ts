@@ -32,9 +32,12 @@ export const SCORE_WEIGHTS = {
   rating: 0.15,
 } as const;
 export const PLAN_LIMIT_PER_IP = 30;
-export const PLAN_LIMIT_GLOBAL = 200;
+export const PLAN_LIMIT_GLOBAL = 300;
 export const RUN_LIMIT_PER_IP = 10;
-export const RUN_LIMIT_GLOBAL = 60;
+export const RUN_LIMIT_GLOBAL = 150;
+export const RUN_QLOO_CALL_CAP = 120;
+export const PLAN_QLOO_CALL_CAP = 30;
+export const RESEARCH_BUDGET_MESSAGE = "Stopped early to stay within the research budget";
 export const USAGE_IP_HASH_LENGTH = 12;
 export const RUN_REPLAY_DELAY_MS = 60;
 export const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -57,7 +60,7 @@ export const PITCH_MAX_CHARACTERS = 600;
 export const PITCH_MAX_SENTENCES = 3;
 export const PITCH_CALL_MINUTES = 10;
 export const RATE_WINDOW_MS = 86400000;
-export const LIVE_LIMIT_MESSAGE = "Today's live-run limit is reached. Demo presets still work; judges can enter their access code.";
+export const LIVE_LIMIT_MESSAGE = "Today's live-research limit has been reached. The Denver and Austin demos still work instantly.";
 export const SHARED_LIMIT_CONFIG_MESSAGE = "Live research is disabled: shared rate-limit store not configured.";
 export const SHARED_LIMIT_UNAVAILABLE_MESSAGE = "Live research is disabled: shared rate-limit store unavailable.";
 export const LIST_MAX_ITEMS = 500;

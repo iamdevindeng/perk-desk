@@ -1,14 +1,11 @@
 "use client";
-// Shows research progress, service outcomes, and a local judge-code retry control.
+// Shows research progress, service outcomes, and retry controls.
 // Called by: src/app/page.tsx while research runs and when a run needs attention
-import { useEffect, useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { TRACE_VISIBLE_EVENTS } from "@/lib/config";
-import { loadJudgeCode, saveJudgeCode } from "@/lib/profile-storage";
 import type { StepId, TraceEvent } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 type AgentTraceProps = { events: TraceEvent[]; onRetry: () => void; disabled?: boolean };
 type StepStatus = "pending" | "running" | "done";
@@ -61,28 +58,6 @@ function StepRow({ label, status, details, ended }: {
   </li>;
 }
 
-function LimitedPanel({ message, onRetry, disabled }: { message: string; onRetry: () => void; disabled: boolean }): ReactElement {
-  const [judgeCode, setJudgeCode] = useState("");
-  useEffect(() => {
-    let mounted = true;
-    // Read browser storage after hydration; the code never enters trace events or request bodies.
-    queueMicrotask(() => { if (mounted) setJudgeCode(loadJudgeCode()); });
-    return () => { mounted = false; };
-  }, []);
-  function retry(): void { saveJudgeCode(judgeCode); onRetry(); }
-  return <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-    <p role="status" className="text-sm leading-relaxed text-amber-900">{message}</p>
-    <div className="space-y-2">
-      <Label htmlFor="judge-access-code">Judge access code</Label>
-      <Input id="judge-access-code" type="password" autoComplete="off" value={judgeCode} disabled={disabled}
-        aria-describedby="judge-access-code-help" placeholder="Enter your access code"
-        onChange={(event) => { setJudgeCode(event.target.value); saveJudgeCode(event.target.value); }} />
-      <p id="judge-access-code-help" className="text-xs text-amber-800">Saved in this browser for your next request.</p>
-    </div>
-    <Button onClick={retry} disabled={disabled || !judgeCode.trim()} className="bg-teal-700 hover:bg-teal-800">Retry with access code</Button>
-  </div>;
-}
-
 export default function AgentTrace({ events, onRetry, disabled = false }: AgentTraceProps): ReactElement {
   const latestStep = events.findLast((event) => event.type === "step");
   const detailStep = latestStep?.type === "step" ? latestStep.step : STEPS[0].id;
@@ -105,7 +80,9 @@ export default function AgentTrace({ events, onRetry, disabled = false }: AgentT
         {STEPS.map((step) => <StepRow key={step.id} label={step.label} status={stepStatus(step.id, events)}
           details={step.id === detailStep ? details : []} ended={ended} />)}
       </ol>
-      {limited?.type === "limited" && <LimitedPanel message={limited.message} onRetry={onRetry} disabled={disabled} />}
+      {limited?.type === "limited" && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+        {limited.message}
+      </p>}
       {error?.type === "error" && <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4">
         <p className="text-sm text-red-800">{ERROR_MESSAGES[error.code]}</p>
         <Button onClick={onRetry} disabled={disabled} variant="outline">Retry</Button>

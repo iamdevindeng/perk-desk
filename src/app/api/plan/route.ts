@@ -6,7 +6,8 @@ import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError, isQlooError } from "@/lib/qloo/client";
 import { getJson, setJson } from "@/lib/store/cache";
-import { checkLimit, getClientIp, hasJudgeBypass } from "@/lib/store/rate-limit";
+import { checkLimit, getClientIp } from "@/lib/store/rate-limit";
+import { isQlooBudgetReached, withRunUsage } from "@/lib/store/usage";
 import { PlanRequestSchema, PlanResponseSchema, type PlanRequest } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -49,8 +50,8 @@ function errorResponse(error: unknown): Response {
   return Response.json({ error: "upstream", message: "Qloo is having trouble; try again in a minute." }, { status: 502 });
 }
 
-async function limitedResponse(request: Request, input: PlanRequest): Promise<Response | null> {
-  const limit = await checkLimit("plan", getClientIp(request), { skipIp: hasJudgeBypass(request) || Boolean(input.presetId) });
+async function limitedResponse(request: Request): Promise<Response | null> {
+  const limit = await checkLimit("plan", getClientIp(request));
   if (limit.ok) return null;
   if (limit.reason === "store") return Response.json({ error: "config", message: limit.message }, { status: 503 });
   return Response.json(PlanResponseSchema.parse({
@@ -66,12 +67,14 @@ export async function POST(request: Request): Promise<Response> {
     const key = cacheKey("plan", input);
     const cached = PlanResponseSchema.safeParse(await getJson(key));
     if (cached.success && cached.data.categories.length > 0) return Response.json(cached.data);
-    const limited = await limitedResponse(request, input);
+    const limited = await limitedResponse(request);
     if (limited) return limited;
     if (!hasQlooKey()) throw createQlooError("config", null, "Server is missing its Qloo key.");
-    const result = PlanResponseSchema.parse(await runPlan(input, {}));
-    if (result.categories.length > 0) await setJson(key, result, RESULT_TTL_S);
-    return Response.json(result);
+    return await withRunUsage(getClientIp(request), async () => {
+      const result = PlanResponseSchema.parse(await runPlan(input, {}));
+      if (result.categories.length > 0 && !isQlooBudgetReached()) await setJson(key, result, RESULT_TTL_S);
+      return Response.json(result);
+    }, "plan");
   } catch (error) {
     return errorResponse(error);
   }

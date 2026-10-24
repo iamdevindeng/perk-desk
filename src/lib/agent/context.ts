@@ -1,5 +1,6 @@
 // Holds per-request agent state and emits safe progress events for tools and fallback paths.
 // Called by: plan/run orchestration, agent tools, and unit tests
+import { RESEARCH_BUDGET_MESSAGE } from "@/lib/config";
 import { getCategoryDefaults, getCategoryLabel } from "@/lib/data";
 import { isQlooError, type QlooCallOptions, type QlooError } from "@/lib/qloo/client";
 import type {
@@ -19,14 +20,14 @@ export type PlanContext = {
   brandsByInput: Map<string, BrandResolution>; brandTags: Map<string, TagRef[]>;
   candidateCategories: Map<string, string>; knownDensities: Map<string, number>;
   submitCount: number; plan: PlannedCategory[] | null; qlooCalls: number;
-  warnings: string[]; fatalError: QlooError | null;
+  budgetReached: boolean; warnings: string[]; fatalError: QlooError | null;
 };
 export type RunContext = {
   request: RunRequest; emit: (event: TraceEvent) => void;
   results: Map<string, CategoryOutcome>; replacements: Map<string, string>;
   candidateCategories: Map<string, string>; knownDensities: Map<string, number>;
   pendingCategories: Set<string>; finished: boolean; qlooCalls: number; successfulLookups: number; cacheable: boolean;
-  excludedCounts: RunResult["excludedCounts"]; warnings: string[]; fatalError: QlooError | null;
+  excludedCounts: RunResult["excludedCounts"]; budgetReached: boolean; warnings: string[]; fatalError: QlooError | null;
 };
 
 function timedEmitter(onEvent: (event: TraceEvent) => void): (event: TraceEvent) => void {
@@ -38,7 +39,7 @@ export function createPlanContext(request: PlanRequest, emit: (event: TraceEvent
   return {
     request, emit: timedEmitter(emit), brandsByInput: new Map(), brandTags: new Map(),
     candidateCategories: new Map(), knownDensities: new Map(), submitCount: 0,
-    plan: null, qlooCalls: 0, warnings: [], fatalError: null,
+    plan: null, qlooCalls: 0, budgetReached: false, warnings: [], fatalError: null,
   };
 }
 
@@ -51,7 +52,7 @@ export function createRunContext(request: RunRequest, emit: (event: TraceEvent) 
   return {
     request, emit: timedEmitter(emit), results: new Map(), replacements: new Map(), candidateCategories,
     knownDensities: new Map(), pendingCategories: new Set(), finished: false, qlooCalls: 0, successfulLookups: 0, cacheable: true,
-    excludedCounts: { nationalChain: 0, noiseGenre: 0, closed: 0, signedOrExcluded: 0 }, warnings: [], fatalError: null,
+    excludedCounts: { nationalChain: 0, noiseGenre: 0, closed: 0, signedOrExcluded: 0 }, budgetReached: false, warnings: [], fatalError: null,
   };
 }
 
@@ -63,6 +64,13 @@ export function contextQlooOptions(context: PlanContext | RunContext): QlooCallO
 }
 
 export function handleToolError(context: PlanContext | RunContext, error: unknown): { error: string } {
+  if (isQlooError(error) && error.code === "budget") {
+    if (!context.budgetReached) {
+      context.emit({ type: "agent_note", at: 0, text: RESEARCH_BUDGET_MESSAGE });
+      context.warnings.push(RESEARCH_BUDGET_MESSAGE);
+    }
+    context.budgetReached = true;
+  }
   if (isQlooError(error) && ["config", "auth", "quota"].includes(error.code)) {
     // SDK tool execution may capture a throw; orchestration must also check this flag.
     context.fatalError = error;

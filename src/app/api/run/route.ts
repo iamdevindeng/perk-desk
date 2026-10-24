@@ -9,7 +9,7 @@ import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { createQlooError } from "@/lib/qloo/client";
 import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { getJson, setJson } from "@/lib/store/cache";
-import { checkLimit, getClientIp, hasJudgeBypass, isPresetRun } from "@/lib/store/rate-limit";
+import { checkLimit, getClientIp } from "@/lib/store/rate-limit";
 import { withRunUsage } from "@/lib/store/usage";
 import { createEmitter, createNdjsonResponse, type Emit } from "@/lib/stream";
 import { RunRequestSchema, RunResultSchema, TraceEventSchema, type RunRequest, type TraceEvent } from "@/lib/types";
@@ -78,8 +78,7 @@ export async function POST(request: Request): Promise<Response> {
   if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit); });
   // Check shared budgets before opening the stream so store failures can return HTTP 503.
   const ip = getClientIp(request);
-  const skipIp = hasJudgeBypass(request) || await isPresetRun(input);
-  const limit = await checkLimit("run", ip, { skipIp });
+  const limit = await checkLimit("run", ip);
   if (limit.reason === "store") return Response.json({ error: "config", message: limit.message }, { status: 503 });
   if (!limit.ok) return createNdjsonResponse(async (emit) => { emit({ type: "limited", at: 0, message: LIVE_LIMIT_MESSAGE }); });
   return createNdjsonResponse(async (emit) => { await withRunUsage(ip, async () => { await runWork(input, key, emit); }); });

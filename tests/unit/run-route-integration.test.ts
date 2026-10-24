@@ -20,7 +20,6 @@ beforeEach(() => {
   vi.stubEnv("QLOO_API_KEY", "fake-integration-key");
   vi.stubEnv("PD_AGENT_DISABLED", "1"); vi.stubEnv("DEEPSEEK_API_KEY", "");
   vi.stubEnv("UPSTASH_REDIS_REST_URL", ""); vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
-  vi.stubEnv("JUDGE_BYPASS_CODE", "");
   resetEnvForTests(); clearMemoryCacheForTests(); resetMemoryLimitsForTests();
   vi.mocked(findPlaces).mockReset().mockResolvedValue(Array.from({ length: 8 }, (_, index) => ({
     ...FAKE_PLACE, entityId: `00000000-0000-4000-8000-0000000000${String(index + 10).padStart(2, "0")}`,

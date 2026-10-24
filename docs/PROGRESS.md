@@ -35,6 +35,9 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
 
+- [ ] R6: review R16–R29 local commits and authorize a push after completion. No push or deployment is authorized by this request.
+- [x] R16 supersedes the older code-setup items below: public demos and live research require no access code.
+
 - [x] Authorize the R11c/R12 push: on 2026-10-24 the user explicitly authorized coordination, commit, and push despite the no-remote-actions rule. The coordinated finalization entry below supersedes the earlier publishing blocker.
 - [x] Authorize publishing the local commits: the R10 request explicitly permits the agent to push the rebased R1–R9/review commits together with R10 after verification, superseding the earlier no-push instruction.
 - [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, required UPSTASH_* for production live work, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
@@ -922,3 +925,58 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
    3 files changed, 12 insertions(+), 12 deletions(-)
   ```
 - Publishing: the user's requested pull fast-forwarded to `147f300`. R13 and R14 are committed as `1ba5838` and `63980ab`; this R15 commit completes the ordered work. All three items passed before the authorized push, which will run the installed pre-push checks without bypasses.
+
+## R16 — Public research limits and per-request Qloo caps (2026-10-24)
+
+Status: DONE
+
+- Removed the code feature from server checks, browser storage/headers/UI, environment example, and current architecture/README guidance.
+- Applied normal IP limits to all cache misses, including altered presets; cached plans/runs remain available before IP/global checks.
+- Raised daily global limits to 300 plans and 150 runs; retained 30/10 per-IP limits and production fail-closed behavior.
+- Enforced 30/120 Qloo attempts per plan/run in the isolated usage context, including retries; live plans now log scope=plan.
+- Preserved gathered merchants with a budget note and template pitches on budget exhaustion, and prevented partial-result caching.
+
+Files touched / staged list (before this log):
+```text
+ .env.example                             |  2 -
+ README.md                                |  4 +-
+ docs/ARCHITECTURE.md                     | 27 ++++-----
+ src/app/api/plan/route.ts                | 17 +++---
+ src/app/api/run/route.ts                 |  5 +-
+ src/app/page.tsx                         |  4 +-
+ src/components/AgentTrace.tsx            | 33 ++---------
+ src/lib/agent/context.ts                 | 16 ++++--
+ src/lib/agent/plan-agent.ts              |  2 +-
+ src/lib/agent/run-agent.ts               |  7 ++-
+ src/lib/agent/tools/find-merchants.ts    |  3 +-
+ src/lib/config.ts                        |  9 ++-
+ src/lib/env.ts                           |  1 -
+ src/lib/fallback/fallback-run.ts         |  2 +
+ src/lib/profile-storage.ts               | 13 +----
+ src/lib/qloo/client.ts                   |  9 +--
+ src/lib/run-client.ts                    | 10 +---
+ src/lib/store/rate-limit.ts              | 62 ++++----------------
+ src/lib/store/usage.ts                   | 17 ++++--
+ tests/unit/config.test.ts                |  6 +-
+ tests/unit/env.test.ts                   |  1 -
+ tests/unit/plan-route.test.ts            | 38 ++++++++-----
+ tests/unit/post-plan.test.ts             | 12 ----
+ tests/unit/production-limits.test.ts     | 48 ++++++++++++----
+ tests/unit/profile-storage.test.ts       | 17 +-----
+ tests/unit/qloo-budget.test.ts           | 98 ++++++++++++++++++++++++++++++++
+ tests/unit/rate-limit.test.ts            | 86 +++++-----------------------
+ tests/unit/run-budget.test.ts            | 41 +++++++++++++
+ tests/unit/run-client.test.ts            |  9 +--
+ tests/unit/run-recovery.test.ts          |  2 +-
+ tests/unit/run-route-integration.test.ts |  1 -
+ tests/unit/run-route.test.ts             | 44 ++++++++------
+ 32 files changed, 343 insertions(+), 303 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`; `rg -n 'JUDGE' src .env.example` must find no matches.
+
+Verification: lint/typecheck passed; 870 offline tests / 60 files passed; production build and full-tree rules/privacy passed. Focused tests cover simultaneous calls, capped retries, partial results, altered presets and exhausted cached replays. No live provider calls. The first build could not bind a sandbox worker port; a retry retained that cached failure. Moving only generated .next artifacts to a temporary folder and rebuilding with local worker permission passed.
+
+Decisions I made: retain legacy secret-name detection in protected privacy scripts so old private values remain protected; this is not a runtime feature. The new request authorizes pull and local commits, with push awaiting Devin. Demo request defaults, preset inputs and cache keys are unchanged.
+
+Open issues: none for R16.

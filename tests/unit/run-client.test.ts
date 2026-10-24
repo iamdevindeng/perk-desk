@@ -2,11 +2,9 @@
 // Called by: npm test with mocked fetch and in-memory streams
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { streamRun } from "@/lib/run-client";
-import { loadJudgeCode } from "@/lib/profile-storage";
 import type { TraceEvent } from "@/lib/types";
 import { FAKE_RUN_REQUEST, FAKE_RUN_RESULT } from "../fixtures/fake-plan";
 
-vi.mock("@/lib/profile-storage", () => ({ loadJudgeCode: vi.fn() }));
 const fetchMock = vi.fn<typeof fetch>();
 const RESULT: TraceEvent = { type: "result", at: 2, result: FAKE_RUN_RESULT };
 const DONE: TraceEvent = { type: "done", at: 3 };
@@ -27,7 +25,6 @@ function eventResponse(events: TraceEvent[], separator = "\n"): Response {
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMock.mockReset();
-  vi.mocked(loadJudgeCode).mockReturnValue("");
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -81,14 +78,12 @@ describe("research stream decoding", () => {
 });
 
 describe("research request failures", () => {
-  it("sends stored judge access only in the request header", async () => {
-    vi.mocked(loadJudgeCode).mockReturnValue("review-code");
+  it("sends only the JSON content type header", async () => {
     fetchMock.mockResolvedValueOnce(eventResponse([RESULT, DONE]));
     await streamRun(FAKE_RUN_REQUEST, () => undefined);
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/run");
-    expect(options?.headers).toEqual({ "content-type": "application/json", "x-judge-code": "review-code" });
-    expect(options?.body).not.toContain("review-code");
+    expect(options?.headers).toEqual({ "content-type": "application/json" });
   });
 
   it("handles HTTP validation errors safely before reading a stream", async () => {

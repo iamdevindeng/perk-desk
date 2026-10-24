@@ -196,7 +196,7 @@ The listing is ordered for reading, not for compiling: in code, declare schemas 
 
 ### 4.1 `POST /api/plan`
 - Body: `PlanRequest` (if `presetId` is set, the server **ignores the body's profile fields and brands** and loads them from `src/data/presets/<presetId>.json`; `preferences` from the body are still used).
-- Flow: validate (400 JSON `{ error: "bad_request", issues }`) → cache lookup `plan:<hash>` (hit → serve without counting) → production shared-store gate and judge/limit check (§7) → resolve locations (§5.1) → plan agent (§5) or fallback plan (§8) → cache store → 200 JSON `PlanResponse`.
+- Flow: validate (400 JSON `{ error: "bad_request", issues }`) → cache lookup `plan:<hash>` (hit → serve without counting) → production shared-store gate and limit check (§7) → resolve locations (§5.1) → plan agent (§5) or fallback plan (§8) → cache store → 200 JSON `PlanResponse`.
 - In Vercel production, missing shared-store configuration or a rate-limit service failure/timeout → HTTP 503 JSON with a clear message (§7), before live Qloo or DeepSeek calls.
 - Missing `QLOO_API_KEY` → HTTP 503 JSON `{ error: "config", message }`. Qloo `auth` → 502 `{ error: "auth", message }`; Qloo `quota` → 503 `{ error: "quota", message }`; other Qloo failures → 502 `{ error: "upstream", message }` (messages from §11). The client shows `message`. All brands unresolved → 200 with `unresolved` filled, `categories: []`, warning "None of these brands were found on Qloo".
 - `export const maxDuration = 300;` No `runtime` export.
@@ -208,7 +208,7 @@ The listing is ordered for reading, not for compiling: in code, declare schemas 
 - `src/lib/stream.ts`: `createNdjsonResponse(work: (emit: Emit) => Promise<void>): Response` where `type Emit = (event: TraceEvent) => void`. It catches any thrown error, emits `error` (code `internal` unless typed) and always emits `done`, then closes.
 
 ### 4.3 Client (`src/lib/run-client.ts`)
-`postPlan(request): Promise<PlanResponse>` and `streamRun(request, onEvent): Promise<void>` (fetch → `res.body.getReader()` → `TextDecoder` → buffer → split on `\n` → `JSON.parse` → `TraceEventSchema.safeParse`; skip invalid lines with `console.warn`). Both send header `x-judge-code` when the user entered one (stored in localStorage key `perkdesk:v1:judge`).
+`postPlan(request): Promise<PlanResponse>` and `streamRun(request, onEvent): Promise<void>` (fetch → `res.body.getReader()` → `TextDecoder` → buffer → split on `\n` → `JSON.parse` → `TraceEventSchema.safeParse`; skip invalid lines with `console.warn`).
 
 ## 5. Plan agent (`src/lib/agent/plan-agent.ts`) — steps ① ②
 
@@ -313,14 +313,14 @@ For one category: merge seeded and baseline lists per branch into `MerchantCandi
 
 `citySlug` = lowercase city with non-alphanumerics → `-`. Canonical JSON = keys sorted recursively (`hash.ts`).
 
-**Rate limit** (`rate-limit.ts`): `checkLimit(scope, ip, { skipIp? }): Promise<{ ok: boolean; reason?: "ip" | "global" | "store"; message?: string }>` checks the per-IP and global budgets, or only the global budget when `skipIp` is true. A `store` denial includes a safe message for the HTTP 503 response. Upstash: `@upstash/ratelimit` `Ratelimit.fixedWindow(limit, "1 d")`, prefixes `pd:v1:rl:<scope>:ip` and `pd:v1:rl:<scope>:global` (identifier `"all"`). In-memory: `Map<key, { count, windowStart }>` with a 24 h fixed window. Limits from `config.ts`: plan 30/IP/day + 200 global/day; run 10/IP/day + 60 global/day.
-- Order in routes: cache hit → served, **never counted**. On a cache miss, enforce the production shared-store gate below. Then a judge code (`x-judge-code` header equals `JUDGE_BYPASS_CODE`, both non-empty) or `presetId` set **and the request really is the preset** → skip only the per-IP limit, still count global. "Really is the preset": for `/api/plan` the server replaces the inputs with the preset's anyway; for `/api/run` the branch ids/coords/radii must equal the preset's branches and every brand must match an entity ID and case-insensitive name resolved by the preset's cached plan, otherwise treat it as a normal live run (prevents bypass by sending any `presetId`). Else check both.
-- Production gate: `getEnv()` in `src/lib/env.ts` reads `VERCEL_ENV`; `isVercelProduction()` returns whether it equals `"production"`. In that environment, both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are required for every cache miss, including judge and cold-preset requests. Missing either → HTTP 503 with "Live research is disabled: shared rate-limit store not configured." A rate-limit service failure or timeout returns HTTP 503 with "Live research is disabled: shared rate-limit store unavailable." Production never falls back to in-memory limits. Cache hits still work when the cached value can be read. Local development and preview deployments retain in-memory fallback and its warning.
-- Over limit: plan → 200 JSON `{ limited: true, message, ... empty arrays }`; run → `limited` event + `done`. Message: "Today's live-run limit is reached. Demo presets still work; judges can enter their access code."
+**Rate limit** (`rate-limit.ts`): `checkLimit(scope, ip): Promise<{ ok: boolean; reason?: "ip" | "global" | "store"; message?: string }>` checks both the per-IP and global budgets. A `store` denial includes a safe message for the HTTP 503 response. Upstash: `@upstash/ratelimit` `Ratelimit.fixedWindow(limit, "1 d")`, prefixes `pd:v1:rl:<scope>:ip` and `pd:v1:rl:<scope>:global` (identifier `"all"`). In-memory: `Map<key, { count, windowStart }>` with a 24 h fixed window. Limits from `config.ts`: plan 30/IP/day + 300 global/day; run 10/IP/day + 150 global/day.
+- Order in routes: cache hit → served, **never counted**. On every cache miss, enforce the production shared-store gate below, then check both the per-IP and global limits. Preset requests use the same limits when they need live research.
+- Production gate: `getEnv()` in `src/lib/env.ts` reads `VERCEL_ENV`; `isVercelProduction()` returns whether it equals `"production"`. In that environment, both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are required for every cache miss, including cold-preset requests. Missing either → HTTP 503 with "Live research is disabled: shared rate-limit store not configured." A rate-limit service failure or timeout returns HTTP 503 with "Live research is disabled: shared rate-limit store unavailable." Production never falls back to in-memory limits. Cache hits still work when the cached value can be read. Local development and preview deployments retain in-memory fallback and its warning.
+- Over limit: plan → 200 JSON `{ limited: true, message, ... empty arrays }`; run → `limited` event + `done`. Message: "Today's live-research limit has been reached. The Denver and Austin demos still work instantly."
 
 **Presets:** `src/data/presets/*.json` hold only hand-written inputs (fictional institution, branches with coords, lists, brand names). The first run computes results live and caches them under `plan:`/`run:` keys; later runs replay from cache. No preset results are committed.
 
-**Usage visibility** (`usage.ts`): `withRunUsage<T>(ip, work)` uses Node's `AsyncLocalStorage` to isolate concurrent run counters and emits one structured server log line when live research finishes or fails: `[usage] scope=run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. `recordUsageCall("qloo" | "llm")` counts each outbound HTTP attempt, including retries and failed attempts; cache hits add zero. The IP is represented only by the first `USAGE_IP_HASH_LENGTH` (12) SHA-256 hex characters; no raw IP or secret values are logged. Cached replays do not emit a live usage line. Devin can inspect the counts in Vercel logs.
+**Usage visibility** (`usage.ts`): `withRunUsage<T>(ip, work, scope = "run")` uses Node's `AsyncLocalStorage` to isolate concurrent request counters and emits one structured server log line when live research finishes or fails: `[usage] scope=plan|run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. `recordUsageCall("qloo" | "llm")` counts each outbound HTTP attempt, including retries and failed attempts; cache hits add zero. The IP is represented only by the first `USAGE_IP_HASH_LENGTH` (12) SHA-256 hex characters; no raw IP or secret values are logged. Cached replays do not emit a live usage line. Devin can inspect the counts in Vercel logs. The same context enforces `PLAN_QLOO_CALL_CAP = 30` and `RUN_QLOO_CALL_CAP = 120`; the Qloo client checks it before fetching and throws a non-retryable `budget` error when the cap is reached. A limited run uses gathered candidates, emits "Stopped early to stay within the research budget", and is not cached.
 
 ## 8. Fallback (`src/lib/fallback/*`)
 
@@ -371,8 +371,9 @@ If `react-leaflet@^5` has a peer conflict with the installed React, use the newe
 | `SHORTLIST_TOTAL` | 10 | shortlist |
 | `BRAND_CHECK_MAX` / `BRAND_CHECK_MIN_POPULARITY` | 10 / 0.5 | chain brand check |
 | `SCORE_WEIGHTS` | `{ affinity: 0.4, lift: 0.25, distance: 0.2, rating: 0.15 }` | scoring |
-| `PLAN_LIMIT_PER_IP` / `PLAN_LIMIT_GLOBAL` | 30 / 200 | per day |
-| `RUN_LIMIT_PER_IP` / `RUN_LIMIT_GLOBAL` | 10 / 60 | per day |
+| `PLAN_LIMIT_PER_IP` / `PLAN_LIMIT_GLOBAL` | 30 / 300 | per day |
+| `RUN_LIMIT_PER_IP` / `RUN_LIMIT_GLOBAL` | 10 / 150 | per day |
+| `PLAN_QLOO_CALL_CAP` / `RUN_QLOO_CALL_CAP` | 30 / 120 | Qloo attempts per live request |
 | `USAGE_IP_HASH_LENGTH` | 12 | hex characters in the logged IP hash |
 | `SHARED_LIMIT_CONFIG_MESSAGE` | "Live research is disabled: shared rate-limit store not configured." | production HTTP 503 for missing Upstash configuration |
 | `SHARED_LIMIT_UNAVAILABLE_MESSAGE` | "Live research is disabled: shared rate-limit store unavailable." | production HTTP 503 for rate-limit failures/timeouts |
@@ -408,7 +409,7 @@ A single failed Qloo call inside `findMerchants` (one branch) is **not fatal**: 
 
 ## 13. Security checklist
 - Keys only in `src/lib/env.ts`; client code never imports server modules (ESLint boundary §2).
-- Nothing from the browser is forwarded to Qloo or DeepSeek except brand names/IDs, city, branch coordinates/addresses, category tags, merchant names. No IP, no judge code.
+- Nothing from the browser is forwarded to Qloo or DeepSeek except brand names/IDs, city, branch coordinates/addresses, category tags, merchant names. No IP.
 - Server logs: errors with code and message only; never request headers or keys.
 
 ## 14. Module API (exported functions; names are binding, parameter details may grow)
@@ -422,8 +423,8 @@ A single failed Qloo call inside `findMerchants` (one branch) is **not fatal**: 
 | `lib/hash.ts` | `canonicalJson(value)`, `sha256Hex(text)`, `cacheKey(kind, value)`, `citySlug(city)` |
 | `lib/stream.ts` | `type Emit`, `createNdjsonResponse(work)`, `createEmitter(onEvent): Emit` (fills `at`) |
 | `lib/store/cache.ts` | `getJson(key)`, `setJson(key, value, ttlSeconds)`, `clearMemoryCacheForTests()` |
-| `lib/store/rate-limit.ts` | `checkLimit(scope, ip, options?)`, `getClientIp(request)`, `hasJudgeBypass(request)`, `isPresetRun(request)`, `resetMemoryLimitsForTests()` |
-| `lib/store/usage.ts` | `withRunUsage<T>(ip, work): Promise<T>`, `recordUsageCall(service: "qloo" \| "llm"): void` |
+| `lib/store/rate-limit.ts` | `checkLimit(scope, ip)`, `getClientIp(request)`, `resetMemoryLimitsForTests()` |
+| `lib/store/usage.ts` | `withRunUsage<T>(ip, work, scope?): Promise<T>`, `recordUsageCall(service: "qloo" \| "llm"): void`, `isQlooBudgetReached(): boolean` |
 | `lib/qloo/client.ts` | `qlooGet(path, params)`, `cachedQlooCall(path, params, slim, schema, options)`, `createQlooError(...)`, `isQlooError(value)`, `type QlooError`, `type QlooCallOptions` |
 | `lib/qloo/search.ts` | `searchBrands(name, options)`, `searchBrandExact(name, options)`, `filterAllowedBrandTags(tags)` |
 | `lib/qloo/tags.ts` | `searchPlaceCategories(query, options)`, `isBlacklistedCategory(tagId)` |
@@ -448,7 +449,7 @@ A single failed Qloo call inside `findMerchants` (one branch) is **not fatal**: 
 | `lib/fallback/fallback-plan.ts` | `buildFallbackPlan(context)` |
 | `lib/fallback/fallback-run.ts` | `runFallbackResearch(context)` |
 | `lib/fallback/pitch-template.ts` | `buildTemplatePitch(card, institutionName)` |
-| `lib/profile-storage.ts` | `loadProfile()`, `saveProfile(profile)`, `loadJudgeCode()`, `saveJudgeCode(code)` |
+| `lib/profile-storage.ts` | `loadProfile()`, `saveProfile(profile)` |
 | `lib/request-builders.ts` | `parseListText(text)`, `buildPlanRequest(...)`, `buildRunRequest(...)`, `mergePreferences(previous, planned, confirmed)` |
 | `lib/run-client.ts` | `postPlan(request)`, `streamRun(request, onEvent)` |
 | `lib/csv.ts` | `toCsv(merchants, merchantStatus)` |

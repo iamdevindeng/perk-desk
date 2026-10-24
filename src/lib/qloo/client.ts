@@ -2,21 +2,21 @@
 // Called by: Qloo search, tags, insights, and client unit tests
 import { z } from "zod";
 import {
-  QLOO_BASE_URL_DEFAULT, QLOO_CACHE_TTL_S, QLOO_MIN_GAP_MS, QLOO_RETRY_AFTER_MS, QLOO_TIMEOUT_MS,
+  RESEARCH_BUDGET_MESSAGE, QLOO_BASE_URL_DEFAULT, QLOO_CACHE_TTL_S, QLOO_MIN_GAP_MS, QLOO_RETRY_AFTER_MS, QLOO_TIMEOUT_MS,
 } from "@/lib/config";
 import { getEnv } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { getJson, setJson } from "@/lib/store/cache";
-import { recordUsageCall } from "@/lib/store/usage";
+import { isQlooBudgetReached, recordUsageCall } from "@/lib/store/usage";
 
 export type QlooPath = "/search" | "/v2/tags" | "/v2/insights";
 export type QlooParams = Record<string, string | number | boolean>;
 export type QlooCallInfo = { endpoint: QlooPath; summary: string; ms: number; cached: boolean };
 export type QlooCallOptions = { onCall?: (info: QlooCallInfo) => void };
-export type QlooErrorCode = "config" | "auth" | "quota" | "timeout" | "upstream" | "network" | "bad_request";
+export type QlooErrorCode = "config" | "auth" | "quota" | "timeout" | "upstream" | "network" | "bad_request" | "budget";
 export type QlooError = Error & { code: QlooErrorCode; status: number | null };
 
-const ERROR_CODES = ["config", "auth", "quota", "timeout", "upstream", "network", "bad_request"];
+const ERROR_CODES = ["config", "auth", "quota", "timeout", "upstream", "network", "bad_request", "budget"];
 const CALL_SUMMARIES = { "/search": "Brand search", "/v2/tags": "Place category search", "/v2/insights": "Place insights" };
 let nextCallAt = 0;
 
@@ -60,6 +60,7 @@ async function waitForCallSlot(): Promise<void> {
 
 async function fetchResponse(url: URL, apiKey: string): Promise<Response> {
   await waitForCallSlot();
+  if (isQlooBudgetReached()) throw createQlooError("budget", null, RESEARCH_BUDGET_MESSAGE);
   try {
     // Count each transport attempt, including a retried 429 or a failed fetch (FIXES-R2 R10c).
     recordUsageCall("qloo");

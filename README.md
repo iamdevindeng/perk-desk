@@ -29,9 +29,9 @@ Open http://localhost:3000, choose a demo preset, plan the categories, then conf
 
 Local development and preview deployments can use in-memory caching and rate limits without Upstash. Serverless instances do not share memory, and restarts clear it. Vercel production (`VERCEL_ENV=production`) requires both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for live research. If either is missing, live requests return HTTP 503 with "Live research is disabled: shared rate-limit store not configured." If the shared rate-limit service fails or times out, production also refuses live requests with HTTP 503. Cached results, including demo presets, remain available when the cache can serve them.
 
-Daily live budgets are 30 plans per IP and 200 plans globally, plus 10 research runs per IP and 60 runs globally. A judge access code skips only the per-IP limit. Cached requests are unlimited; a preset without a cached result still uses the global budget and requires the shared rate-limit store in production.
+Daily live limits are 30 plans per IP and 300 plans globally, plus 10 research runs per IP and 150 runs globally. Cached requests are unlimited. Every cache miss counts toward both limits and requires the shared rate-limit store in production. Each live plan can make up to 30 Qloo calls; each research run can make up to 120. A run that reaches its call limit returns the candidates already gathered and is not cached.
 
-For each live research run, server logs include one structured usage line: `[usage] scope=run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. Counts include outbound HTTP attempts, retries, and failures; cache hits add zero. Read these in Vercel logs to track API usage. The line contains a short SHA-256 hash of the IP, never the raw IP or API keys.
+For each live plan and research run, server logs include one structured usage line: `[usage] scope=plan|run ip_hash=<short sha256> qloo_calls=<n> llm_calls=<n>`. Counts include outbound HTTP attempts, retries, and failures; cache hits add zero. Read these in Vercel logs to track API usage. The line contains a short SHA-256 hash of the IP, never the raw IP or API keys.
 
 Run the offline unit tests and the smoke check separately:
 

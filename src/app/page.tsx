@@ -10,7 +10,7 @@ import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { DEFAULT_RADIUS_M, LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
@@ -165,7 +165,7 @@ export default function Home(): ReactElement {
   function startPlan(): void { research.clear(); setPickingBranchId(undefined); void planning.startPlan(); }
   const trace = research.runEvents.length ? research.runEvents : plan?.trace ?? [];
   const visibleTrace: TraceEvent[] = plan?.limited && !research.runEvents.length
-    ? [...trace, { type: "limited", at: 0, message: plan.message ?? "The live-run limit is reached." }] : trace;
+    ? [...trace, { type: "limited", at: 0, message: plan.message ?? LIVE_LIMIT_MESSAGE }] : trace;
   return <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-8 lg:py-12">
     <header className="mb-8 max-w-3xl">
       <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-teal-700">Perk Desk</p>

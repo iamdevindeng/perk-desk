@@ -15,7 +15,7 @@ import { makeFakePlace } from "../fixtures/fake-places";
 vi.mock("@/lib/env", () => ({ hasQlooKey: () => true, hasUpstash: () => false, hasDeepSeekKey: () => false, isAgentDisabled: () => true }));
 vi.mock("@/lib/qloo/insights", () => ({ findPlaces: vi.fn() }));
 vi.mock("@/lib/qloo/search", () => ({ searchBrandExact: vi.fn() }));
-vi.mock("@/lib/store/rate-limit", () => ({ checkLimit: vi.fn(), getClientIp: () => "fake", hasJudgeBypass: () => false, isPresetRun: async () => false }));
+vi.mock("@/lib/store/rate-limit", () => ({ checkLimit: vi.fn(), getClientIp: () => "fake" }));
 const RUN_KEY = cacheKey("run", FAKE_RUN_REQUEST);
 const DENSITY_KEY = `pd:v1:density:${citySlug(FAKE_RUN_REQUEST.city)}:${FAKE_RUN_REQUEST.categories[0].tagId}`;
 const PLACES = Array.from({ length: 12 }, (_, index) => makeFakePlace(index + 10));

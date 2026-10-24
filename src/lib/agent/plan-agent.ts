@@ -98,7 +98,7 @@ async function tryAgent(context: PlanContext, options: PlanOptions): Promise<str
       model: options.model ?? agentModel(), instructions: PLAN_SYSTEM_PROMPT, prompt: buildPlanUserPrompt(context),
       tools: { resolveBrands: buildResolveBrandsTool(context), searchCategories: buildSearchCategoriesTool(context), submitPlan: buildSubmitPlanTool(context) },
       toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.timeout(PLAN_TIMEOUT_MS),
-      stopWhen: [isStepCount(PLAN_MAX_STEPS), () => context.fatalError !== null || (context.plan !== null &&
+      stopWhen: [isStepCount(PLAN_MAX_STEPS), () => context.fatalError !== null || context.budgetReached || (context.plan !== null &&
         (context.plan.length >= PLAN_MIN_CATEGORIES || context.submitCount >= PLAN_MAX_SUBMISSIONS))],
       onStepFinish: (step) => {
         if (step.text.trim()) context.emit({ type: "agent_note", at: 0, text: step.text.slice(0, TRACE_SUMMARY_MAX) });

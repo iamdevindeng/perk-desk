@@ -1,14 +1,9 @@
-// Enforces daily research budgets and verifies judge and preset exemptions.
+// Enforces ordinary daily per-IP and shared research limits.
 // Called by: plan/run routes and rate-limit unit tests
-import { timingSafeEqual } from "node:crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
-import { findPreset } from "@/lib/data";
 import { getEnv, hasUpstash, isVercelProduction } from "@/lib/env";
-import { cacheKey } from "@/lib/hash";
-import { getJson } from "@/lib/store/cache";
-import { PlanRequestSchema, PlanResponseSchema, type Branch, type RunRequest } from "@/lib/types";
 
 type Scope = "plan" | "run";
 type LimitResult = { ok: boolean; reason?: "ip" | "global" | "store"; message?: string };
@@ -32,9 +27,9 @@ function consumeMemory(key: string, maximum: number): boolean {
   return true;
 }
 
-function memoryLimit(scope: Scope, ip: string, skipIp: boolean): LimitResult {
+function memoryLimit(scope: Scope, ip: string): LimitResult {
   const maximum = limits(scope);
-  if (!skipIp && (redisExhausted(`${scope}:ip:${ip}`) || !consumeMemory(`${scope}:ip:${ip}`, maximum.ip))) return { ok: false, reason: "ip" };
+  if (redisExhausted(`${scope}:ip:${ip}`) || !consumeMemory(`${scope}:ip:${ip}`, maximum.ip)) return { ok: false, reason: "ip" };
   if (redisExhausted(`${scope}:global:all`) || !consumeMemory(`${scope}:global:all`, maximum.global)) return { ok: false, reason: "global" };
   return { ok: true };
 }
@@ -46,9 +41,9 @@ function redisExhausted(key: string): boolean {
   return false;
 }
 
-function shadowUsage(scope: Scope, ip: string, skipIp: boolean): void {
+function shadowUsage(scope: Scope, ip: string): void {
   const maximum = limits(scope);
-  if (!skipIp) consumeMemory(`${scope}:ip:${ip}`, maximum.ip);
+  consumeMemory(`${scope}:ip:${ip}`, maximum.ip);
   consumeMemory(`${scope}:global:all`, maximum.global);
 }
 
@@ -78,66 +73,33 @@ async function consumeRedis(scope: Scope, kind: "ip" | "global", identifier: str
   return result.success;
 }
 
-export async function checkLimit(scope: Scope, ip: string, options: { skipIp?: boolean } = {}): Promise<LimitResult> {
-  const skipIp = options.skipIp ?? false;
+export async function checkLimit(scope: Scope, ip: string): Promise<LimitResult> {
   if (!hasUpstash()) {
     if (isVercelProduction()) return { ok: false, reason: "store", message: SHARED_LIMIT_CONFIG_MESSAGE };
-    return localFallback(scope, ip, skipIp);
+    return localFallback(scope, ip);
   }
   try {
-    if (!skipIp && !await consumeRedis(scope, "ip", ip)) return { ok: false, reason: "ip" };
+    if (!await consumeRedis(scope, "ip", ip)) return { ok: false, reason: "ip" };
     if (!await consumeRedis(scope, "global", "all")) return { ok: false, reason: "global" };
     // Shadow successful requests so a service outage does not reset observed local usage.
-    shadowUsage(scope, ip, skipIp);
+    shadowUsage(scope, ip);
     return { ok: true };
   } catch {
     if (isVercelProduction()) return { ok: false, reason: "store", message: SHARED_LIMIT_UNAVAILABLE_MESSAGE };
-    return localFallback(scope, ip, skipIp);
+    return localFallback(scope, ip);
   }
 }
 
-function localFallback(scope: Scope, ip: string, skipIp: boolean): LimitResult {
+function localFallback(scope: Scope, ip: string): LimitResult {
   if (!warned) console.warn("Rate limit service unavailable; using local limits.");
   warned = true;
-  return memoryLimit(scope, ip, skipIp);
+  return memoryLimit(scope, ip);
 }
 
 export function getClientIp(request: Request): string {
   // Vercel supplies the client as the first forwarded address; later entries are proxy hops.
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || request.headers.get("x-real-ip")?.trim() || "unknown";
-}
-
-export function hasJudgeBypass(request: Request): boolean {
-  const expected = getEnv().JUDGE_BYPASS_CODE;
-  const received = request.headers.get("x-judge-code");
-  if (!expected?.trim() || !received?.trim()) return false;
-  const expectedBytes = Buffer.from(expected, "utf8");
-  const receivedBytes = Buffer.from(received, "utf8");
-  // timingSafeEqual throws for unequal byte lengths, including multibyte text.
-  return expectedBytes.length === receivedBytes.length && timingSafeEqual(expectedBytes, receivedBytes);
-}
-
-function branchesMatch(actual: Branch[], expected: Branch[]): boolean {
-  if (actual.length !== expected.length || new Set(actual.map((branch) => branch.id)).size !== actual.length) return false;
-  return actual.every((branch) => expected.some((presetBranch) => branch.id === presetBranch.id &&
-    branch.lat === presetBranch.lat && branch.lon === presetBranch.lon && branch.radiusMeters === presetBranch.radiusMeters));
-}
-
-export async function isPresetRun(request: RunRequest): Promise<boolean> {
-  const preset = request.presetId ? findPreset(request.presetId) : undefined;
-  if (!preset || !branchesMatch(request.branches, preset.profile.branches)) return false;
-  const canonical = PlanRequestSchema.parse({
-    ...preset.profile, presetId: preset.id,
-    branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })),
-    brandNames: preset.brandsText.split(/\r?\n/).map((name) => name.trim()).filter(Boolean),
-  });
-  const cached = PlanResponseSchema.safeParse(await getJson(cacheKey("plan", canonical)));
-  if (!cached.success || !cached.data.brands.length || !request.brands.length) return false;
-  const names = request.brands.map((brand) => brand.name.trim().toLowerCase());
-  if (new Set(names).size !== names.length || new Set(request.brands.map((brand) => brand.entityId)).size !== names.length) return false;
-  return request.brands.every((brand) => cached.data.brands.some((resolved) =>
-    resolved.entityId === brand.entityId && resolved.name.trim().toLowerCase() === brand.name.trim().toLowerCase()));
 }
 
 export function resetMemoryLimitsForTests(): void {

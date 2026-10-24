@@ -45,6 +45,7 @@ function summarize(outcome: CategoryOutcome): FindMerchantsSummary {
 async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boolean, context: RunContext): Promise<Place[] | null> {
   try {
     if (context.fatalError) throw context.fatalError;
+    if (context.budgetReached) return null;
     const places = await findPlaces({
       lat: branch.lat, lon: branch.lon, radiusMeters: branch.radiusMeters, tagId,
       brandIds: seeded ? context.request.brands.map((brand) => brand.entityId) : [],
@@ -52,7 +53,7 @@ async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boo
     context.successfulLookups += 1;
     return places;
   } catch (error) {
-    if (isQlooError(error) && ["auth", "quota", "config"].includes(error.code)) handleToolError(context, error);
+    if (isQlooError(error) && ["auth", "quota", "config", "budget"].includes(error.code)) handleToolError(context, error);
     context.warnings.push(`${branch.name}: ${seeded ? "taste" : "baseline"} lookup failed; available results were kept.`);
     context.cacheable = false;
     return null;
