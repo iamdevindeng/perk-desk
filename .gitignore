@@ -22,3 +22,6 @@ next-env.d.ts
 .DS_Store
 *.pem
 npm-debug.log*
+
+# Local translations maintained by Devin
+docs/translate/

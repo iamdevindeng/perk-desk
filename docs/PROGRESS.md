@@ -475,3 +475,16 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: keep R1 before R2 as requested; the rule-check failure will be reverified after R2. No schema support for preset overrides and none needed. An independent review found and prompted the partial-evidence cleanup regression.
 - New dependencies: none.
 - For Devin: no new owner-only action.
+
+### R2: Keep local translations out of Git — DONE
+- Date/time (UTC+8): 2026-10-24 18:03
+- What was done:
+  - Ignored `docs/translate/` and removed its two tracked files from the index only.
+  - Confirmed both on-disk files retain identical SHA-256 checksums.
+  - Kept the checker and architecture tree unchanged; the R1 verification blocker is resolved.
+- Files touched: `.gitignore`, Git index entries for `docs/translate/{PROGRESS,TASKS}.md`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`; `git check-ignore docs/translate/PROGRESS.md docs/translate/TASKS.md`.
+- Verification: PASS: 479 tests / 45 files, lint, typecheck, production build, rules (144 files), diff whitespace. Both local translations remain intact and ignored.
+- Open issues / decisions: R1 now passes every standard check; its earlier FAILED entry and WIP commit remain as required history. R1 final status is DONE after this revalidation.
+- New dependencies: none.
+- For Devin: no new action.
