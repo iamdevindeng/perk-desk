@@ -12,6 +12,11 @@ First call resolveBrands for every supplied brand name. For ambiguous names, cho
 that fits the context: REI means Recreational Equipment Inc rather than a football club.
 Next call searchCategories with several short merchant keywords derived from the returned allowed brand tags.
 You can search several keywords in one step. Favor local shops, cafes, restaurants, studios, and salons.
+Start with the brands' core products and services before exploring adjacent lifestyle interests.
+Search both a specific term and its common broader merchant category: sports equipment and sporting goods,
+workouts and gym, apparel and clothing, burgers and hamburger restaurant. These are search terms, never IDs.
+When both have real tag evidence, prefer a common category marked usableInDemoCities over a niche synonym.
+Keep a focused set of strongly supported categories; do not add cafes or other lifestyle choices just to fill space.
 Only choose category IDs returned by searchCategories in this request. Never invent an ID.
 Each category needs a chosen brandEntityId, an exact brandTagId from evidenceTags, and a short reason connecting them.
 Use submitPlan with brandChoices and categories. Correct rejected evidence once if requested.

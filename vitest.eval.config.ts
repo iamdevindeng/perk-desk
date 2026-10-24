@@ -7,5 +7,7 @@ import { defineConfig } from "vitest/config";
 if (existsSync(".env.local") && typeof process.loadEnvFile === "function") process.loadEnvFile(".env.local");
 export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "src") } },
-  test: { environment: "node", include: ["tests/eval/**/*.test.ts"], testTimeout: 180000, fileParallelism: false },
+  // The automatic agent reporter hides passing-test logs, including required eval metrics.
+  test: { environment: "node", include: ["tests/eval/**/*.test.ts"], testTimeout: 180000,
+    fileParallelism: false, reporters: ["default"] },
 });

@@ -75,3 +75,6 @@ export const MAP_MERCHANT_MARKER_RADIUS = 6;
 export const MAP_SELECTED_MARKER_RADIUS = 10;
 export const MAP_RESULTS_MAX_ZOOM = 14;
 export const MAP_BOUNDS_PADDING = 36;
+export const EVAL_TIMEOUT_MS = 900000;
+export const EVAL_MIN_HIT_RATE = 0.5;
+export const EVAL_METRIC_DECIMALS = 3;

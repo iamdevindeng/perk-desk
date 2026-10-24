@@ -1,0 +1,94 @@
+{
+  "cases": [
+    {
+      "id": "coffee",
+      "city": "Denver, CO",
+      "brands": ["Starbucks", "Blue Bottle Coffee"],
+      "expectedAnyOf": ["urn:tag:category:place:coffee_shop", "urn:tag:category:place:cafe"]
+    },
+    {
+      "id": "dessert",
+      "city": "Austin, TX",
+      "brands": ["Krispy Kreme", "Starbucks"],
+      "expectedAnyOf": ["urn:tag:category:place:donut_shop", "urn:tag:category:place:bakery", "urn:tag:category:place:dessert_shop", "urn:tag:category:place:coffee_shop"]
+    },
+    {
+      "id": "craft-beer",
+      "city": "Denver, CO",
+      "brands": ["Sierra Nevada", "New Belgium Brewing"],
+      "expectedAnyOf": ["urn:tag:category:place:brewery", "urn:tag:category:place:beer_garden", "urn:tag:category:place:bar"]
+    },
+    {
+      "id": "aperitif",
+      "city": "Austin, TX",
+      "brands": ["Aperol"],
+      "expectedAnyOf": ["urn:tag:category:place:cocktail_bar", "urn:tag:category:place:wine_bar", "urn:tag:category:place:bar"]
+    },
+    {
+      "id": "pets",
+      "city": "Denver, CO",
+      "brands": ["Chewy", "BarkBox", "Petco"],
+      "expectedAnyOf": ["urn:tag:category:place:pet_supply_store", "urn:tag:category:place:pet_store", "urn:tag:category:place:pet_groomer"]
+    },
+    {
+      "id": "fitness",
+      "city": "Austin, TX",
+      "brands": ["Lululemon", "Peloton", "Nike"],
+      "expectedAnyOf": ["urn:tag:category:place:gym", "urn:tag:category:place:sporting_goods_store"]
+    },
+    {
+      "id": "outdoor",
+      "city": "Denver, CO",
+      "brands": ["REI", "Patagonia", "YETI"],
+      "expectedAnyOf": ["urn:tag:category:place:sporting_goods_store", "urn:tag:category:place:bicycle_shop"]
+    },
+    {
+      "id": "beauty",
+      "city": "Austin, TX",
+      "brands": ["Sephora", "Ulta Beauty"],
+      "expectedAnyOf": ["urn:tag:category:place:nail_salon", "urn:tag:category:place:day_spa", "urn:tag:category:place:facial_spa", "urn:tag:category:place:spa"]
+    },
+    {
+      "id": "hair",
+      "city": "Denver, CO",
+      "brands": ["Aveda"],
+      "expectedAnyOf": ["urn:tag:category:place:hair_salon", "urn:tag:category:place:barber_shop", "urn:tag:category:place:day_spa"]
+    },
+    {
+      "id": "healthy-dining",
+      "city": "Austin, TX",
+      "brands": ["Sweetgreen", "Whole Foods Market"],
+      "expectedAnyOf": ["urn:tag:category:place:health_food_restaurant", "urn:tag:category:place:juice_shop", "urn:tag:category:place:cafe"]
+    },
+    {
+      "id": "burgers",
+      "city": "Denver, CO",
+      "brands": ["Shake Shack"],
+      "expectedAnyOf": ["urn:tag:category:place:hamburger_restaurant", "urn:tag:category:place:american_restaurant"]
+    },
+    {
+      "id": "mexican",
+      "city": "Austin, TX",
+      "brands": ["Chipotle"],
+      "expectedAnyOf": ["urn:tag:category:place:mexican_restaurant", "urn:tag:category:place:taco_restaurant"]
+    },
+    {
+      "id": "western-wear",
+      "city": "Austin, TX",
+      "brands": ["Tecovas"],
+      "expectedAnyOf": ["urn:tag:category:place:clothing_store", "urn:tag:category:place:mens_clothing_store", "urn:tag:category:place:womens_clothing_store"]
+    },
+    {
+      "id": "sneakers",
+      "city": "Denver, CO",
+      "brands": ["Allbirds", "Nike"],
+      "expectedAnyOf": ["urn:tag:category:place:clothing_store", "urn:tag:category:place:sporting_goods_store"]
+    },
+    {
+      "id": "mixed-denver",
+      "city": "Denver, CO",
+      "brands": ["REI", "Lululemon", "Starbucks", "New Belgium Brewing"],
+      "expectedAnyOf": ["urn:tag:category:place:sporting_goods_store", "urn:tag:category:place:gym", "urn:tag:category:place:coffee_shop", "urn:tag:category:place:brewery"]
+    }
+  ]
+}

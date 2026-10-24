@@ -69,6 +69,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - T10: Export the currently visible merchant list, matching the map and Independents only filter. Label exclusion totals as candidate matches because repeated branch/category candidates are not distinct merchants. Display ratings with one decimal to avoid provider floating-point artifacts.
 
+- T11: Force the normal Vitest eval reporter because its automatic agent reporter hides successful-test metrics. Report both macro-average and micro-average precision; errors score zero and never expose raw provider details. One prompt-only tuning round prefers core/common merchant categories over narrow synonyms; no case data or guards changed.
+
 ## Review guide (filled in at T12)
 
 (Suggested reading order of files for Devin, one line each on what to look for.)
@@ -293,3 +295,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: implementation is complete, but opening CSV in a native spreadsheet remains unverified. Attempting Numbers failed with ScreenCaptureKit capture error -3811 before the file could be opened. No approval bypass or alternative UI automation was attempted. This manual acceptance gap makes the task PARTIAL; independent work continues under the unattended rule.
 - New dependencies: none.
 - For Devin: open the downloaded CSV in a spreadsheet (also in Waiting for Devin).
+
+### T11: Live category evaluation — DONE
+- Date/time (UTC+8): 2026-10-24 10:43
+- What was done:
+  - Added the exact 15 hand-written case definitions and validated all expected category IDs against defaults.
+  - Added sequential live planning, safe per-case progress and summary metrics, with missing-key skipping.
+  - Added explicit evaluation timing/metric constants and a normal reporter so successful runs display metrics.
+  - Tuned only the planning prompt once to favor core products/services and common broader merchant categories supported by real evidence.
+- Files touched: `tests/eval/{cases.json,category-eval.test.ts}`, `vitest.eval.config.ts`, `src/lib/config.ts`, `src/lib/agent/prompts.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run eval
+  env QLOO_API_KEY= DEEPSEEK_API_KEY= npm run eval
+  ```
+- Verification: PASS (380 offline tests, production build, lint, rules). With empty keys, static case validation passed and the live test skipped. Offline tests also passed with empty keys. Final standard checks passed after prompt tuning.
+- Live checks: the initial successful run took 147.96 seconds but the automatic reporter hid metrics, so it was repeated with explicit reporting. Measured baseline: 10/15 hits (66.7%), macro precision 0.300, micro precision 0.288, 0 fallbacks, 0 errors, 125.697 seconds. Prompt tuning round 1: 15/15 hits (100%), macro precision 0.536, micro precision 0.540, 0 fallbacks, 0 errors, 138.256 seconds. No second tuning round was needed. Only names and metrics were printed; no response files were written.
+- Open issues / decisions: this is a small development evaluation, not proof of general relevance; precision remains below perfect and live results can vary. The baseline misses often reflected narrower plausible categories rather than failed brand resolution. Reporter configuration is a necessary T1 follow-up for this task.
+- New dependencies: none.
+- For Devin: no new owner-only action.
