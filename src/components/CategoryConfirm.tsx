@@ -14,7 +14,7 @@ import { Select } from "@/components/ui/select";
 type CategoryConfirmProps = {
   plan: PlanResponse; confirmedCategories: CategoryTag[]; onChange: (categories: CategoryTag[]) => void;
   brandOverrides: Record<string, string>; onBrandOverride: (inputName: string, entityId: string) => void;
-  onReplan: () => void; onConfirm: () => void; disabled?: boolean; needsReplan?: boolean;
+  onReplan: () => void; onConfirm: () => void; disabled?: boolean; needsReplan?: boolean; liveResearchChanges?: boolean;
 };
 type BrandChoiceProps = {
   brand: ResolvedBrand; selectedId: string; disabled: boolean; onChange: (entityId: string) => void;
@@ -100,7 +100,7 @@ function PlanNotes({ plan }: { plan: PlanResponse }): ReactElement | null {
 }
 
 export default function CategoryConfirm({
-  plan, confirmedCategories, onChange, brandOverrides, onBrandOverride, onReplan, onConfirm, disabled = false, needsReplan = false,
+  plan, confirmedCategories, onChange, brandOverrides, onBrandOverride, onReplan, onConfirm, disabled = false, needsReplan = false, liveResearchChanges = false,
 }: CategoryConfirmProps): ReactElement {
   const options = categoryOptions(plan, confirmedCategories);
   const visibleCategories = [...plan.categories, ...confirmedCategories.filter((category) => !plan.categories.some((planned) => planned.tagId === category.tagId))];
@@ -167,6 +167,7 @@ export default function CategoryConfirm({
         <Button onClick={onConfirm} disabled={editsDisabled || !confirmedCategories.length || confirmedCategories.length > RUN_MAX_CATEGORIES}
           className="w-full bg-teal-800 py-3 hover:bg-teal-900">Confirm &amp; find merchants</Button>
         <p className="text-center text-xs text-slate-500">Merchant research starts only after you confirm.</p>
+        {liveResearchChanges && <p className="text-xs text-slate-500">Changes run live research and count toward today&apos;s limit.</p>}
       </div>
     </CardContent>
   </Card>;

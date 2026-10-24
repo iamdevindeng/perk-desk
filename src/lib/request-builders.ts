@@ -1,8 +1,9 @@
 // Builds validated API requests from editable profile fields and confirmed plan choices.
 // Called by: the page and request-builder unit tests
-import { LIST_MAX_ITEMS, PREFERENCE_MAX_ITEMS } from "@/lib/config";
+import { LIST_MAX_ITEMS, PREFERENCE_MAX_ITEMS, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { findPreset } from "@/lib/data";
 import {
-  CategoryPreferencesSchema, EntityIdSchema, PlanRequestSchema, RunRequestSchema, type Branch, type CategoryPreferences, type CategoryTag,
+  CategoryPreferencesSchema, EntityIdSchema, PlanRequestSchema, ProfileSchema, RunRequestSchema, type Branch, type CategoryPreferences, type CategoryTag,
   type PlanRequest, type PlanResponse, type Profile, type RunRequest,
 } from "@/lib/types";
 
@@ -137,4 +138,34 @@ export function mergePreferences(previous: CategoryPreferences, planned: Categor
   const removed = recentPreferences(previous.removed.filter((tagId) => !confirmedIds.has(tagId)), newlyRemoved);
   const added = recentPreferences(previous.added.filter((tagId) => !removed.includes(tagId)), newlyAdded);
   return CategoryPreferencesSchema.parse({ removed, added });
+}
+
+
+type PresetRequestInputs = {
+  profile: Profile; brandsText: string; presetId?: string; brandOverrides?: Record<string, string>;
+  plan?: PlanResponse | null; canonicalPlan?: PlanResponse | null; confirmedCategories?: CategoryTag[];
+};
+
+export function presetRequestChanges(input: PresetRequestInputs): { plan: boolean; run: boolean } {
+  const preset = input.presetId ? findPreset(input.presetId) : null;
+  if (!preset) return { plan: false, run: false };
+  const canonicalProfile = ProfileSchema.parse({ ...preset.profile,
+    branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })),
+  });
+  let plan = true;
+  let run = false;
+  try {
+    const current = buildPlanRequest(input.profile, input.brandsText, input.presetId, input.brandOverrides);
+    const original = buildPlanRequest(canonicalProfile, preset.brandsText, preset.id);
+    plan = JSON.stringify(current) !== JSON.stringify(original);
+  } catch { /* An incomplete edit cannot equal the validated preset request. */ }
+  if (input.plan) {
+    try {
+      const baseline = input.canonicalPlan ?? input.plan;
+      const current = buildRunRequest(input.profile, input.plan, input.confirmedCategories ?? input.plan.categories.slice(0, RUN_MAX_CATEGORIES), input.brandOverrides, preset.id);
+      const original = buildRunRequest(canonicalProfile, baseline, baseline.categories.slice(0, RUN_MAX_CATEGORIES), {}, preset.id);
+      run = JSON.stringify(current) !== JSON.stringify(original);
+    } catch { run = true; }
+  }
+  return { plan, run };
 }

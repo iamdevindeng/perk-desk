@@ -1222,3 +1222,32 @@ Verification: all checks passed; 1013 offline tests / 71 files. No live calls.
 Decisions I made: preset hash fixtures use real hand-written preset profiles and fake resolved brands/categories, never stored Qloo responses. No request defaults, preset data, or hashing logic changed.
 
 Open issues: none.
+
+## R25 — Explain when edited demos use live research (2026-10-24)
+
+Status: DONE
+
+- Added a pure comparison against the untouched preset profile and its original plan output, without changing requests.
+- Displayed the requested muted notice beside Plan and Confirm only when that action's request changed.
+- Kept category/status changes separate from saved planning preferences, avoiding warnings on identical research requests.
+- Preserved the original plan across edited replans; an untouched retry refreshes a partial baseline.
+- Tested both presets, category/status/preference changes, actual page notices, nonmutation, and partial-plan retries.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                          |  20 +++---
+ src/components/CategoryConfirm.tsx        |   5 +-
+ src/components/ProgramIntro.tsx           |  11 +++
+ src/lib/request-builders.ts               |  35 ++++++++-
+ tests/unit/page-live-warning.test.ts      | 114 ++++++++++++++++++++++++++++++
+ tests/unit/preset-request-changes.test.ts |  82 +++++++++++++++++++++
+ 6 files changed, 254 insertions(+), 13 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1028 offline tests / 73 files. No live calls. Independent review caught the partial-baseline retry edge; the fix and regression passed all checks again.
+
+Decisions I made: retain the untouched plan in page state because its resolved brands/categories are needed to compare later requests accurately. Compare normalized builder output in the browser without importing Node hashing. Extracted the unchanged intro into ProgramIntro.tsx to preserve the page/function line limits; this is a small file-tree extension within existing components.
+
+Open issues: none. Request shapes, presets, and cache keys remain unchanged.

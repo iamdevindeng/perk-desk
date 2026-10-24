@@ -4,6 +4,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import PresetPicker from "@/components/PresetPicker";
+import ProgramIntro from "@/components/ProgramIntro";
 import ProfileForm from "@/components/ProfileForm";
 import TasteInput from "@/components/TasteInput";
 import CategoryConfirm from "@/components/CategoryConfirm";
@@ -15,7 +16,7 @@ import { getCities } from "@/lib/data";
 import { dedupeMerchants } from "@/lib/merchants/dedupe";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
-import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
+import { buildPlanRequest, buildRunRequest, mergePreferences, presetRequestChanges } from "@/lib/request-builders";
 import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
 import { ProfileSchema, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
 
@@ -72,6 +73,7 @@ type PlanInputs = { navigation: PageNavigation; profile: Profile; brandsText: st
 function usePlanning(input: PlanInputs) {
   const versionRef = useRequestVersion();
   const [plan, setPlan] = useState<PlanResponse | null>(null);
+  const [canonicalPlan, setCanonicalPlan] = useState<PlanResponse | null>(null);
   const [confirmedCategories, setConfirmedCategories] = useState<CategoryTag[]>([]);
   const [brandOverrides, setBrandOverrides] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState("");
@@ -81,6 +83,7 @@ function usePlanning(input: PlanInputs) {
     try {
       const response = await postPlan(buildPlanRequest(input.profile, input.brandsText, input.presetId, brandOverrides));
       if (requestVersion !== versionRef.current) return;
+      if (input.presetId && !response.limited && !presetRequestChanges({ ...input, brandOverrides }).plan) setCanonicalPlan(response);
       setPlan(response); setConfirmedCategories(response.categories.slice(0, RUN_MAX_CATEGORIES)); input.setStage("confirm");
       if (!response.limited) input.navigation.navigate("category-confirm-heading");
       input.updateProfile({ ...input.profile, branches: input.profile.branches.map((branch) => response.branches.find((located) => located.id === branch.id) ?? branch) });
@@ -89,9 +92,9 @@ function usePlanning(input: PlanInputs) {
       setErrorMessage(requestError(error)); input.setStage("edit");
     }
   }
-  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setPlan(null); setBrandOverrides({}); setConfirmedCategories([]); setErrorMessage(""); }
+  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setPlan(null); setCanonicalPlan(null); setBrandOverrides({}); setConfirmedCategories([]); setErrorMessage(""); }
   const needsReplan = plan !== null && Object.entries(brandOverrides).some(([name, entityId]) => plan.brands.find((brand) => brand.inputName === name)?.entityId !== entityId);
-  return { plan, confirmedCategories, setConfirmedCategories, brandOverrides, setBrandOverrides, needsReplan, errorMessage, setErrorMessage, startPlan, clear };
+  return { plan, canonicalPlan, confirmedCategories, setConfirmedCategories, brandOverrides, setBrandOverrides, needsReplan, errorMessage, setErrorMessage, startPlan, clear };
 }
 
 type ResearchInputs = PlanInputs & { plan: PlanResponse | null; categories: CategoryTag[]; overrides: Record<string, string>; needsReplan: boolean; setErrorMessage: (message: string) => void };
@@ -144,6 +147,8 @@ export default function Home(): ReactElement {
     overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
   const visibleMerchants = useMemo(() => (research.result?.merchants ?? []).filter((merchant) => !independentsOnly || !merchant.multiLocation), [research.result, independentsOnly]);
   const { plan, errorMessage } = planning;
+  const changes = presetRequestChanges({ ...inputs, brandOverrides: planning.brandOverrides, plan,
+    canonicalPlan: planning.canonicalPlan, confirmedCategories: planning.confirmedCategories });
   const busy = stage === "planning" || stage === "running";
   const center = getCities().find((city) => city.label === profile.city) ?? plan?.city ?? getCities()[0];
   function editProfile(next: Profile): void {
@@ -174,11 +179,7 @@ export default function Home(): ReactElement {
   const visibleTrace: TraceEvent[] = plan?.limited && !research.runEvents.length
     ? [...trace, { type: "limited", at: 0, message: plan.message ?? LIVE_LIMIT_MESSAGE }] : trace;
   return <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-8 lg:py-12">
-    <header className="mb-8 max-w-3xl">
-      <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-teal-700">Perk Desk</p>
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Find your next local partners.</h1>
-      <p className="mt-3 text-base leading-7 text-slate-600">Turn the brands your members love into a focused list of local merchants near your branches.</p>
-    </header>
+    <ProgramIntro />
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <PresetPicker onSelect={selectPreset} disabled={busy || !ready} />
@@ -189,10 +190,11 @@ export default function Home(): ReactElement {
         <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900">
           {stage === "planning" ? "Planning…" : "Plan merchant categories"}
         </Button>
+        {changes.plan && <p className="text-xs text-slate-500">Changes run live research and count toward today&apos;s limit.</p>}
         {stage === "planning" && <p role="status" className="text-sm text-slate-500">Resolving brands and finding supported categories…</p>}
         {plan && <CategoryConfirm plan={plan} confirmedCategories={planning.confirmedCategories}
           onChange={(categories) => { planning.setConfirmedCategories(categories); research.clear(); planning.setErrorMessage(""); setStage("confirm"); }}
-          brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy}
+          brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy} liveResearchChanges={changes.run}
           onBrandOverride={(name, entityId) => { planning.setBrandOverrides({ ...planning.brandOverrides, [name]: entityId }); research.clear(); }}
           onReplan={startPlan} onConfirm={startRun} />}
         {(stage === "running" || visibleTrace.length > 0) && <AgentTrace events={visibleTrace} disabled={busy}
