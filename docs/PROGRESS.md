@@ -43,9 +43,14 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - [ ] Open the downloaded CSV in a spreadsheet: native Numbers capture failed during T10; the browser download and CSV parser checks passed.
 - [ ] Review npm installation audit output (5 high-severity findings in the pinned dependency tree); no forced dependency upgrades were made.
 
+- [ ] Review the remaining ambiguous-name case: Austin still returns Chico's. A bare-name exclusion also rejects independent names such as Chico's Cafe; R11 keeps that name out under its explicit non-collision rule. More selective matching needs a separate decision.
+
 ## Decisions I made
 
 (Interpretations of unclear spec points, with the reason. One bullet each.)
+
+- R11: The current request authorizes pulling and pushing the two verified R11 commits; deployment and resource provisioning remain out of scope.
+- R11a: Remove the existing bare Gap entry because whole-word matching rejects Mind the Gap Cafe. Omit bare Columbia, Marmot, and Chico's for the same ambiguity risk; use the distinctive Columbia Sportswear name. Keep the matching algorithm, local multi-location badges, and default visibility unchanged. Zero smoke matches means zero matches against the maintained chain/team-store predicates, not proof that every result is independent.
 
 - T1: Preserve the pre-existing `.env.example` deletion. Stage task files with `git add -A -- . ":!.env.example"` instead of including that unrelated deletion.
 - T1: Use system fonts to avoid build-time Google font requests. Keep generated Next configuration, including cache components and partial prefetching.
@@ -656,3 +661,26 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: runtime Upstash failures were simulated with mocked Redis transport and real route/limiter code; no live Redis, Qloo, or DeepSeek calls, deployment, or resource provisioning were needed. R10 explicitly permits the README/PRD/ARCHITECTURE updates. Client error handling already shows the safe 503 messages. The user's requested combined push follows this verified commit; `git pull --rebase` already succeeded.
 - New dependencies: none. Secrets, preset data, cache key formats, and dependency versions remain unchanged.
 - For Devin: provision/configure Upstash before live Vercel production use and verify the deployed behavior; the top waiting list records this requirement.
+
+### R11a: Expand chain exclusions and verify both fallback presets — DONE
+- Date/time (UTC+8): 2026-10-24 18:46
+- What was done:
+  - Added 28 distinctive apparel, footwear, outdoor, pet, and fitness chain names/aliases, including Urban Outfitters, Madewell, Rainbow Shops, and Fleet Feet.
+  - Removed the ambiguous Gap entry; covered normalization, whole-word boundaries, and independent-name non-collisions with offline tests.
+  - Made both preset smoke runs fail on any `isNationalChain` or `isTeamStore` match, while retaining the nonempty-shortlist check.
+  - Preserved local multi-location merchants and their badges; the Independents only toggle still starts off. Existing cached-run checks apply the expanded list without a cache migration.
+  - Used the first two smoke runs to catch and add Three Dog Bakery, K&G Fashion Superstore, and Boot Barn, then repeated both presets with the final list.
+- Files touched: `src/data/national-chains.json`, `scripts/smoke.ts`, `tests/unit/{chains,filter}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke
+  git diff --check
+  ```
+- Verification: PASS: 615 offline tests / 51 files, lint, typecheck, production build, repository rules (154 files), and diff whitespace. Independent review found no actionable implementation issue and verified cache/card behavior with 31 focused tests. No failed verification round.
+- Final live fallback checks: both presets resolved all 8 brands with 0 unresolved names and returned 10 merchants / 10 template pitches. Both had zero matches against `isNationalChain` and `isTeamStore`. Denver plan/research: 3,943 / 12,744 ms, 12 / 34 Qloo calls; Austin: 2,242 / 12,129 ms, 10 / 30 Qloo calls. Repeat plans took 16 / 11 ms with 12 / 10 Qloo cache hits. Command exited 0. Only memory cache was used; no provider response files were saved.
+- Denver returned names: Two Pals & A Pup; Mouthfuls; Chewy's Bonetique; SloHi Bike Co.; Mike's Bikes of Denver Downtown; Wilderness Exchange Unlimited; Little Brown Dog; Z Cycle Shop; evo Denver; Arvada Army Navy Surplus.
+- Austin returned names: Allens Boots; Tom's Dive & Swim; Atown; Monkies Vintage & Thrift; Flat Track Coffee; University Co-op; STAG Provisions For Men; Clown Dog Bikes; Blue Velvet; Chico's.
+- Open issues / decisions: bare Gap, Columbia, Marmot, and Chico's remain intentionally absent under R11's collision constraint. In particular, Chico's remains in Austin's result; zero predicate matches does not establish exhaustive national-chain removal. This limitation is in Waiting for Devin. R11 explicitly requests the returned-name audit above; no IDs, response bodies, or other provider data were committed.
+- New dependencies: none. `.env.local` is unchanged.
+- For Devin: review the ambiguous-name limitation; R11b follows before the authorized push.

@@ -1,6 +1,7 @@
 // Checks merchant exclusions, deterministic counts, radius slack, and input immutability.
 // Called by: npm test through the Vitest unit-test configuration.
 import { describe, expect, it } from "vitest";
+import { markDuplicateNames } from "@/lib/merchants/chains";
 import { filterPlaces } from "@/lib/merchants/filter";
 import { makeFakeCandidate, makeFakePlace } from "../fixtures/fake-places";
 
@@ -38,6 +39,20 @@ describe("filterPlaces", () => {
     const result = filterPlaces(candidates, EMPTY_RULES);
     expect(result.kept.map((candidate) => candidate.place.name)).toEqual(names.slice(3));
     expect(result.excludedCounts).toEqual({ nationalChain: 1, noiseGenre: 2, closed: 0, signedOrExcluded: 0 });
+  });
+
+  it("keeps local merchants and their multi-location flags when excluding national chains", () => {
+    const candidates = markDuplicateNames([
+      makeFakeCandidate(1, { place: makeFakePlace(1, { name: "Fake Corner Coffee" }) }),
+      makeFakeCandidate(2, { place: makeFakePlace(2, { name: "Fake Corner Coffee LLC" }) }),
+      makeFakeCandidate(3, { place: makeFakePlace(3, { name: "Fake Trail Gear" }), multiLocation: true }),
+      makeFakeCandidate(4, { place: makeFakePlace(4, { name: "Fake Neighborhood Bakery" }) }),
+      makeFakeCandidate(5, { place: makeFakePlace(5, { name: "Fleet Feet Fake Branch" }) }),
+    ]);
+    const result = filterPlaces(candidates, EMPTY_RULES);
+    expect(result.kept).toEqual(candidates.slice(0, 4));
+    expect(result.kept.map((candidate) => candidate.multiLocation)).toEqual([true, true, true, false]);
+    expect(result.excludedCounts).toEqual({ nationalChain: 1, noiseGenre: 0, closed: 0, signedOrExcluded: 0 });
   });
 
   it("compares the full genre remainder rather than only its last segment", () => {

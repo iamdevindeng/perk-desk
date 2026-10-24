@@ -5,6 +5,7 @@ import { runResearch } from "@/lib/agent/run-agent";
 import { DISTANCE_DECIMALS, METERS_PER_KILOMETER, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getPresets } from "@/lib/data";
 import { hasDeepSeekKey, hasQlooKey } from "@/lib/env";
+import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { createQlooError, isQlooError } from "@/lib/qloo/client";
 import { buildPlanRequest, buildRunRequest } from "@/lib/request-builders";
 import { ProfileSchema, type PlanResponse, type Preset, type RunResult, type TraceEvent } from "@/lib/types";
@@ -37,6 +38,13 @@ function assertUsablePlan(plan: PlanResponse): void {
   throw createQlooError("upstream", null, "Smoke planning produced no usable brands, categories, or branch locations.");
 }
 
+function assertEligibleMerchants(result: RunResult): void {
+  if (!result.merchants.length) throw createQlooError("upstream", null, "Smoke research returned no shortlisted merchants.");
+  const excluded = result.merchants.filter(({ place }) => isNationalChain(place.name) || isTeamStore(place.name));
+  if (excluded.length) throw createQlooError("upstream", null, "Smoke research returned national-chain or team-store merchants.");
+  console.info("National-chain/team-store merchants: 0");
+}
+
 async function runPreset(preset: Preset): Promise<void> {
   console.info(`Preset: ${preset.id}`);
   const profile = ProfileSchema.parse(preset.profile);
@@ -53,7 +61,7 @@ async function runPreset(preset: Preset): Promise<void> {
   const runStartedAt = Date.now();
   const result = await runResearch(runRequest, emit);
   printResearch(result, eventCounts, Date.now() - runStartedAt);
-  if (!result.merchants.length) throw createQlooError("upstream", null, "Smoke research returned no shortlisted merchants.");
+  assertEligibleMerchants(result);
   const repeatStartedAt = Date.now();
   const repeat = await runPlan(request);
   const repeatDurationMs = Date.now() - repeatStartedAt;
