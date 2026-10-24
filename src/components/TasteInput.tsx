@@ -71,6 +71,8 @@ export default function TasteInput({ value, onChange, disabled = false }: TasteI
         <Label htmlFor="member-brands-file" className="text-xs text-slate-600">Upload a brand list</Label>
         <Input id="member-brands-file" type="file" accept=".csv,.txt" disabled={disabled}
           aria-describedby="member-brands-upload-help" onChange={uploadBrands} />
+        <a href="/samples/brands-sample.csv" download aria-label="Download sample for member brands"
+          className="inline-block text-xs text-teal-700 underline hover:text-teal-900">Download sample</a>
         <p id="member-brands-upload-help" className="text-xs text-slate-500">
           The first column fills the list above. A name, merchant, or brand header is optional. Quote names containing commas.
         </p>

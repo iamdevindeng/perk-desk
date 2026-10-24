@@ -21,10 +21,12 @@ type MerchantListField = "signedMerchantsText" | "businessMembersText";
 const MERCHANT_LIST_LABELS = {
   signedMerchantsText: {
     id: "signed-merchants", label: "Already-signed merchants", upload: "Import signed merchants from CSV or text",
+    sample: "signed-merchants-sample.csv",
     help: "We exclude matching merchants so you can focus on new partnerships.",
   },
   businessMembersText: {
     id: "business-members", label: "Business members", upload: "Import business members from CSV or text",
+    sample: "business-members-sample.csv",
     help: "Matching merchants get an Already a business member badge. This list does not exclude merchants or change their rank.",
   },
 };
@@ -96,6 +98,8 @@ function MerchantList({ profile, onChange, disabled, field }: {
     <Label htmlFor={`${labels.id}-upload`} className="block pt-2 text-xs">{labels.upload}</Label>
     <Input id={`${labels.id}-upload`} type="file" accept=".csv,.txt" disabled={disabled || reading}
       aria-describedby={`${labels.id}-upload-help`} onChange={(event) => { void readFile(event); }} />
+    <a href={`/samples/${labels.sample}`} download aria-label={`Download sample for ${labels.label.toLowerCase()}`}
+      className="inline-block text-xs text-teal-700 underline hover:text-teal-900">Download sample</a>
     <p id={`${labels.id}-upload-help`} className="text-xs leading-relaxed text-slate-500">CSV and text imports use the first column; quote names containing commas. Import replaces the text above so you can review and edit it. Maximum 1 MB.</p>
     {reading && <p role="status" className="text-xs text-slate-500">Reading file…</p>}
     {errorMessage && <p role="alert" className="text-sm text-red-800">{errorMessage}</p>}

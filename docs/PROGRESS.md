@@ -49,6 +49,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 (Interpretations of unclear spec points, with the reason. One bullet each.)
 
+- R11c/R12: R11a and R11b are already committed at task start; verify their implementation and continue with the remaining items in order. Automatic approval review blocked the requested pull because of the older remote-action rule. Continue authorized local work while explicit confirmation for pull/push is pending; do not bypass that block.
+
 - R11: The current request authorizes pulling and pushing the two verified R11 commits; deployment and resource provisioning remain out of scope.
 - R11a: Remove the existing bare Gap entry because whole-word matching rejects Mind the Gap Cafe. Omit bare Columbia, Marmot, and Chico's for the same ambiguity risk; use the distinctive Columbia Sportswear name. Keep the matching algorithm, local multi-location badges, and default visibility unchanged. Zero smoke matches means zero matches against the maintained chain/team-store predicates, not proof that every result is independent.
 - R11b: Sanitize the task document's own home-directory examples as well as the historical screenshot path, because the no-allowlist requirement applies to all tracked text. Scan before the existing lockfile/asset exemptions. Skip NUL-containing or invalid UTF-8 binary content, and use NUL-delimited Git filenames so unusual names remain covered. Previously published Git history remains unchanged.
@@ -707,3 +709,30 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: the historical log entry changed only to remove its local screenshot path, as explicitly required by R11b. The task document was also sanitized rather than allowlisted. No published-history rewrite, deployment, resource changes, or new dependency. No new owner action for this sub-item.
 - For Devin: both verified R11 commits are ready for the push authorized in this request; the R11a ambiguous-name limitation remains in the waiting list.
 - Push integration: the first push was rejected because remote commit `25c301e` added `docs/FIXES-R4.md` during this work. Fetched and inspected it, then rebased the two unpublished R11 commits onto that commit. Sanitized the new document's home-directory examples under R11b's no-allowlist requirement; its future R11c/R12 tasks were not executed. Re-ran all standard checks after integration. The remote commit and previously published history are preserved; no force push is used.
+
+### R11c: Add downloadable examples beside every list upload — DONE
+- Date/time (UTC+8): 2026-10-24 18:56
+- What was done:
+  - Added three hand-written sample CSVs with eight consumer brands and five fictional names per merchant/business list, including a quoted comma-containing name.
+  - Added accessible Download sample links beside all three upload controls.
+  - Accepted case-insensitive business name and merchant name headers while retaining first-column parsing and ignored extra columns.
+  - Added sample-file parsing tests and extended header coverage; documented and permitted only the requested public samples directory.
+- Files touched: `public/samples/{brands,signed-merchants,business-members}-sample.csv`, `src/components/{ProfileForm,TasteInput}.tsx`, `src/lib/request-builders.ts`, `tests/unit/{sample-uploads,uploaded-list}.test.ts`, `scripts/check-rules.mjs`, `docs/{ARCHITECTURE,PROGRESS}.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules` and `git diff --check`.
+- Verification: PASS: 639 offline tests / 53 files, lint, typecheck, production build, repository rules (160 files), and diff whitespace. The first build failed on the sandbox's local worker-port restriction; the next attempt reused that cached failure. Moving generated `.next` to a temporary backup and building with approved local worker-port access passed without source changes.
+- Open issues / decisions: R11 was already completed in commits `3c5e083` and `99a1072`; its two-preset smoke evidence remains under R11a. Samples are hand-written examples, not Qloo responses or customer data. No new dependency.
+- Staged change list before adding this progress entry (`git diff --cached --stat`):
+  ```text
+   docs/ARCHITECTURE.md                       |  1 +
+   public/samples/brands-sample.csv           |  9 +++++++++
+   public/samples/business-members-sample.csv |  6 ++++++
+   public/samples/signed-merchants-sample.csv |  6 ++++++
+   scripts/check-rules.mjs                    |  2 +-
+   src/components/ProfileForm.tsx             |  4 ++++
+   src/components/TasteInput.tsx              |  2 ++
+   src/lib/request-builders.ts                |  2 +-
+   tests/unit/sample-uploads.test.ts          | 19 +++++++++++++++++++
+   tests/unit/uploaded-list.test.ts           |  2 +-
+   10 files changed, 50 insertions(+), 3 deletions(-)
+  ```
+- For Devin: pull/push remain blocked by automatic approval review pending confirmation of the project-rule override; all R11c local work is complete.

@@ -34,6 +34,7 @@ perk-desk/
 ├─ docs/        PRD.md  ARCHITECTURE.md  QLOO_API.md  TASKS.md  PROGRESS.md
 ├─ scripts/ [+] check-rules.mjs  smoke.ts
 ├─ public/      (generated)
+│  └─ samples/  brands-sample.csv  signed-merchants-sample.csv  business-members-sample.csv  (hand-written examples)
 ├─ src/
 │  ├─ app/
 │  │  ├─ layout.tsx  globals.css          (generated; layout gets the compliance footer)

@@ -12,7 +12,7 @@ describe("uploaded first-column lists", () => {
     expect(parseUploadedList("\r\n \n")).toEqual([]);
   });
 
-  it.each(["name", "MERCHANT", "Brand"])("skips a first nonempty %s header", (header) => {
+  it.each(["name", "MERCHANT", "Brand", "Business Name", "MERCHANT NAME"])("skips a first nonempty %s header", (header) => {
     expect(parseUploadedList(`\n,ignored\r\n ${header} ,other\nFake Coffee,unused`)).toEqual(["Fake Coffee"]);
   });
 

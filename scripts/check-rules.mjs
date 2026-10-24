@@ -7,7 +7,7 @@ import path from "node:path";
 
 // WHY: the tree in docs/ARCHITECTURE.md §2 is fixed; Codex must not invent folders.
 const ALLOWED_DIRECTORIES = [
-  "docs", "scripts", "public", "tests", "tests/unit", "tests/eval", "tests/fixtures",
+  "docs", "scripts", "public", "public/samples", "tests", "tests/unit", "tests/eval", "tests/fixtures",
   "src", "src/app", "src/app/api", "src/app/api/plan", "src/app/api/run",
   "src/lib", "src/lib/qloo", "src/lib/agent", "src/lib/agent/tools", "src/lib/merchants",
   "src/lib/fallback", "src/lib/store", "src/components", "src/components/ui",

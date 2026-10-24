@@ -71,7 +71,7 @@ function uploadedFirstColumn(text: string): string[] {
 export function parseUploadedList(text: string): string[] {
   // CSV and text uploads both use columns: quote names containing commas (TASKS.md X1).
   const names = uploadedFirstColumn(text).map((value) => value.replace(/\r\n|\r|\n/g, " ").trim()).filter(Boolean);
-  if (names.length && /^(name|merchant|brand)$/i.test(names[0])) names.shift();
+  if (names.length && /^(name|merchant|brand|business name|merchant name)$/i.test(names[0])) names.shift();
   // A multiline cell is one pasted name, never several merchants; share normal list limits.
   return parseListText(names.join("\n"));
 }
