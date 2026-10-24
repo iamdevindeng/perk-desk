@@ -47,9 +47,11 @@ afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); v
 describe("cached category checks", () => {
   it.each([
     { category: COFFEE, name: "Fake Corner Cafe", genre: "urn:tag:genre:place:cocktail_bar" },
-    { category: COFFEE, name: "Fake Candy Shop", genre: undefined },
+    { category: COFFEE, name: "Fake Candy Shop", genre: "urn:tag:genre:place:candy_store" },
     { category: GYM, name: "Fake Fitness Studio", genre: "urn:tag:genre:place:country_club" },
-    { category: GYM, name: "Fake University Gym", genre: undefined },
+    { category: GYM, name: "Fake University Gym", genre: "urn:tag:genre:place:university" },
+    { category: GYM, name: "Fake Brewery", genre: "urn:tag:genre:place:brewery" },
+    { category: GYM, name: "Gregory Gym", genre: undefined },
   ])("refreshes a cached category mismatch for $name at the original key", async ({ category, name, genre }) => {
     const result = cachedResult(category, name, genre);
     vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 0, result }] });
@@ -64,6 +66,9 @@ describe("cached category checks", () => {
   it.each([
     { category: COFFEE, name: "Fake Corner Cafe", genre: "urn:tag:genre:place:coffee_shop" },
     { category: GYM, name: "Fake Fitness Studio", genre: undefined },
+    { category: COFFEE, name: "Fake Candy Shop", genre: undefined },
+    { category: GYM, name: "Fake University Gym", genre: undefined },
+    { category: COFFEE, name: "Tea Bar", genre: "urn:tag:genre:place:cafe" },
   ])("replays a clean cached shortlist for $name without live work", async ({ category, name, genre }) => {
     const result = cachedResult(category, name, genre);
     vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 50, result }] });

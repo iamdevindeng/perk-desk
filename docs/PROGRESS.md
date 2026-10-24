@@ -1432,3 +1432,30 @@ Verification: all checks passed; 1121 offline tests / 79 files. Production build
 Decisions I made: R16's grep check existed only as a manual command, so public-docs.test.ts now automates it. The retired full variable name is allowed only in historical TASKS/FIXES documents within public Markdown. Protected privacy scripts and their tests intentionally retain legacy secret detection and are unchanged. The two obsolete setup checklist lines were corrected; completed task history is preserved. The one-click preset statement remains true.
 
 Open issues: Devin must remove the retired environment variable and verify public limits after deployment, as listed above. No push or remote action.
+
+## R32 — Freeze category checks around genre families (2026-10-24)
+
+Status: DONE
+
+- Replaced category-specific keyword rules with the four requested genre families and category allowances.
+- Match only the final primary-genre segment; keep unknown/missing genres and the existing confirmed-name exceptions.
+- Added the freeze comment and preserved the R27 README line, filtering call sites, and cachedEvents integration.
+- Updated fake filtering/ranking tests and cache miss/replay tests to use explicit genres instead of name keywords.
+
+Files touched / staged list (before this log):
+```text
+ src/lib/merchants/category-sanity.ts    | 55 ++++++++++++--------
+ tests/unit/category-sanity.test.ts      | 89 +++++++++++++++++++--------------
+ tests/unit/filter.test.ts               |  4 +-
+ tests/unit/find-merchants.test.ts       | 10 ++--
+ tests/unit/run-cache-categories.test.ts |  9 +++-
+ 5 files changed, 99 insertions(+), 68 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1151 offline tests / 79 files. Independent review and 100 targeted offline tests passed. Production build used local worker permission and cleared provider keys. No live calls or remote cache changes.
+
+Decisions I made: retain only the actual existing confirmed names, without promoting former keyword matches into new exceptions. Family membership is exact on the final genre segment, so unknown suffixes remain eligible. Restaurant allowances apply only to drinking genres. No request shapes, defaults, preset data, hashing, cache keys, or cache prefixes changed.
+
+Open issues: the existing R27 instruction to re-warm Denver and Austin once after deploy covers this change. Later category mismatches belong in README limitations, not new individual rules.

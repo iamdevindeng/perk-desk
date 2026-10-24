@@ -81,8 +81,8 @@ describe("filterPlaces", () => {
     const candidates = [
       makeFakeCandidate(1, { place: makeFakePlace(1, { name: "Fake Espresso Bar" }), score: 0.8 }),
       makeFakeCandidate(2, { ...gym, place: makeFakePlace(2, { name: "Fake Local Fitness" }), score: 0.7 }),
-      makeFakeCandidate(3, { place: makeFakePlace(3, { name: "Fake Candy Shop" }) }),
-      makeFakeCandidate(4, { ...gym, place: makeFakePlace(4, { name: "Fake Campus Gym" }) }),
+      makeFakeCandidate(3, { place: makeFakePlace(3, { name: "Fake Candy Shop", primaryGenreId: "urn:tag:genre:place:candy_store" }) }),
+      makeFakeCandidate(4, { ...gym, place: makeFakePlace(4, { name: "Fake Campus Gym", primaryGenreId: "urn:tag:genre:place:campus" }) }),
       makeFakeCandidate(5, { ...gym, place: makeFakePlace(5, { name: "Fake Country Club", isClosed: true }) }),
       makeFakeCandidate(6, { place: makeFakePlace(6, { name: "Fake Signed Cafe" }) }),
     ];

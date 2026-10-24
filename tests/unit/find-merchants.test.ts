@@ -89,15 +89,15 @@ describe("merchant research", () => {
   });
 
   it.each([
-    [COFFEE, "Coffee shop", "Fake Coffee Bar", "cocktail_bar", "Fake Candy Shop"],
-    ["urn:tag:category:place:gym", "Gym", "Fake Neighborhood Fitness", "country_club", "Fake Campus Fitness"],
-  ])("filters mismatches for %s without extra calls or changing survivor rankings", async (tagId, label, name, deniedGenre, deniedName) => {
+    [COFFEE, "Coffee shop", "Fake Coffee Bar", "cocktail_bar", "candy_store"],
+    ["urn:tag:category:place:gym", "Gym", "Fake Neighborhood Fitness", "country_club", "campus"],
+  ])("filters mismatches for %s without extra calls or changing survivor rankings", async (tagId, label, name, firstGenre, secondGenre) => {
     const context = createRunContext({ ...FAKE_RUN_REQUEST, categories: [{ tagId, label }] });
     const places = [
       makeFakePlace(10, { name, affinity: 0.25 }),
-      makeFakePlace(11, { name: "Fake Mislabelled Place", primaryGenreId: `urn:tag:genre:place:${deniedGenre}`, affinity: 1 }),
+      makeFakePlace(11, { name: "Fake Mislabelled Place", primaryGenreId: `urn:tag:genre:place:${firstGenre}`, affinity: 1 }),
       makeFakePlace(12, { name: "Fake Local Favorite", affinity: 0.75 }),
-      makeFakePlace(13, { name: deniedName, affinity: 0 }),
+      makeFakePlace(13, { name: "Fake Other Place", primaryGenreId: `urn:tag:genre:place:${secondGenre}`, affinity: 0 }),
     ];
     vi.mocked(findPlaces).mockResolvedValue(places);
     expect(await findMerchantsForCategory({ tagId }, context)).toMatchObject({
