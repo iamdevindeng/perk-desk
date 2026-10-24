@@ -11,7 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "check:rules": "node scripts/check-rules.mjs",
     "eval": "vitest run --config vitest.eval.config.ts",
-    "smoke": "tsx --env-file=.env.local scripts/smoke.ts"
+    "smoke": "if [ -f .env.local ]; then tsx --env-file=.env.local scripts/smoke.ts; else tsx scripts/smoke.ts; fi"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.72",

@@ -2,22 +2,26 @@
 
 Codex appends one section per task (AGENTS.md §3). Never delete earlier entries. All times UTC+8.
 
-## Summary (filled in at T12)
+## Summary
 
 | Task | Status | Commit | Notes |
 |---|---|---|---|
-| T1 Scaffold | – | – | |
-| T2 Types + data | – | – | |
-| T3 Qloo layer + cache | – | – | |
-| T4 Filter / scoring | – | – | |
-| T5 Tools + guards 1–2 | – | – | |
-| T6 /api/plan | – | – | |
-| T7 /api/run | – | – | |
-| T8 UI profile | – | – | |
-| T9 Confirm + trace | – | – | |
-| T10 Cards, map, CSV, status | – | – | |
-| T11 Eval | – | – | |
-| T12 Smoke + summary | – | – | |
+| T1 Scaffold | PARTIAL | `5f58676` | Native UI fallback; shadcn registry unavailable |
+| T2 Types + data | DONE | `c0a37b6` | Shared schemas and validated hand-written data |
+| T3 Qloo layer + cache | DONE | `dade1da` | Pacing, safe errors, slim caching |
+| T4 Filter / scoring | DONE | `ca588fd` | Filtering, evidence scores, branch balance |
+| T5 Tools + guards 1–2 | DONE | `85e0537` | Real category and brand-tag evidence checks |
+| T6 /api/plan | DONE | `579e7f4` | Guarded planning plus fallback |
+| T7 /api/run | DONE | `c361601` | Streaming research, pitches, limits, replay |
+| T8 UI profile | DONE | `c4d0ffc` | Presets, local profile, branch editor/map |
+| T9 Confirm + trace | DONE | `b0df1a5` | Explicit confirmation and six-step trace |
+| T10 Cards, map, CSV, status | PARTIAL | `75c7388` | Implemented; native spreadsheet opening unverified |
+| T11 Eval | DONE | `2766908` | 15/15 hits after one prompt refinement |
+| T12 Smoke + summary | DONE | `T12 commit` | Agent/fallback smoke and missing-key exit verified |
+
+The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
+
+Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback chooses the first candidate for ambiguous brands (REI selected Real Madrid CF in the forced-fallback smoke, requiring user correction); cache/rate state without Upstash is per process; locations and live category coverage may vary. No deployment or remote repository action was performed. The existing `.env.example` deletion remains outside every task commit.
 
 ## Waiting for Devin
 
@@ -25,6 +29,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - [ ] Push the repo to GitHub (no remote is configured on purpose).
 - [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, optional UPSTASH_*, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
+- [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
+- [ ] Review the UI in a real browser, including mobile layout, keyboard use, and accessibility; check recognized brand choices before confirming, especially in fallback mode (see T12).
 - [ ] Optional: create an Upstash Redis database and add its REST URL/token.
 - [ ] Review the pre-existing deletion of `.env.example`; Codex leaves it untouched and outside task commits.
 - [ ] Retry shadcn registry installation when reachable; T1 uses small native UI wrappers after initialization and direct registry downloads failed.
@@ -71,9 +77,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - T11: Force the normal Vitest eval reporter because its automatic agent reporter hides successful-test metrics. Report both macro-average and micro-average precision; errors score zero and never expose raw provider details. One prompt-only tuning round prefers core/common merchant categories over narrow synonyms; no case data or guards changed.
 
-## Review guide (filled in at T12)
+- T12: The npm smoke command uses a POSIX file-presence conditional so a missing `.env.local` reaches the required missing-key exit 2. This avoids a new dependency and stays compatible with Node 20.9; macOS/Linux or WSL is required. Empty plans or merchant lists fail the smoke check rather than reporting a false success.
+- T12: Preserve the specified first-candidate fallback for ambiguous brands; document the observed REI ambiguity instead of adding an unrequested alias heuristic. The UI exposes candidate correction before research.
 
-(Suggested reading order of files for Devin, one line each on what to look for.)
+## Review guide
+
+1. `src/lib/types.ts`: follow the validated profile, plan, run, and trace shapes.
+2. `src/lib/config.ts`: review limits, timeouts, score weights, and display constants.
+3. `src/lib/qloo/client.ts`: check approved-host enforcement, key header, pacing, errors, and slim cache boundaries.
+4. `src/lib/merchants/scoring.ts` and `shortlist.ts`: review rank lift, brand shares, deduplication, and branch balance.
+5. `src/lib/agent/guards.ts`: review category provenance, allowed-tag evidence, and pitch checks.
+6. `src/lib/agent/plan-agent.ts` and `run-agent.ts`: follow model/tool orchestration and deterministic fallback.
+7. `src/app/api/run/route.ts` and `src/lib/stream.ts`: check validation, cache replay, rate limits, and terminal-event ownership.
+8. `src/lib/request-builders.ts` and `run-client.ts`: follow profile conversion, status exclusions, and chunk-safe NDJSON reading.
+9. `src/app/page.tsx`: follow useState-based UI coordination and invalidation after edits.
+10. `src/components/{CategoryConfirm,AgentTrace,MerchantCard,MerchantMap}.tsx`: inspect evidence, progress, status controls, and linked selection.
+11. `src/lib/csv.ts`, `tests/eval/category-eval.test.ts`, and `scripts/smoke.ts`: review exports and repeatable verification.
+12. `tests/unit/`: inspect offline fake-data coverage for the behavior you change.
 
 ---
 
@@ -315,3 +335,25 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: this is a small development evaluation, not proof of general relevance; precision remains below perfect and live results can vary. The baseline misses often reflected narrower plausible categories rather than failed brand resolution. Reporter configuration is a necessary T1 follow-up for this task.
 - New dependencies: none.
 - For Devin: no new owner-only action.
+
+### T12: Smoke script and final review summary — DONE
+- Date/time (UTC+8): 2026-10-24 10:48
+- What was done:
+  - Added a CJS-safe Denver pipeline smoke command with safe reporting, missing-key handling, event counts, and repeat-plan cache timing.
+  - Verified real-key agent research and explicitly disabled-agent fallback research.
+  - Updated only the README status and local-run section, preserving compliance text.
+  - Filled the task/commit summary, end-to-end status, known limits, owner waiting list, and file review guide.
+- Files touched: `scripts/smoke.ts`, `package.json`, `README.md`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run smoke
+  PD_AGENT_DISABLED=1 npm run smoke
+  env QLOO_API_KEY= DEEPSEEK_API_KEY= npm run smoke
+  ```
+  The last command must exit 2 with the missing-key message; all other commands should exit 0 with working keys.
+- Verification: PASS (380 tests, production build, lint, rules). A sandbox-only smoke attempt failed before script execution because tsx could not open its local IPC socket; approved local execution resolved it. The keyless run exited 2 with the exact required message. No remote actions were performed.
+- Live checks: agent plan resolved 8 brands with 0 unresolved, proposed 6 categories in 14,177 ms; research used the first 5, returned 10 merchants and 10 agent pitches in 16,268 ms with 40 Qloo calls. Repeat plan: 10,081 ms, faster=true, 12 Qloo cache hits. Forced fallback: 8 resolved/0 unresolved, 4 categories in 3,671 ms; 10 merchants and 10 template pitches in 14,163 ms with 34 Qloo calls. Repeat plan: 14 ms, faster=true, 12 cache hits. Both live commands exited 0 and wrote no response files. AI SDK printed its static JSON-schema compatibility warning during the agent run.
+- Open issues / decisions: forced fallback selected Real Madrid CF for the ambiguous input REI, following the documented first-candidate rule; agent mode selected Recreational Equipment Inc correctly. Users must inspect and correct recognized brands before confirming. This exposes a fallback relevance limit, not a failed pipeline. CSV spreadsheet opening and shadcn registry installation remain the earlier PARTIAL items. Timing comparisons are observations, not performance guarantees.
+- New dependencies: none.
+- For Devin: push/deploy/resources/judge code and broader browser review are listed above; all remain owner actions.
