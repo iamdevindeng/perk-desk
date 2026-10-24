@@ -1,5 +1,7 @@
 # Perk Desk: Tasks T1–T12 (+ optional extras)
 
+> Historical build plan. The judge access code and preset per-IP skip described below were removed in FIXES-R6 R16; current limits are in docs/ARCHITECTURE.md.
+
 Run them **in order**, following the loop in `AGENTS.md` §2. Each task lists: goal, read-first, files, steps, acceptance, verification. "Standard checks" always means:
 
 ```bash

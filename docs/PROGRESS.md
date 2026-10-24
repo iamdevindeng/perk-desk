@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R31: verify the public limit/retry flow after deployment and remove the retired access-code variable from Vercel settings.
+
 - [ ] R27: re-warm Denver and Austin once after deploy by opening each demo. Known category mismatches invalidate only their cached run, so the next run stores a clean result; this supersedes the R20 manual-key-deletion suggestion. No remote cache was changed here.
 
 - [ ] R20: re-warm Austin once after deploy if a full ten-card cached demo is wanted; the client removes its duplicate immediately. R27 will also handle stale category caches.
@@ -44,8 +46,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 - [x] Authorize the R11c/R12 push: on 2026-10-24 the user explicitly authorized coordination, commit, and push despite the no-remote-actions rule. The coordinated finalization entry below supersedes the earlier publishing blocker.
 - [x] Authorize publishing the local commits: the R10 request explicitly permits the agent to push the rebased R1–R9/review commits together with R10 after verification, superseding the earlier no-push instruction.
-- [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, required UPSTASH_* for production live work, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
-- [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
+- [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, required UPSTASH_* for production live work), deploy, check `maxDuration`.
+- [x] Older private-code setup is superseded by R16; public research uses no access code.
 - [ ] Review the UI in a real browser, including mobile layout, keyboard use, and accessibility; check recognized brand choices before confirming, especially in fallback mode (see T12).
 - [ ] Before enabling live Vercel production research, create an Upstash Redis database and add both REST URL/token values. R10 returns HTTP 503 for live cache misses without them; validate this behavior in the deployed environment.
 - [x] Restore `.env.example`: completed by R3 from `cfe3521`; `.env.local` remains untouched.
@@ -1404,3 +1406,29 @@ Verification: all checks passed; 1119 offline tests / 78 files. The first build 
 Decisions I made: current documentation uses 70; historical FIXES instructions and completed PROGRESS entries retain their original numbers. Request shapes, defaults, presets, hashing and cache keys are unchanged.
 
 Open issues: none. No push or remote action.
+
+## R31 — Clean up public limits documentation (2026-10-24)
+
+Status: DONE
+
+- Updated the PRD to document unlimited cache hits before limits and identical live budgets for everyone.
+- Added the requested historical note to TASKS without changing its build instructions.
+- Removed obsolete variable references from the superseded active setup checklist and recorded the owner's deployment follow-up.
+- Automated R16's manual source absence check and extended it to current public Markdown.
+
+Files touched / staged list (before this log):
+```text
+ docs/PRD.md                    |  6 +++---
+ docs/PROGRESS.md               |  6 ++++--
+ docs/TASKS.md                  |  2 ++
+ tests/unit/public-docs.test.ts | 25 +++++++++++++++++++++++++
+ 4 files changed, 34 insertions(+), 5 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1121 offline tests / 79 files. Production build passed with local worker permission and provider keys cleared. Independent review found no issues. No live provider calls.
+
+Decisions I made: R16's grep check existed only as a manual command, so public-docs.test.ts now automates it. The retired full variable name is allowed only in historical TASKS/FIXES documents within public Markdown. Protected privacy scripts and their tests intentionally retain legacy secret detection and are unchanged. The two obsolete setup checklist lines were corrected; completed task history is preserved. The one-click preset statement remains true.
+
+Open issues: Devin must remove the retired environment variable and verify public limits after deployment, as listed above. No push or remote action.
