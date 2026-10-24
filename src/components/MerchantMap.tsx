@@ -2,6 +2,7 @@
 // Displays branch trade areas and selectable merchant markers, and supports branch map picking.
 // Called by: src/app/page.tsx through a client-only dynamic import
 import { useEffect, useRef, type ReactElement } from "react";
+import L from "leaflet";
 import type { CircleMarker as LeafletCircleMarker, LatLngTuple, LeafletMouseEvent } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import {
@@ -111,7 +112,9 @@ export default function MerchantMap({ center, branches, merchants, selectedMerch
     <p role="status" className={onPickLocation ? "bg-teal-50 px-5 py-3 text-sm font-medium text-teal-800" : "sr-only"}>
       {onPickLocation ? "Click the map to set the selected branch location." : "Map location picking is off."}
     </p>
+    {L.Browser.mobile && <p className="px-5 py-2 text-xs text-slate-500">Use two fingers to move the map</p>}
     <MapContainer center={[center.lat, center.lon]} zoom={center.zoom ?? MAP_DEFAULT_ZOOM}
+      scrollWheelZoom={false} dragging={!L.Browser.mobile} touchZoom={L.Browser.mobile} zoomControl={true}
       className="z-0 w-full" style={{ height: "min(540px, 70vh)", cursor: onPickLocation ? "crosshair" : undefined }}>
       <TileLayer url={OSM_TILE_URL} maxZoom={MAP_MAX_ZOOM}
         attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'} />

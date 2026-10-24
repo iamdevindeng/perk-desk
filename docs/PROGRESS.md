@@ -1322,3 +1322,26 @@ Verification: all checks passed; 1109 offline tests / 76 files. No live demo run
 Decisions I made: integrate through filterPlaces, which find-merchants already calls, so exclusion counts and scoring order stay consistent. The helper is one small file within the existing merchants directory. No existing find-merchants snapshot was present; added explicit deterministic survivor/rank/count assertions instead. Request shapes and cache keys remain unchanged; only cached shortlists containing a denied place are refreshed.
 
 Open issues: the post-deployment demo refresh above requires Devin.
+
+## R28 — Let the page scroll past the map (2026-10-24)
+
+Status: DONE
+
+- Disabled wheel zoom and mobile map dragging while retaining desktop dragging and zoom buttons.
+- Enabled mobile touch zoom with the requested two-finger hint.
+- Tested actual component props for desktop/mobile and preserved enabled/disabled branch-pick callbacks and page race guards.
+
+Files touched / staged list (before this log):
+```text
+ src/components/MerchantMap.tsx  |  3 +++
+ tests/unit/merchant-map.test.ts | 60 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1113 offline tests / 77 files. No live calls. Touch behavior is covered by the requested Leaflet prop and callback checks, not a physical device test.
+
+Decisions I made: explicitly retain zoomControl and use Leaflet's mobile detection for both dragging and touchZoom. The map remains loaded through the existing client-only dynamic import. Cache requests and keys are unchanged.
+
+Open issues: none for the requested automated checks.
