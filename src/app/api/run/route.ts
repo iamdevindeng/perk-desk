@@ -6,6 +6,7 @@ import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_REPLAY_DELAY_MS } from "@/lib/con
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError } from "@/lib/qloo/client";
+import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { getJson, setJson } from "@/lib/store/cache";
 import { checkLimit, getClientIp, hasJudgeBypass, isPresetRun } from "@/lib/store/rate-limit";
 import { createEmitter, createNdjsonResponse, type Emit } from "@/lib/stream";
@@ -20,10 +21,19 @@ async function validateRequest(request: Request): Promise<RunRequest | Response>
   try { body = await request.json(); }
   catch { return Response.json({ error: "bad_request", issues: [{ path: [], code: "invalid_json" }] }, { status: 400 }); }
   const parsed = RunRequestSchema.safeParse(body);
-  if (parsed.success) return parsed.data;
-  return Response.json({ error: "bad_request", issues: parsed.error.issues.map((issue) => ({
-    path: issue.path.slice(0, 1).map(String), code: issue.code,
-  })) }, { status: 400 });
+  const categoryMessage = "Choose valid place categories that are allowed for merchant research.";
+  if (!parsed.success) {
+    return Response.json({ error: "bad_request",
+      message: parsed.error.issues.some((issue) => issue.path[0] === "categories") ? categoryMessage : "Check the research request fields.",
+      issues: parsed.error.issues.map((issue) => ({ path: issue.path.slice(0, 1).map(String), code: issue.code })),
+    }, { status: 400 });
+  }
+  if (parsed.data.categories.some((category) => isBlacklistedCategory(category.tagId))) {
+    return Response.json({ error: "bad_request", message: categoryMessage,
+      issues: [{ path: ["categories"], code: "disallowed_category" }],
+    }, { status: 400 });
+  }
+  return parsed.data;
 }
 
 async function cachedEvents(key: string): Promise<TraceEvent[] | null> {

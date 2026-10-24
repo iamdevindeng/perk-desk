@@ -99,9 +99,16 @@ describe("run outage recovery", () => {
     expect(findPlaces).toHaveBeenCalledTimes(4);
   });
 
-  it("does not cache a missing confirmed category even when another category succeeded", async () => {
-    const request = { ...FAKE_RUN_REQUEST, categories: [...FAKE_RUN_REQUEST.categories, { tagId: "urn:tag:category:place:hospital", label: "Hospital" }] };
-    expect(result(await run(request))?.categories[1].status).toBe("incomplete");
+  it("does not cache an unavailable confirmed category even when another category succeeded", async () => {
+    const tagId = "urn:tag:category:place:bakery";
+    const request = { ...FAKE_RUN_REQUEST, categories: [...FAKE_RUN_REQUEST.categories, { tagId, label: "Bakery" }] };
+    vi.mocked(findPlaces).mockImplementation(async (query) => {
+      if (query.tagId === tagId) throw new Error("private category failure");
+      return PLACES;
+    });
+    const outcome = result(await run(request));
+    expect(outcome?.categories[1].status).toBe("incomplete");
+    expect(outcome?.merchants).toHaveLength(10);
     expect(await getJson(cacheKey("run", request))).toBeNull();
   });
 

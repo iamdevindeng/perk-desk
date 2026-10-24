@@ -517,3 +517,16 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: specificity is a documented heuristic, not a Qloo strength score. Agent evidence still passes layer 2 before compaction. Cached plans exceeding five records fail schema validation and refresh normally.
 - New dependencies: none.
 - For Devin: no new action.
+
+### R5: Recheck research categories on the server — DONE
+- Date/time (UTC+8): 2026-10-24 18:07
+- What was done:
+  - Reused `isBlacklistedCategory` after schema validation in `/api/run`.
+  - Returned clear HTTP 400 messages for malformed/non-place and blacklisted category IDs, before cache, limits, or research.
+  - Added route tests and retained outage-cache coverage with a permitted category whose lookup fails.
+- Files touched: `src/app/api/run/route.ts`, `tests/unit/{run-route,run-recovery}.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
+- Verification: PASS: 494 tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace. First attempt exposed an old outage test using a now-rejected hospital category; replaced that setup with an unavailable bakery lookup and added the healthy-merchant assertion. Second attempt passed.
+- Open issues / decisions: a syntactically valid category outside the hand-written defaults remains allowed unless blacklisted, matching the existing category helper.
+- New dependencies: none.
+- For Devin: no new action.

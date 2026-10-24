@@ -73,6 +73,18 @@ describe("run route boundaries", () => {
     expect(await response.text()).not.toContain("private broken body");
   });
 
+  it.each(["urn:tag:category:place:music_school", "urn:tag:category:place:hospital", "urn:tag:genre:brand:coffee", "not-a-tag"])(
+    "rejects disallowed category %s before cache, limits, or research", async (tagId) => {
+      const response = await POST(request({ ...FAKE_RUN_REQUEST, categories: [{ tagId, label: "Coffee shop" }] }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "bad_request",
+        message: "Choose valid place categories that are allowed for merchant research.",
+      });
+      expect(getJson).not.toHaveBeenCalled(); expect(checkLimit).not.toHaveBeenCalled();
+      expect(runResearch).not.toHaveBeenCalled(); expect(setJson).not.toHaveBeenCalled();
+    },
+  );
+
   it("streams a missing-key error with status 200", async () => {
     vi.stubEnv("QLOO_API_KEY", ""); resetEnvForTests();
     const response = await POST(request());
