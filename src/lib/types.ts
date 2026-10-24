@@ -62,7 +62,7 @@ export const PlanRequestSchema = z.object({
 
 export const RunRequestSchema = z.object({
   presetId: z.string().optional(), institutionName: z.string().min(1).max(100), city: z.string(),
-  branches: z.array(BranchSchema.extend({ lat: z.number(), lon: z.number() })).min(1).max(5),
+  branches: z.array(BranchSchema.extend({ lat: BranchSchema.shape.lat.unwrap(), lon: BranchSchema.shape.lon.unwrap() })).min(1).max(5),
   brands: z.array(z.object({ entityId: EntityIdSchema, name: z.string() })).min(1).max(10),
   categories: z.array(CategoryTagSchema).min(1).max(RUN_MAX_CATEGORIES),
   signedNames: z.array(z.string().max(120)).max(500).default([]),
@@ -84,7 +84,7 @@ export const MerchantCandidateSchema = MerchantResultSchema.omit({ pitch: true, 
 });
 export const CategoryReportSchema = z.object({
   tagId: CategoryTagIdSchema, label: z.string(), independentCount: z.number().int(),
-  status: z.enum(["ok", "thin", "replaced"]), replacedBy: CategoryTagIdSchema.optional(),
+  status: z.enum(["ok", "thin", "replaced", "incomplete"]), replacedBy: CategoryTagIdSchema.optional(),
 });
 export const RunResultSchema = z.object({
   mode: z.enum(["agent", "fallback"]), merchants: z.array(MerchantResultSchema), categories: z.array(CategoryReportSchema),

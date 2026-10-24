@@ -28,7 +28,7 @@ function requestError(input: FindMerchantsInput, context: RunContext): string | 
   if (!replacesTagId) return originals.includes(tagId) ? null : "Only confirmed categories can be researched without a replacement.";
   const original = context.results.get(replacesTagId);
   if (!originals.includes(replacesTagId) || tagId === replacesTagId) return "Replace an original confirmed category with a different category.";
-  if (!original || original.independentCount >= MIN_INDEPENDENTS) return "Only a researched category with few independent shops can be replaced.";
+  if (!original?.complete || original.independentCount >= MIN_INDEPENDENTS) return "Only a researched category with few independent shops can be replaced.";
   const previous = context.replacements.get(replacesTagId);
   if (previous && (previous !== tagId || !context.results.has(tagId))) return "Each original category can be replaced only once.";
   return null;
@@ -37,45 +37,51 @@ function requestError(input: FindMerchantsInput, context: RunContext): string | 
 function summarize(outcome: CategoryOutcome): FindMerchantsSummary {
   return {
     tagId: outcome.tagId, label: outcome.label, independentCount: outcome.independentCount,
-    thin: outcome.independentCount < MIN_INDEPENDENTS,
+    thin: outcome.complete && outcome.independentCount < MIN_INDEPENDENTS,
     sampleNames: outcome.candidates.slice(0, MERCHANT_SAMPLE_MAX).map((candidate) => candidate.place.name),
   };
 }
 
-async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boolean, context: RunContext): Promise<Place[]> {
+async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boolean, context: RunContext): Promise<Place[] | null> {
   try {
     if (context.fatalError) throw context.fatalError;
-    return await findPlaces({
+    const places = await findPlaces({
       lat: branch.lat, lon: branch.lon, radiusMeters: branch.radiusMeters, tagId,
       brandIds: seeded ? context.request.brands.map((brand) => brand.entityId) : [],
     }, contextQlooOptions(context));
+    context.successfulLookups += 1;
+    return places;
   } catch (error) {
     if (isQlooError(error) && ["auth", "quota", "config"].includes(error.code)) handleToolError(context, error);
     context.warnings.push(`${branch.name}: ${seeded ? "taste" : "baseline"} lookup failed; available results were kept.`);
-    return [];
+    context.cacheable = false;
+    return null;
   }
 }
 
-async function branchCandidates(branch: LocatedBranch, tagId: string, label: string, context: RunContext): Promise<MerchantCandidate[]> {
+async function branchCandidates(branch: LocatedBranch, tagId: string, label: string, context: RunContext): Promise<{ candidates: MerchantCandidate[]; complete: boolean }> {
   const seeded = await placesForBranch(branch, tagId, true, context);
   const baseline = await placesForBranch(branch, tagId, false, context);
-  const merged = mergeSeededAndBaseline(seeded, baseline, branch, { tagId, label });
+  const merged = mergeSeededAndBaseline(seeded ?? [], baseline, branch, { tagId, label });
   // Preserve the original seeded affinity range before exclusions. See ARCHITECTURE.md §6.2.
   const filtered = filterPlaces(scoreCandidates(merged, branch), context.request);
   context.excludedCounts.closed += filtered.excludedCounts.closed;
   context.excludedCounts.noiseGenre += filtered.excludedCounts.noiseGenre;
   context.excludedCounts.nationalChain += filtered.excludedCounts.nationalChain;
   context.excludedCounts.signedOrExcluded += filtered.excludedCounts.signedOrExcluded;
-  return filtered.kept.map((candidate) => ({
+  const candidates = filtered.kept.map((candidate) => ({
     ...candidate, brandShares: computeBrandShares(candidate.explain, context.request.brands),
     // Membership is a follow-up badge only; scoring and eligibility remain unchanged (ARCHITECTURE.md §6.2).
     businessMember: nameMatches(candidate.place.name, context.request.businessMemberNames),
   }));
+  return { candidates, complete: seeded !== null && baseline !== null };
 }
 
 async function persistDensity(tagId: string, context: RunContext): Promise<void> {
-  const count = context.results.get(tagId)!.independentCount;
-  await setJson(`pd:v1:density:${citySlug(context.request.city)}:${tagId}`, count, DENSITY_TTL_S);
+  const outcome = context.results.get(tagId)!;
+  if (!outcome.complete) return;
+  const count = outcome.independentCount;
+  await setJson(`pd:v1:density:${citySlug(context.request.city)}:${tagId}`, { count, complete: true }, DENSITY_TTL_S);
   // Concurrent category completion can change duplicate flags during the write; persist the latest count.
   if (context.results.get(tagId)!.independentCount !== count) await persistDensity(tagId, context);
 }
@@ -87,7 +93,7 @@ async function refreshOutcomes(context: RunContext): Promise<void> {
     const candidates = marked.filter((candidate) => candidate.categoryTagId === outcome.tagId);
     const independentCount = countIndependents(candidates);
     context.results.set(outcome.tagId, { ...outcome, candidates, independentCount });
-    context.knownDensities.set(outcome.tagId, independentCount);
+    if (outcome.complete) context.knownDensities.set(outcome.tagId, independentCount);
   }
   for (const tagId of context.results.keys()) await persistDensity(tagId, context);
 }
@@ -106,8 +112,13 @@ export async function findMerchantsForCategory(input: FindMerchantsInput, contex
   try {
     const label = context.candidateCategories.get(input.tagId)!;
     const candidates: MerchantCandidate[] = [];
-    for (const branch of context.request.branches) candidates.push(...await branchCandidates(branch, input.tagId, label, context));
-    context.results.set(input.tagId, { tagId: input.tagId, label, candidates: assignNearestBranch(candidates), independentCount: 0 });
+    let complete = true;
+    for (const branch of context.request.branches) {
+      const outcome = await branchCandidates(branch, input.tagId, label, context);
+      candidates.push(...outcome.candidates);
+      complete = complete && outcome.complete;
+    }
+    context.results.set(input.tagId, { tagId: input.tagId, label, candidates: assignNearestBranch(candidates), independentCount: 0, complete });
     await refreshOutcomes(context);
     return summarize(context.results.get(input.tagId)!);
   } finally {

@@ -16,10 +16,11 @@ import { buildTemplatePitch } from "@/lib/fallback/pitch-template";
 import { normalizeName } from "@/lib/merchants/name-match";
 import { countIndependents } from "@/lib/merchants/scoring";
 import { buildShortlist } from "@/lib/merchants/shortlist";
+import { createQlooError } from "@/lib/qloo/client";
 import { searchBrandExact } from "@/lib/qloo/search";
 import { MerchantResultSchema, RunRequestSchema, RunResultSchema, type CategoryReport, type MerchantCandidate, type MerchantResult, type RunRequest, type RunResult, type StepId, type TraceEvent } from "@/lib/types";
 
-type RunOptions = { model?: LanguageModel };
+type RunOptions = { model?: LanguageModel; onCacheable?: (cacheable: boolean) => void };
 const FinishInputSchema = z.object({ note: z.string().max(TRACE_SUMMARY_MAX) });
 type FinishInput = z.infer<typeof FinishInputSchema>;
 
@@ -94,31 +95,37 @@ function pitchedCard(card: MerchantResult, pitches: Map<string, string>, context
   const validGenerated = generated !== undefined && checkPitch(generated, card);
   const pitch = validGenerated ? generated : buildTemplatePitch(card, context.request.institutionName);
   if (!checkPitch(pitch, card)) {
+    context.cacheable = false;
     context.warnings.push(`A valid pitch could not be prepared for ${card.place.name}; the merchant remains on the list.`);
     return { ...card, pitch: "", pitchSource: "template" };
   }
   return { ...card, pitch, pitchSource: validGenerated ? "agent" : "template" };
 }
 
-async function finishMerchants(context: RunContext, mode: RunResult["mode"], options: RunOptions): Promise<MerchantResult[]> {
+async function finishMerchants(context: RunContext, mode: RunResult["mode"], options: RunOptions): Promise<{ merchants: MerchantResult[]; mode: RunResult["mode"] }> {
   const candidates = new Map([...context.results].map(([tagId, outcome]) => [tagId, outcome.candidates]));
   const shortlist = await checkMerchantBrands(buildShortlist(candidates, context.request.branches), context);
   const cards = shortlist.map(resultCard);
   let pitches = new Map<string, string>();
   if (mode === "agent") {
     try { pitches = await writePitches(cards, context.request.institutionName, options); }
-    catch { context.warnings.push("Pitch writing was unavailable; template pitches were used."); }
+    catch {
+      const reason = "Pitch writing was unavailable; template pitches were used.";
+      context.warnings.push(reason); context.emit({ type: "fallback", at: 0, reason });
+      context.cacheable = false; mode = "fallback";
+    }
   }
-  return cards.map((card) => pitchedCard(card, pitches, context));
+  return { merchants: cards.map((card) => pitchedCard(card, pitches, context)), mode };
 }
 
 function categoryReports(context: RunContext): CategoryReport[] {
   const categories = new Map(context.request.categories.map((category) => [category.tagId, category.label]));
   for (const outcome of context.results.values()) categories.set(outcome.tagId, outcome.label);
   return Array.from(categories, ([tagId, label]) => {
-    const independentCount = context.results.get(tagId)?.independentCount ?? 0;
+    const outcome = context.results.get(tagId);
+    const independentCount = outcome?.independentCount ?? 0;
     const replacedBy = context.replacements.get(tagId);
-    return { tagId, label, independentCount, status: replacedBy ? "replaced" : independentCount < MIN_INDEPENDENTS ? "thin" : "ok", replacedBy };
+    return { tagId, label, independentCount, status: !outcome?.complete ? "incomplete" : replacedBy ? "replaced" : independentCount < MIN_INDEPENDENTS ? "thin" : "ok", replacedBy };
   });
 }
 
@@ -132,6 +139,7 @@ async function performResearch(context: RunContext, options: RunOptions): Promis
   // Even a model that immediately finishes cannot omit confirmed categories (ARCHITECTURE.md §6.1).
   await runFallbackResearch(context, reason !== null);
   if (context.fatalError) throw context.fatalError;
+  if (!context.successfulLookups) throw createQlooError("upstream", null, "Merchant lookups failed; try again in a minute.");
   return reason ? "fallback" : "agent";
 }
 
@@ -150,8 +158,11 @@ export async function runResearch(request: RunRequest, emit: (event: TraceEvent)
   step(context, "filter_score", "done", `Kept ${[...context.results.values()].reduce((count, outcome) => count + outcome.candidates.length, 0)} category matches`);
   step(context, "data_check", "done", `Tried ${context.replacements.size} adjacent categories`);
   step(context, "rank_pitch", "start", "Balancing the shortlist and preparing pitches");
-  const merchants = await finishMerchants(context, mode, options);
+  const finished = await finishMerchants(context, mode, options);
+  const { merchants } = finished;
+  options.onCacheable?.(context.cacheable && context.request.categories.every((category) => context.results.get(category.tagId)?.complete) &&
+    [...context.results.values()].every((outcome) => outcome.complete));
   step(context, "rank_pitch", "done", `Prepared ${merchants.length} merchants`);
-  return RunResultSchema.parse({ mode, merchants, categories: categoryReports(context), excludedCounts: context.excludedCounts,
+  return RunResultSchema.parse({ mode: finished.mode, merchants, categories: categoryReports(context), excludedCounts: context.excludedCounts,
     qlooCalls: context.qlooCalls, durationMs: Date.now() - startedAt, warnings: context.warnings });
 }

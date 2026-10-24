@@ -27,6 +27,8 @@ npm run dev
 
 Open http://localhost:3000, choose a demo preset, plan the categories, then confirm them to find merchants. Check the recognized brand choices before confirming, especially in fallback mode.
 
+Without Upstash credentials, cache entries and daily rate-limit counters live only in the current server process. This works for local development, but serverless instances do not share memory, and restarts clear it. Configure both `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` when a deployment needs shared caching and rate limits across instances.
+
 Run the offline unit tests and the smoke check separately:
 
 ```bash

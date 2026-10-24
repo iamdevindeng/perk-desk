@@ -95,3 +95,10 @@ describe("shared schemas", () => {
     }).success).toBe(false);
   });
 });
+
+it.each([{ lat: -90, lon: -180 }, { lat: 90, lon: 180 }])("accepts coordinate boundaries for research", (point) => {
+  expect(schemas.RunRequestSchema.safeParse({ ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_BRANCH, ...point }] }).success).toBe(true);
+});
+it.each([{ lat: -91 }, { lat: 91 }, { lon: -181 }, { lon: 181 }, { lat: undefined }, { lon: undefined }])("rejects out-of-range or missing research coordinates", (point) => {
+  expect(schemas.RunRequestSchema.safeParse({ ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_BRANCH, ...point }] }).success).toBe(false);
+});

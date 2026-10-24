@@ -31,7 +31,8 @@ const RawPlaceSchema = z.object({
   external: ExternalSchema.catch({ google_place: [], tripadvisor: [] }),
   query: QuerySchema.catch({ explainability: { "signal.interests.entities": [] } }),
 });
-const LocalitySchema = z.object({ name: z.string(), lat: z.number(), lon: z.number() });
+const LocalitySchema = PointSchema.extend({ name: z.string() });
+const ResultsSchema = z.object({ entities: z.array(z.unknown()) });
 type Locality = z.infer<typeof LocalitySchema>;
 type PlaceQuery = { lat: number; lon: number; radiusMeters: number; tagId: string; brandIds: string[] };
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -58,9 +59,8 @@ export function slimPlace(raw: unknown): Place | null {
 }
 
 function slimPlaces(raw: unknown): Place[] {
-  const response = z.object({ results: z.object({ entities: z.array(z.unknown()).catch([]) }) }).safeParse(raw);
-  if (!response.success) return [];
-  return response.data.results.entities.flatMap((entity) => {
+  const response = z.object({ success: z.literal(true).optional(), results: ResultsSchema }).parse(raw);
+  return response.results.entities.flatMap((entity) => {
     const place = slimPlace(entity);
     return place ? [place] : [];
   });
@@ -79,9 +79,12 @@ export async function findPlaces(query: PlaceQuery, options: QlooCallOptions = {
 }
 
 function slimLocality(raw: unknown): Locality | null {
-  const response = z.object({ query: z.object({ localities: z.object({ filter: z.array(z.unknown()) }) }) }).safeParse(raw);
-  if (!response.success) return null;
-  const locality = z.object({ name: z.string(), location: PointSchema }).safeParse(response.data.query.localities.filter[0]);
+  const response = z.object({
+    success: z.literal(true).optional(), results: ResultsSchema.optional(),
+    query: z.object({ localities: z.object({ filter: z.array(z.unknown()).optional() }).optional() }).optional(),
+  }).refine((value) => value.results !== undefined || value.query !== undefined).parse(raw);
+  // Valid responses with missing/empty localities remain unresolved. See QLOO_API.md §5.
+  const locality = z.object({ name: z.string(), location: PointSchema }).safeParse(response.query?.localities?.filter?.[0]);
   if (!locality.success) return null;
   return { name: locality.data.name, ...locality.data.location };
 }

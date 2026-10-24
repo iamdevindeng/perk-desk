@@ -25,7 +25,7 @@ export async function runFallbackResearch(context: RunContext, tryAdjacent = tru
   if (!tryAdjacent) return;
   for (const category of context.request.categories) {
     const outcome = context.results.get(category.tagId);
-    if (!outcome || outcome.independentCount >= MIN_INDEPENDENTS || context.replacements.has(category.tagId)) continue;
+    if (!outcome?.complete || outcome.independentCount >= MIN_INDEPENDENTS || context.replacements.has(category.tagId)) continue;
     const defaults = getCategoryDefaults().categories.find((entry) => entry.tagId === category.tagId);
     const adjacent = defaults?.adjacent[0];
     if (adjacent) await researchCategory(adjacent, context, category.tagId);

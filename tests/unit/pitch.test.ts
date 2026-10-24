@@ -114,10 +114,10 @@ describe("batched pitch writing", () => {
     expect(model.doGenerateCalls[0].temperature).toBe(0);
   });
 
-  it("returns no agent pitches when generation or structured-output validation fails", async () => {
+  it("reports sanitized failure when generation or structured-output validation fails", async () => {
     const failing = new MockLanguageModelV4({ doGenerate: async () => { throw new Error("private provider failure"); } });
-    expect((await writePitches([FAKE_MERCHANT], "Fake CU", { model: failing })).size).toBe(0);
-    expect((await writePitches([FAKE_MERCHANT], "Fake CU", { model: pitchModel({ wrong: [] }) })).size).toBe(0);
+    await expect(writePitches([FAKE_MERCHANT], "Fake CU", { model: failing })).rejects.toThrow("Pitch writing was unavailable; template pitches were used.");
+    await expect(writePitches([FAKE_MERCHANT], "Fake CU", { model: pitchModel({ wrong: [] }) })).rejects.toThrow("Pitch writing was unavailable; template pitches were used.");
   });
 
   it("skips unavailable, disabled, or empty generation without a model call", async () => {

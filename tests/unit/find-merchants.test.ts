@@ -38,7 +38,7 @@ describe("merchant research", () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].branchId).toBe(FAKE_BRANCHES[0].id);
     expect(candidates[0].brandShares).toEqual([{ brandName: context.request.brands[0].name, sharePercent: 100 }]);
-    expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${COFFEE}`, 1, DENSITY_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${COFFEE}`, { count: 1, complete: true }, DENSITY_TTL_S);
     await findMerchantsForCategory({ tagId: COFFEE }, context);
     expect(findPlaces).toHaveBeenCalledTimes(4);
   });
@@ -57,7 +57,11 @@ describe("merchant research", () => {
     const context = createRunContext(FAKE_RUN_REQUEST);
     vi.mocked(findPlaces).mockResolvedValueOnce([makeFakePlace(10)]).mockRejectedValueOnce(new Error("failed"));
     expect(await findMerchantsForCategory({ tagId: COFFEE }, context)).toMatchObject({ independentCount: 1 });
-    expect(context.results.get(COFFEE)!.candidates[0].tasteSignal).toBe(true);
+    expect(context.results.get(COFFEE)!.candidates[0]).toMatchObject({ tasteSignal: true, baselineRank: null, rankLift: null, score: 0.32 });
+    expect(context.results.get(COFFEE)!.complete).toBe(false);
+    expect(setJson).not.toHaveBeenCalled();
+    expect(context.knownDensities.size).toBe(0);
+    expect(await findMerchantsForCategory({ tagId: CAFE, replacesTagId: COFFEE }, context)).toHaveProperty("error");
   });
 
   it("refreshes previous category duplicate flags and densities across the entire run", async () => {
@@ -70,7 +74,7 @@ describe("merchant research", () => {
       expect(context.results.get(tagId)!.independentCount).toBe(0);
       expect(context.results.get(tagId)!.candidates[0].multiLocation).toBe(true);
       expect(context.knownDensities.get(tagId)).toBe(0);
-      expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${tagId}`, 0, DENSITY_TTL_S);
+      expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${tagId}`, { count: 0, complete: true }, DENSITY_TTL_S);
     }
   });
 

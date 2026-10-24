@@ -28,7 +28,8 @@ async function traceFor(body: unknown = FAKE_RUN_REQUEST): Promise<TraceEvent[]>
 }
 
 beforeEach(() => {
-  vi.mocked(runResearch).mockReset().mockImplementation(async (_request, emit) => {
+  vi.mocked(runResearch).mockReset().mockImplementation(async (_request, emit, options) => {
+    options?.onCacheable?.(true);
     emit({ type: "step", at: 0, step: "find_merchants", status: "start", summary: "Finding merchants" });
     return FAKE_RUN_RESULT;
   });
@@ -45,7 +46,7 @@ describe("run route boundaries", () => {
   it("streams steps, a result and done; caches events without done", async () => {
     const trace = await traceFor();
     expect(trace.map((event) => event.type)).toEqual(["step", "result", "done"]);
-    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { events: expect.any(Array) }, RESULT_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S);
     const saved = vi.mocked(setJson).mock.calls[0][1] as { events: TraceEvent[] };
     expect(saved.events.map((event) => event.type)).toEqual(["step", "result"]);
     expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip", { skipIp: false });
@@ -58,6 +59,12 @@ describe("run route boundaries", () => {
     expect(await response.json()).toMatchObject({ error: "bad_request" });
     expect(getJson).not.toHaveBeenCalled();
     expect(checkLimit).not.toHaveBeenCalled();
+  });
+
+  it.each([{ lat: 400 }, { lon: 1000 }, { lat: -91 }, { lon: -181 }])("rejects invalid coordinates before cache, limits, or research", async (point) => {
+    const body = { ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_RUN_REQUEST.branches[0], ...point }] };
+    expect((await POST(request(body))).status).toBe(400);
+    expect(getJson).not.toHaveBeenCalled(); expect(checkLimit).not.toHaveBeenCalled(); expect(runResearch).not.toHaveBeenCalled();
   });
 
   it("handles malformed JSON without returning its contents", async () => {
@@ -100,7 +107,7 @@ describe("run cache and limits", () => {
   ];
 
   it("replays cached results before key and limit checks, marking lookups cached", async () => {
-    vi.mocked(getJson).mockResolvedValue({ events: stored });
+    vi.mocked(getJson).mockResolvedValue({ complete: true, events: stored });
     vi.stubEnv("QLOO_API_KEY", ""); resetEnvForTests();
     const trace = await traceFor();
     expect(trace.map((event) => event.type)).toEqual(["agent_note", "qloo_call", "result", "done"]);
@@ -112,7 +119,7 @@ describe("run cache and limits", () => {
   });
 
   it.each([{ events: [] }, { events: [stored[0]] }, { events: [stored[1], stored[1]] }, { events: [stored[1], { type: "done", at: 0 }] }])("treats incomplete or corrupt traces as misses", async (value) => {
-    vi.mocked(getJson).mockResolvedValue(value);
+    vi.mocked(getJson).mockResolvedValue({ complete: true, ...value });
     await traceFor(); expect(runResearch).toHaveBeenCalledOnce();
   });
 

@@ -10,7 +10,7 @@ import type { QlooCallOptions } from "@/lib/qloo/client";
 
 const RawCategorySchema = z.object({ id: CategoryTagIdSchema, name: z.string().min(1) });
 const RawCategoriesSchema = z.object({
-  results: z.object({ tags: z.array(z.unknown()).catch([]) }).catch({ tags: [] }),
+  success: z.literal(true).optional(), results: z.object({ tags: z.array(z.unknown()) }),
 });
 
 export function isBlacklistedCategory(tagId: string): boolean {
@@ -20,10 +20,9 @@ export function isBlacklistedCategory(tagId: string): boolean {
 }
 
 function slimCategories(raw: unknown): CategoryTag[] {
-  const parsed = RawCategoriesSchema.safeParse(raw);
-  if (!parsed.success) return [];
+  const response = RawCategoriesSchema.parse(raw);
   const categories: CategoryTag[] = [];
-  for (const rawCategory of parsed.data.results.tags) {
+  for (const rawCategory of response.results.tags) {
     const category = RawCategorySchema.safeParse(rawCategory);
     if (!category.success || isBlacklistedCategory(category.data.id)) continue;
     categories.push({ tagId: category.data.id, label: category.data.name });

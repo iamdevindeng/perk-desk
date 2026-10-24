@@ -125,7 +125,8 @@ function ResultNotes({ result, profile }: { result: RunResult; profile: Profile 
   return <div className="space-y-3 text-sm leading-relaxed text-slate-600">
     <ul className="space-y-1">{result.categories.map((category) => <li key={category.tagId}>
       <span className="font-medium text-slate-800">{category.label}:</span>{" "}
-      {category.status === "replaced" ? `Not enough local shops in ${category.label}; tried ${getCategoryLabel(category.replacedBy ?? category.tagId)}.`
+      {category.status === "incomplete" ? "Some lookups failed; availability is incomplete. Try this search again."
+        : category.status === "replaced" ? `Not enough local shops in ${category.label}; tried ${getCategoryLabel(category.replacedBy ?? category.tagId)}.`
         : category.status === "thin" ? "Few independent shops in this category near your branches."
           : `${category.independentCount} independent shops found.`}
     </li>)}</ul>

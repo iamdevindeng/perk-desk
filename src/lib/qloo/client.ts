@@ -121,15 +121,16 @@ export async function cachedQlooCall<T>(
   const startedAt = Date.now();
   const key = cacheKey("qloo", { path, params });
   const stored = await getJson(key);
-  const cached = stored === null ? null : schema.safeParse(stored);
+  // Legacy values may have come from an invalid HTTP-200 envelope; keep keys, refresh their contents.
+  const cached = z.object({ validated: z.literal(true), value: schema }).safeParse(stored);
   if (cached?.success) {
     reportCall(path, startedAt, true, options);
-    return cached.data;
+    return cached.data.value;
   }
   try {
     const result = schema.safeParse(slim(await qlooGet(path, params)));
     if (!result.success) throw createQlooError("upstream", null, "Qloo returned an unexpected response; try again in a minute.");
-    await setJson(key, result.data, QLOO_CACHE_TTL_S);
+    await setJson(key, { validated: true, value: result.data }, QLOO_CACHE_TTL_S);
     return result.data;
   } catch (error) {
     if (isQlooError(error)) throw error;

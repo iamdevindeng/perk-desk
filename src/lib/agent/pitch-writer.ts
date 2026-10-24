@@ -36,7 +36,7 @@ export async function writePitches(
     });
     return validPitches(PitchOutputSchema.parse(result.output), merchants);
   } catch {
-    // Research results stay useful when generation or structured-output parsing fails.
-    return new Map();
+    // Provider/structured-output failures must reach orchestration; card guard failures stay local.
+    throw new Error("Pitch writing was unavailable; template pitches were used.");
   }
 }

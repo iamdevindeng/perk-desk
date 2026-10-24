@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe("category search tool", () => {
   it("adds real categories to the plan context and attaches known density", async () => {
-    vi.mocked(getJson).mockResolvedValueOnce(8);
+    vi.mocked(getJson).mockResolvedValueOnce({ count: 8, complete: true });
     const context = createPlanContext(FAKE_PLAN_REQUEST);
     const result = await searchCategoriesForContext(" coffee ", context);
     expect(result).toEqual([{ tagId: FAKE_CATEGORY_ID, label: "Coffee shop", knownIndependents: 8, usableInDemoCities: true }]);
@@ -32,7 +32,7 @@ describe("category search tool", () => {
     expect(searchPlaceCategories).toHaveBeenCalledWith("coffee", expect.objectContaining({ onCall: expect.any(Function) }));
   });
 
-  it.each(["8", -1, 1.5, null])("ignores malformed or missing density %s", async (density) => {
+  it.each(["8", -1, 1.5, null, 0, 8, { count: 8 }, { count: 8, complete: false }])("ignores malformed or missing density %s", async (density) => {
     vi.mocked(getJson).mockResolvedValueOnce(density);
     const context = createPlanContext(FAKE_PLAN_REQUEST);
     const result = await searchCategoriesForContext("coffee", context);
@@ -41,7 +41,7 @@ describe("category search tool", () => {
   });
 
   it("accepts zero as a known density and works in the run context", async () => {
-    vi.mocked(getJson).mockResolvedValueOnce(0);
+    vi.mocked(getJson).mockResolvedValueOnce({ count: 0, complete: true });
     const context = createRunContext(FAKE_RUN_REQUEST);
     const tool = buildSearchCategoriesTool(context);
     const result = await tool.execute!({ query: "coffee" }, { toolCallId: "test", messages: [], context: {} });

@@ -27,6 +27,8 @@ Final automated verification: 404 offline tests across 40 files, lint, productio
 
 Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback chooses the highest-popularity candidate for ambiguous brands (REI selected Real Madrid CF in the forced-fallback smoke, requiring user correction); cache/rate state without Upstash is per process; locations and live category coverage may vary. No deployment or remote repository action was performed. The existing `.env.example` deletion remains outside every task commit.
 
+Post-review repair verification (2026-10-24): all seven reported findings are fixed locally; 467 offline tests across 44 files, lint, production build, repository rules (142 files), and typecheck pass. Fresh agent/fallback smoke and the Confirm/map browser check pass. See the final review-repair entry for exact evidence and cache recovery. T1 and T10 remain PARTIAL.
+
 ## Waiting for Devin
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
@@ -89,6 +91,11 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Final review correction to T12 wording: `fallback-plan.ts` already sorts ambiguous candidates by popularity and selects the highest; it does not simply use Qloo response order. The observed REI mismatch and need for user correction are unchanged. Earlier T12 wording is retained as history.
 
 - X2: Apply business-member name matching after filtering/scoring so it changes only the badge field. Reuse the local list editor/upload control for signed and business-member lists. Existing CSV export automatically includes the membership flag.
+
+- Review repair: preserve failure separately from successful empty data. An unavailable baseline has null rank lift before scoring; an incomplete category has a new `incomplete` report status so the UI does not claim sparse local supply. This small extension to ARCHITECTURE §3 is required for truthful partial results; no endpoint or existing field was renamed.
+- Review repair: keep fixed cache keys and TTLs, but require `{ complete: true, events }` for run replay, `{ count, complete: true }` for density hints, and `{ validated: true, value }` for slim Qloo values. Legacy values are misses and recover lazily from healthy requests. Run cache eligibility is passed internally through `RunOptions.onCacheable`; RunResult needs no cache metadata field.
+- Review repair: ARCHITECTURE §3's RunRequest example replaces bounded Branch coordinates with bare `z.number()`, losing bounds. Reuse the required inner Branch schemas instead. Architecture is left unchanged as instructed; this discrepancy is recorded here.
+- Review repair: use request-generation refs and an immediate busy ref to ignore late events/errors/stage changes and block captured map handlers before React rerenders. These refs do not replace frontend useState.
 
 ## Review guide
 
@@ -407,3 +414,37 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: business membership is a badge only and does not exclude merchants, change ranks, or become a pitch claim. Final review corrected T12's explanation of ambiguous fallback selection (highest popularity, as the existing code already implemented); earlier historical wording remains with an explicit correction above. Previously recorded T1/T10 gaps remain owner review items.
 - New dependencies: none.
 - For Devin: all owner-only actions and remaining manual checks are listed in Waiting for Devin.
+
+### Review repair: seven reported findings — DONE
+- Date/time (UTC+8): 2026-10-24 11:38
+- What was done:
+  - Preserved successful-empty, failed, and partial place lookups; full outages emit error/done, partial merchants remain useful, and incomplete research is never stored as a complete run or density.
+  - Cleared map picking on Confirm and Retry, disabled picking while busy, and invalidated stale planning/research successes, failures, trace events, and stage writes on edits, newer requests, and unmount.
+  - Removed unsupported rank-lift evidence before scoring when the baseline fails, while preserving taste evidence and the documented formula for successful empty baselines.
+  - Rejected malformed and explicit-failure Qloo HTTP-200 envelopes with safe upstream errors; retained valid empty arrays, optional/unknown fields, and missing/empty locality behavior.
+  - Propagated pitch provider/structured-output failures to a sanitized warning, fallback trace, and fallback mode without losing research; kept individual guard rejections separate. Preserved required coordinate bounds at both HTTP and direct research boundaries.
+  - Documented per-process memory cache/rate-limit limitations and shared Redis configuration in README's Run locally section; added regression coverage and lazy recovery for legacy cache values at unchanged keys.
+- Files touched: `README.md`, `docs/PROGRESS.md`; `src/app/{page.tsx,api/run/route.ts}`; `src/components/MerchantCard.tsx`; `src/lib/types.ts`; `src/lib/agent/{context,run-agent,pitch-writer}.ts`; `src/lib/agent/tools/{find-merchants,search-categories}.ts`; `src/lib/fallback/fallback-run.ts`; `src/lib/merchants/scoring.ts`; `src/lib/qloo/{client,insights,search,tags}.ts`; `tests/fixtures/page-harness.ts`; `tests/unit/{find-merchants,pitch,qloo-client,qloo-search,run-agent,run-route,search-categories,types,page-races,pitch-fallback-integration,qloo-envelopes,run-recovery}.test.ts`.
+- Finding evidence:
+  1. Run outage caching: `run-recovery.test.ts` verifies error/done, preserved prior density, same-request recovery without flushing, healthy replay without new limits/lookups, partial branch/taste/baseline failures, missing categories, chain-check failure, genuine empty success, and legacy envelope replacement.
+  2. Map/request race: `page-races.test.ts` verifies Confirm and Retry with an armed pick, a captured old map callback, late plan success/failure, late run result/error/rejection, newer requests, and unmount. The real browser Confirm case also passed.
+  3. Failed baseline: `find-merchants.test.ts` asserts null baseline rank/lift and score 0.32 before shortlist/pitches, retained taste signal, no density, and no false-thin replacement; `run-recovery.test.ts` covers both partial directions.
+  4. Qloo envelopes: `qloo-envelopes.test.ts` verifies malformed-to-healthy recovery and caching for brands, categories, places, and localities; valid empty responses, optional metadata, and legacy values are covered. Existing normalization tests still pass.
+  5. Pitch failure: `pitch-fallback-integration.test.ts` uses the real writer with scripted provider and structured-output failures; asserts retained grounded templates, sanitized fallback mode/event/warning, no run caching, and a separate ordinary guard-rejection path.
+  6. Coordinates: `types.test.ts` covers accepted extreme bounds and rejected missing/out-of-range fields; `run-route.test.ts` verifies rejection before cache/limits/research; `run-agent.test.ts` verifies direct-call rejection before lookups or trace.
+  7. README: Run locally now explains memory loss on restart, lack of sharing between serverless instances, and both Upstash environment names for shared cache/rate limits.
+- How to verify:
+  ```bash
+  npm run lint && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run typecheck
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' npm run smoke
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' NEXT_TELEMETRY_DISABLED=1 npm run dev -- --hostname 127.0.0.1
+  ```
+  Browser: Denver demo → Plan → Pick on map → Confirm → click the map while research runs. Picking turns off, profile controls remain disabled, coordinates remain unchanged, and results arrive normally.
+- Verification: PASS: 467 offline tests in 44 files, lint, production build, check:rules over 142 files, typecheck, and `git diff --check`. Initial lint caught a custom-hook ref name that React did not recognize; renamed it to `versionRef`. The next full pass caught one test-table tuple typing error during build; corrected the table to named cases. The third full pass passed every required command. No lint/checker protections or dependencies were changed.
+- Live checks: both smoke commands exited 0 with Redis disabled for the process. Agent plan: 8 resolved/0 unresolved, 6 categories, 22 Qloo calls, 16,090 ms; first 5 categories researched, 10 merchants/10 agent pitches, 40 Qloo calls, 16,844 ms; repeat plan 11,850 ms and 13 cache hits. Forced fallback: 8 resolved/0 unresolved, 4 categories, 12 Qloo calls, 4,154 ms; 10 merchants/10 template pitches, 34 Qloo calls, 15,189 ms; repeat plan 16 ms and 12 cache hits. The static SDK JSON-schema compatibility warning remains. No response data files were written.
+- Browser check: fresh local Denver plan, armed LoDo map pick, Confirm, and map click during the active run. Picking changed to off, the profile stayed locked, all three original demo coordinates remained unchanged, and 10 Agent-mode results appeared. Screenshot is outside the repository at `/Users/dengziyi/.codex/visualizations/2026/10/23/01a168ff-e98b-77b1-823d-994829e56b2a/perk-desk-repair-check.png`. Retry and stale-request failure races were verified offline, not by inducing a real provider outage. Development server stopped afterward.
+- Cache recovery: no key rename, Redis access, flush, or resource provisioning. Old run envelopes, bare density numbers (zero or positive), and unmarked Qloo slim values are rejected as misses. Healthy lookups overwrite the same keys with validated metadata; failures leave existing entries alone and uncached, so the next request can recover. This intentionally refreshes old healthy entries too, costing a first live request and normal rate-limit checks. Existing plan cache values and rate-limit keys are unchanged; historical density hints inside an old plan expire normally, and new research does not use them as completeness evidence. Shared-store migration was tested through the same cache API using memory only, not a live Redis service.
+- Open issues / decisions: all seven findings have local regression evidence. Independent recheck remains for the coordinator after the stable commit. T1's shadcn registry gap and T10's native spreadsheet-opening gap remain PARTIAL. Prompt tuning was not changed or rerun; T11 still has one tuning round used. Fallback's ambiguous REI highest-popularity choice remains an existing documented relevance limit. Architecture/cache-shape discrepancies are recorded under Decisions I made above.
+- New dependencies: none. No remote repository/deployment/resource action. The pre-existing `.env.example` deletion remains excluded. Read-only helper reviews finished; the root agent made every repair edit.
+- For Devin: the existing Waiting for Devin list remains applicable; no additional infrastructure action is needed to recover legacy caches.

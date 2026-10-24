@@ -13,7 +13,7 @@ import { RunRequestSchema, RunResultSchema, TraceEventSchema, type RunRequest, t
 
 export const maxDuration = 300;
 
-const CachedRunSchema = z.object({ events: z.array(TraceEventSchema) });
+const CachedRunSchema = z.object({ complete: z.literal(true), events: z.array(TraceEventSchema) });
 
 async function validateRequest(request: Request): Promise<RunRequest | Response> {
   let body: unknown;
@@ -55,9 +55,11 @@ async function runWork(request: Request, input: RunRequest, emit: Emit): Promise
   if (!hasQlooKey()) throw createQlooError("config", null, "Server is missing its Qloo key.");
   const events: TraceEvent[] = [];
   const collect = createEmitter((event) => { events.push(event); emit(event); });
-  const result = RunResultSchema.parse(await runResearch(input, collect, {}));
+  let complete = false;
+  const result = RunResultSchema.parse(await runResearch(input, collect, { onCacheable: (value) => { complete = value; } }));
   collect({ type: "result", at: 0, result });
-  await setJson(key, { events }, RESULT_TTL_S);
+  // Old envelopes lack completeness evidence and are replaced after a healthy rerun at the same key.
+  if (complete) await setJson(key, { complete: true, events }, RESULT_TTL_S);
 }
 
 export async function POST(request: Request): Promise<Response> {

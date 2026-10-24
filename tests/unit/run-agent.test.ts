@@ -167,3 +167,10 @@ describe("research model and completion", () => {
     expect(writePitches).not.toHaveBeenCalled();
   });
 });
+
+// Direct callers receive the same coordinate protection as the HTTP boundary.
+it.each([{ lat: 400 }, { lon: 1000 }])("rejects invalid direct research coordinates", async (point) => {
+  const emit = vi.fn();
+  await expect(runResearch({ ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_RUN_REQUEST.branches[0], ...point }] }, emit)).rejects.toThrow();
+  expect(findPlaces).not.toHaveBeenCalled(); expect(emit).not.toHaveBeenCalled();
+});

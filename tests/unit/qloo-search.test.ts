@@ -75,7 +75,7 @@ describe("brand searches", () => {
     const stored = await getJson(cacheKey("qloo", {
       path: "/search", params: { query: "Fake Outdoor Co", types: "urn:entity:brand", take: BRAND_SEARCH_TAKE },
     }));
-    expect(stored).toEqual(results);
+    expect(stored).toEqual({ validated: true, value: results });
     expect(JSON.stringify(stored)).not.toContain("target_age_group");
     expect(JSON.stringify(stored)).not.toContain("tag_id");
   });

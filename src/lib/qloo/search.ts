@@ -23,7 +23,7 @@ const RawBrandSchema = z.object({
   properties: z.object({ short_description: z.string().catch("") }).catch({ short_description: "" }),
   tags: z.array(z.unknown()).catch([]),
 });
-const RawSearchSchema = z.object({ results: z.array(z.unknown()).catch([]) });
+const RawSearchSchema = z.object({ success: z.literal(true).optional(), results: z.array(z.unknown()) });
 
 function tagPriority(tag: TagRef): number {
   const priority = TAG_TYPE_PRIORITY.indexOf(tag.type);
@@ -61,9 +61,8 @@ function slimBrand(raw: unknown): BrandCandidate | null {
 }
 
 function slimBrands(raw: unknown): BrandCandidate[] {
-  const parsed = RawSearchSchema.safeParse(raw);
-  if (!parsed.success) return [];
-  return parsed.data.results.map(slimBrand).filter((brand) => brand !== null);
+  const response = RawSearchSchema.parse(raw);
+  return response.results.map(slimBrand).filter((brand) => brand !== null);
 }
 
 async function searchWithTake(name: string, take: number, options: QlooCallOptions): Promise<BrandCandidate[]> {

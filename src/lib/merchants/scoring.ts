@@ -16,10 +16,10 @@ function indexPlaces(places: Place[]): Map<string, RankedPlace> {
 }
 
 export function mergeSeededAndBaseline(
-  seeded: Place[], baseline: Place[], branch: LocatedBranch, category: CategoryTag,
+  seeded: Place[], baseline: Place[] | null, branch: LocatedBranch, category: CategoryTag,
 ): MerchantCandidate[] {
   const seededPlaces = indexPlaces(seeded);
-  const baselinePlaces = indexPlaces(baseline);
+  const baselinePlaces = indexPlaces(baseline ?? []);
   const entityIds = new Set([...seededPlaces.keys(), ...baselinePlaces.keys()]);
   return Array.from(entityIds, (entityId) => {
     const seededPlace = seededPlaces.get(entityId);
@@ -30,8 +30,9 @@ export function mergeSeededAndBaseline(
     return {
       place, categoryTagId: category.tagId, categoryLabel: category.label,
       branchId: branch.id, branchName: branch.name, radiusMeters: branch.radiusMeters,
-      distanceMeters: haversineMeters(branch, place), seededRank, baselineRank, baselineLength: baseline.length,
-      rankLift: seededRank === null ? null : (baselineRank ?? baseline.length + 1) - seededRank,
+      distanceMeters: haversineMeters(branch, place), seededRank, baselineRank, baselineLength: baseline?.length ?? 0,
+      // A failed baseline is unavailable evidence, not a successful empty ranking.
+      rankLift: seededRank === null || baseline === null ? null : (baselineRank ?? baseline.length + 1) - seededRank,
       affinity: seededPlace?.place.affinity ?? null, explain: seededPlace?.place.explain ?? [],
       tasteSignal: seededRank !== null, multiLocation: false, businessMember: false, score: 0, brandShares: [],
     };

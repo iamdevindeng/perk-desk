@@ -12,7 +12,7 @@ export type BrandResolution = {
   chosen?: BrandCandidate; matchKind?: ResolvedBrand["matchKind"]; candidates: BrandCandidate[];
 };
 export type CategoryOutcome = {
-  tagId: string; label: string; candidates: MerchantCandidate[]; independentCount: number;
+  tagId: string; label: string; candidates: MerchantCandidate[]; independentCount: number; complete: boolean;
 };
 export type PlanContext = {
   request: PlanRequest; emit: (event: TraceEvent) => void;
@@ -25,7 +25,7 @@ export type RunContext = {
   request: RunRequest; emit: (event: TraceEvent) => void;
   results: Map<string, CategoryOutcome>; replacements: Map<string, string>;
   candidateCategories: Map<string, string>; knownDensities: Map<string, number>;
-  pendingCategories: Set<string>; finished: boolean; qlooCalls: number;
+  pendingCategories: Set<string>; finished: boolean; qlooCalls: number; successfulLookups: number; cacheable: boolean;
   excludedCounts: RunResult["excludedCounts"]; warnings: string[]; fatalError: QlooError | null;
 };
 
@@ -50,7 +50,7 @@ export function createRunContext(request: RunRequest, emit: (event: TraceEvent) 
   }
   return {
     request, emit: timedEmitter(emit), results: new Map(), replacements: new Map(), candidateCategories,
-    knownDensities: new Map(), pendingCategories: new Set(), finished: false, qlooCalls: 0,
+    knownDensities: new Map(), pendingCategories: new Set(), finished: false, qlooCalls: 0, successfulLookups: 0, cacheable: true,
     excludedCounts: { nationalChain: 0, noiseGenre: 0, closed: 0, signedOrExcluded: 0 }, warnings: [], fatalError: null,
   };
 }
@@ -68,6 +68,7 @@ export function handleToolError(context: PlanContext | RunContext, error: unknow
     context.fatalError = error;
     throw error;
   }
+  if ("cacheable" in context) context.cacheable = false;
   const message = "This lookup failed; try another category or continue with available results.";
   context.warnings.push(message);
   return { error: message };

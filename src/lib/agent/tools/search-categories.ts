@@ -10,7 +10,8 @@ import { getJson } from "@/lib/store/cache";
 import type { CategoryTag } from "@/lib/types";
 
 const SearchCategoriesInputSchema = z.object({ query: z.string().trim().min(1).max(80) });
-const DensitySchema = z.number().int().nonnegative();
+// Legacy bare counts may describe an outage; require evidence of a complete lookup.
+const DensitySchema = z.object({ count: z.number().int().nonnegative(), complete: z.literal(true) });
 type SearchCategoriesInput = z.infer<typeof SearchCategoriesInputSchema>;
 export type CategorySearchResult = CategoryTag & { knownIndependents?: number; usableInDemoCities: boolean };
 type SearchCategoriesOutput = CategorySearchResult[] | { error: string };
@@ -19,7 +20,7 @@ async function categoryWithDensity(category: CategoryTag, context: PlanContext |
   const key = `pd:v1:density:${citySlug(context.request.city)}:${category.tagId}`;
   const density = DensitySchema.safeParse(await getJson(key));
   context.candidateCategories.set(category.tagId, category.label);
-  if (density.success) context.knownDensities.set(category.tagId, density.data);
+  if (density.success) context.knownDensities.set(category.tagId, density.data.count);
   return {
     ...category, knownIndependents: context.knownDensities.get(category.tagId),
     usableInDemoCities: getCategoryDefaults().categories.some((known) => known.tagId === category.tagId),
