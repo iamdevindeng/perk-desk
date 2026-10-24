@@ -1,8 +1,13 @@
-// Detects national chains and marks separate locations sharing a normalized merchant name.
+// Detects national chains, team stores, and separate locations sharing a normalized merchant name.
 // Called by: merchant filtering, research shortlists, and chains unit tests.
 import { getNationalChainNames } from "@/lib/data";
 import { normalizeName } from "@/lib/merchants/name-match";
 import type { MerchantCandidate } from "@/lib/types";
+
+export function isTeamStore(name: string): boolean {
+  // Team/stadium retail can arrive as sporting goods instead of a noise genre (QLOO_API.md §4.4).
+  return /\b(?:stadium|team) stores?\b/.test(normalizeName(name));
+}
 
 export function isNationalChain(name: string): boolean {
   const normalized = normalizeName(name);

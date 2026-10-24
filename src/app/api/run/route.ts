@@ -5,6 +5,7 @@ import { runResearch } from "@/lib/agent/run-agent";
 import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_REPLAY_DELAY_MS } from "@/lib/config";
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
+import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { createQlooError } from "@/lib/qloo/client";
 import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { getJson, setJson } from "@/lib/store/cache";
@@ -43,6 +44,9 @@ async function cachedEvents(key: string): Promise<TraceEvent[] | null> {
   // Corrupt, incomplete, or error traces must not become successful cached replays.
   if (events.at(-1)?.type !== "result" || events.filter((event) => event.type === "result").length !== 1) return null;
   if (events.some((event) => ["error", "limited", "done"].includes(event.type))) return null;
+  const result = events.find((event) => event.type === "result")?.result;
+  // A cached shortlist must obey today's name exclusions too, without flushing unrelated runs.
+  if (result?.merchants.some(({ place }) => isNationalChain(place.name) || isTeamStore(place.name))) return null;
   return events;
 }
 

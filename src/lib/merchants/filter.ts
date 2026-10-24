@@ -2,7 +2,7 @@
 // Called by: merchant research tools, fallback research, and filter unit tests.
 import { RADIUS_SLACK } from "@/lib/config";
 import { getBlacklist } from "@/lib/data";
-import { isNationalChain } from "@/lib/merchants/chains";
+import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { nameMatches } from "@/lib/merchants/name-match";
 import type { MerchantCandidate, RunResult } from "@/lib/types";
 
@@ -16,6 +16,7 @@ function exclusionReason(candidate: MerchantCandidate, rules: FilterRules): keyo
   // Keep the full remainder: nested genres are not merely their final segment.
   const genre = place.primaryGenreId?.replace(/^urn:tag:genre:place:/, "");
   if (genre && getBlacklist().noisePrimaryGenres.includes(genre)) return "noiseGenre";
+  if (isTeamStore(place.name)) return "noiseGenre";
   if (rules.excludeEntityIds.includes(place.entityId) || nameMatches(place.name, rules.signedNames)) {
     return "signedOrExcluded";
   }

@@ -546,3 +546,17 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: the evidence union is the explicit R6 extension to architecture shapes. Existing generated plans need refresh because old evidence has no kind; route regression confirms replacement at the unchanged key. The model cannot bypass observed-tag checks by claiming default provenance.
 - New dependencies: none.
 - For Devin: no new action.
+
+### R7: Exclude Rack Attack and team/stadium stores — DONE
+- Date/time (UTC+8): 2026-10-24 18:10
+- What was done:
+  - Added Rack Attack to the hand-written national-chain names.
+  - Excluded normalized stadium/team store phrases even when Qloo labels them sporting goods.
+  - Tested both reported names, punctuation/case handling, word boundaries, retained local names, and exclusion counts.
+- Files touched: `src/data/national-chains.json`, `src/lib/merchants/filter.ts`, `tests/unit/{chains,filter}.test.ts`, `docs/PROGRESS.md`.
+- How to verify: `npm run lint && npm run typecheck && npm test && npm run build && npm run check:rules`.
+- Verification: PASS: 504 tests / 46 files, lint, typecheck, production build, rules (146 files), diff whitespace.
+- Open issues / decisions: team/stadium stores count as existing noise exclusions, not national chains; no new reporting field or category tag ID is introduced. R9's final two-preset smoke will recheck the full result after all fixes.
+- New dependencies: none.
+- For Devin: no new action.
+- R7 follow-up before R8 commit: independent review found that old complete run envelopes could replay newly excluded names. Extracted `isTeamStore` into the existing chain helper and reject cached shortlists containing a national-chain/team-store name as misses. Three route regressions verify recomputation and replacement at unchanged keys. Additional files: `src/lib/merchants/chains.ts`, `src/app/api/run/route.ts`, `tests/unit/run-route.test.ts`. Full checks pass with this follow-up (513 tests including the pending R8 cases). The still-local R7 commit is amended to keep one commit for this task; no published history is rewritten.

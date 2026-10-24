@@ -18,6 +18,12 @@ describe("isNationalChain", () => {
     expect(isNationalChain("Ben and Jerry's Fake Branch")).toBe(true);
     expect(isNationalChain("Baskin Robbins Fake Branch")).toBe(true);
   });
+
+  it("excludes Rack Attack branches at word boundaries", () => {
+    expect(isNationalChain("Rack Attack Denver")).toBe(true);
+    expect(isNationalChain("Rack-Attack")).toBe(true);
+    expect(isNationalChain("Fake Rack Attacker Shop")).toBe(false);
+  });
 });
 
 describe("markDuplicateNames", () => {

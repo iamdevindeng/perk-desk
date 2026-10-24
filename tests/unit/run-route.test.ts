@@ -135,6 +135,16 @@ describe("run cache and limits", () => {
     await traceFor(); expect(runResearch).toHaveBeenCalledOnce();
   });
 
+  it.each(["Rack Attack Denver", "Denver Broncos Stadium Store", "Fake Owls Team Store"])("refreshes cached runs containing excluded merchant %s", async (name) => {
+    const merchant = FAKE_RUN_RESULT.merchants[0];
+    const result = { ...FAKE_RUN_RESULT, merchants: [{ ...merchant, place: { ...merchant.place, name } }] };
+    vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 0, result }] });
+    const trace = await traceFor();
+    expect(runResearch).toHaveBeenCalledOnce();
+    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S);
+    expect(trace.find((event) => event.type === "result")?.result.merchants[0].place.name).toBe(merchant.place.name);
+  });
+
   it("returns limited and done with HTTP 200 when a limit blocks", async () => {
     vi.mocked(checkLimit).mockResolvedValue({ ok: false, reason: "ip" });
     const response = await POST(request());

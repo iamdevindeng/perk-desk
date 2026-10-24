@@ -32,6 +32,14 @@ describe("filterPlaces", () => {
     expect(result.excludedCounts).toEqual({ nationalChain: 0, noiseGenre: 0, closed: 0, signedOrExcluded: 0 });
   });
 
+  it("excludes Rack Attack and stadium/team stores while retaining ordinary local stores", () => {
+    const names = ["Rack Attack Denver", "Denver Broncos Stadium Store", "Fake Owls TEAM-STORE", "Fake Stadium Coffee", "Fake Steam Store"];
+    const candidates = names.map((name, index) => makeFakeCandidate(index + 1, { place: makeFakePlace(index + 1, { name }) }));
+    const result = filterPlaces(candidates, EMPTY_RULES);
+    expect(result.kept.map((candidate) => candidate.place.name)).toEqual(names.slice(3));
+    expect(result.excludedCounts).toEqual({ nationalChain: 1, noiseGenre: 2, closed: 0, signedOrExcluded: 0 });
+  });
+
   it("compares the full genre remainder rather than only its last segment", () => {
     const candidate = makeFakeCandidate(1, {
       place: makeFakePlace(1, { primaryGenreId: "urn:tag:genre:place:restaurant:shopping_mall" }),
