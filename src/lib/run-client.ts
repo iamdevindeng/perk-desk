@@ -1,9 +1,24 @@
 // Sends validated planning/research requests and reads JSON or streamed trace responses.
 // Called by: the page and client-request unit tests
 import { z } from "zod";
-import { ErrorCodeSchema, PlanRequestSchema, PlanResponseSchema, RunRequestSchema, TraceEventSchema, type PlanRequest, type PlanResponse, type RunRequest, type TraceEvent } from "@/lib/types";
+import { ErrorCodeSchema, PlanRequestSchema, PlanResponseSchema, RunRequestSchema, TraceEventSchema, type ErrorCode, type PlanRequest, type PlanResponse, type RunRequest, type TraceEvent } from "@/lib/types";
 
 const ErrorResponseSchema = z.object({ error: ErrorCodeSchema, message: z.string().optional() });
+export type RunRequestError = Error & { status: number; code: ErrorCode };
+
+export function isRunRequestError(value: unknown): value is RunRequestError {
+  return value instanceof Error && "status" in value && typeof value.status === "number" &&
+    Number.isInteger(value.status) && value.status >= 400 && value.status <= 599 &&
+    "code" in value && ErrorCodeSchema.safeParse(value.code).success;
+}
+
+function runRequestError(status: number, body: unknown, fallbackMessage: string): RunRequestError {
+  const parsed = ErrorResponseSchema.safeParse(body);
+  const code = status === 503 ? "config" : status === 400 ? "bad_request" : status === 429 ? "quota"
+    : parsed.success ? parsed.data.error : "internal";
+  const message = parsed.success ? parsed.data.message?.trim() || fallbackMessage : fallbackMessage;
+  return Object.assign(new Error(message), { status, code });
+}
 
 async function planResponse(request: PlanRequest): Promise<Response> {
   try {
@@ -64,9 +79,8 @@ async function researchResponse(request: RunRequest): Promise<Response> {
   if (response.ok) return response;
   let body: unknown;
   try { body = await response.json(); }
-  catch { throw new Error("Research could not start. Please check your profile and try again."); }
-  const parsed = ErrorResponseSchema.safeParse(body);
-  throw new Error(parsed.success && parsed.data.message ? parsed.data.message : "Check your profile and confirmed categories, then try again.");
+  catch { throw runRequestError(response.status, null, "Research could not start. Please check your profile and try again."); }
+  throw runRequestError(response.status, body, "Check your profile and confirmed categories, then try again.");
 }
 
 async function readResearchStream(response: Response, onEvent: (event: TraceEvent) => void): Promise<void> {

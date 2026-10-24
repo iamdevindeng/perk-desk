@@ -23,9 +23,10 @@ vi.mock("@/lib/profile-storage", async () => {
   const { FAKE_PROFILE } = await import("../fixtures/fake-plan");
   return { loadProfile: () => structuredClone(FAKE_PROFILE), saveProfile: vi.fn() };
 });
-vi.mock("@/lib/run-client", async () => {
+vi.mock("@/lib/run-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/run-client")>();
   const fake = await import("../fixtures/page-harness");
-  return { postPlan: fake.fakePlan, streamRun: fake.fakeRun };
+  return { ...actual, postPlan: fake.fakePlan, streamRun: fake.fakeRun };
 });
 
 type TestElement = ReactElement<Record<string, unknown>>;

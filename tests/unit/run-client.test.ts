@@ -1,7 +1,7 @@
 // Verifies chunked UTF-8 research streams, terminal ordering, and safe transport failures.
 // Called by: npm test with mocked fetch and in-memory streams
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { streamRun } from "@/lib/run-client";
+import { isRunRequestError, streamRun } from "@/lib/run-client";
 import type { TraceEvent } from "@/lib/types";
 import { FAKE_RUN_REQUEST, FAKE_RUN_RESULT } from "../fixtures/fake-plan";
 
@@ -106,5 +106,31 @@ describe("research request failures", () => {
     fetchMock.mockClear();
     await expect(streamRun({ ...FAKE_RUN_REQUEST, categories: [] }, () => undefined)).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { status: 503, code: "config" }, { status: 400, code: "bad_request" }, { status: 429, code: "quota" },
+  ])("preserves HTTP $status and maps its code before a body-supplied code", async ({ status, code }) => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: "internal", message: "Please try this research later." }, { status }));
+    let caught: unknown;
+    try { await streamRun(FAKE_RUN_REQUEST, () => undefined); }
+    catch (error) { caught = error; }
+    expect(isRunRequestError(caught)).toBe(true);
+    expect(caught).toMatchObject({ status, code, message: "Please try this research later." });
+  });
+
+  it("keeps status and a safe fallback when the HTTP error body is unreadable", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("private HTML service detail", { status: 503 }));
+    let caught: unknown;
+    try { await streamRun(FAKE_RUN_REQUEST, () => undefined); }
+    catch (error) { caught = error; }
+    expect(isRunRequestError(caught)).toBe(true);
+    expect(caught).toMatchObject({ status: 503, code: "config" });
+    expect(String(caught)).not.toContain("private HTML service detail");
+  });
+
+  it("does not mistake untyped transport errors or plain objects for HTTP errors", () => {
+    expect(isRunRequestError(new Error("Fake transport error"))).toBe(false);
+    expect(isRunRequestError({ status: 503, code: "config", message: "Fake response" })).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ import { dedupeMerchants } from "@/lib/merchants/dedupe";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences } from "@/lib/request-builders";
-import { postPlan, streamRun } from "@/lib/run-client";
+import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
 import { ProfileSchema, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
@@ -119,7 +119,8 @@ function useResearch(input: ResearchInputs) {
       if (requestVersion !== versionRef.current) return;
       input.navigation.cancel();
       const message = requestError(error);
-      setRunEvents((previous) => [...previous, { type: "error", at: 0, code: "internal", message }]);
+      const serverError = isRunRequestError(error) ? error : null;
+      setRunEvents((previous) => [...previous, { type: "error", at: 0, code: serverError?.code ?? "internal", message: serverError?.message ?? "Something went wrong." }]);
       input.setErrorMessage(message); setResult(null); succeeded = false;
     }
     if (requestVersion !== versionRef.current) return;

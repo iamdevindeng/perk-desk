@@ -1145,3 +1145,32 @@ Verification: all checks passed; 989 offline tests / 68 files. No live calls. Na
 Decisions I made: use the shared rating precision constant, including a trailing .0 for whole-number ratings. Synthetic full phone values are constructed at test runtime, retaining the strict privacy scanner.
 
 Open issues: none for the requested automated checks.
+
+## R22 — Preserve safe server errors in the trace (2026-10-24)
+
+Status: DONE
+
+- Added typed plain HTTP errors with status, validated message, and the requested 400/429/503 code mapping.
+- Passed those errors into the page trace and rendered supplied messages before static fallbacks.
+- Kept network, malformed-response, and unknown failures free of private exception details.
+- Tested the real fetch-to-client-to-page-to-trace path, including fallback messages and existing page races.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                   |  5 ++-
+ src/components/AgentTrace.tsx      |  2 +-
+ src/lib/run-client.ts              | 22 +++++++--
+ tests/unit/page-errors.test.ts     | 92 ++++++++++++++++++++++++++++++++++++++
+ tests/unit/page-navigation.test.ts |  5 ++-
+ tests/unit/page-races.test.ts      |  5 ++-
+ tests/unit/run-client.test.ts      | 28 +++++++++++-
+ 7 files changed, 147 insertions(+), 12 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1000 offline tests / 69 files. One first-pass privacy fixture test timed out while the build ran concurrently; the complete lint/typecheck/test sequence passed on retry without code or timeout changes. No live provider calls.
+
+Decisions I made: trust only the existing structured server error envelope; malformed HTTP bodies and transport errors use static safe text. Independent review found no blocking issues.
+
+Open issues: none.

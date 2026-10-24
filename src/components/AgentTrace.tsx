@@ -84,7 +84,7 @@ export default function AgentTrace({ events, onRetry, disabled = false }: AgentT
         {limited.message}
       </p>}
       {error?.type === "error" && <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4">
-        <p className="text-sm text-red-800">{ERROR_MESSAGES[error.code]}</p>
+        <p className="text-sm text-red-800">{error.message?.trim() || ERROR_MESSAGES[error.code]}</p>
         <Button onClick={onRetry} disabled={disabled} variant="outline">Retry</Button>
       </div>}
     </CardContent>
