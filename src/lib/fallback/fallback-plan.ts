@@ -1,8 +1,8 @@
 // Builds guarded fallback categories from resolved brands, observed tags, and saved preferences.
-// Called by: plan-agent when the model is unavailable or its submitted plan needs backfill.
+// Called by: plan-agent during brand finalization and fallback completion, and fallback unit tests.
 import { FALLBACK_MAX_CATEGORIES } from "@/lib/config";
 import { getCategoryLabel } from "@/lib/data";
-import { checkCategoryCandidate, checkEvidence } from "@/lib/agent/guards";
+import { checkCategoryCandidate, checkEvidence, compactCategoryEvidence } from "@/lib/agent/guards";
 import type { PlanContext } from "@/lib/agent/context";
 import { resolveBrandNames } from "@/lib/agent/tools/resolve-brands";
 import { searchCategoriesForContext } from "@/lib/agent/tools/search-categories";
@@ -30,13 +30,12 @@ export function selectFallbackBrand(inputName: string, candidates: BrandCandidat
     .sort((first, second) => second.level - first.level || second.candidate.popularity - first.candidate.popularity)[0]?.candidate;
 }
 
-export function chooseFallbackBrands(context: PlanContext): BrandCandidate[] {
-  const preservedIds = new Set(context.plan?.flatMap((category) =>
-    category.evidence.flatMap((item) => "brandEntityId" in item ? [item.brandEntityId] : [])) ?? []);
+export function chooseFallbackBrands(context: PlanContext, preserveResolved = false): BrandCandidate[] {
   const brands: BrandCandidate[] = [];
   for (const resolution of context.brandsByInput.values()) {
-    const preserve = resolution.chosen && (resolution.matchKind === "user" ||
-      (resolution.matchKind === "agent" && preservedIds.has(resolution.chosen.entityId)));
+    // Explicit choices do not depend on which brands survive the category evidence cap.
+    const preserve = resolution.chosen && (resolution.matchKind === "user" || resolution.matchKind === "agent" ||
+      (preserveResolved && (resolution.matchKind === "exact" || resolution.matchKind === "prefix")));
     if (!preserve) {
       const chosen = selectFallbackBrand(resolution.inputName, resolution.candidates);
       if (chosen !== resolution.chosen) resolution.matchKind = "fallback";
@@ -62,8 +61,12 @@ function applyPreferences(context: PlanContext, mapped: PlannedCategory[]): Plan
   const categories = new Map<string, PlannedCategory>();
   // Added preferences lead; a removed category wins if both lists contain the same ID.
   for (const category of [...preferenceCategories(context), ...mapped]) {
-    if (context.request.preferences.removed.includes(category.tagId) || categories.has(category.tagId)) continue;
-    categories.set(category.tagId, category);
+    if (context.request.preferences.removed.includes(category.tagId)) continue;
+    const existing = categories.get(category.tagId);
+    // Keep preference ordering without hiding stronger observed brand evidence.
+    categories.set(category.tagId, existing ? { ...existing,
+      evidence: compactCategoryEvidence([...existing.evidence, ...category.evidence]),
+    } : category);
   }
   return [...categories.values()];
 }
@@ -84,9 +87,9 @@ function guardedCategory(category: PlannedCategory, context: PlanContext, chosen
     evidence, knownIndependents: context.knownDensities.get(category.tagId) };
 }
 
-export async function buildFallbackPlan(context: PlanContext): Promise<PlannedCategory[]> {
+export async function buildFallbackPlan(context: PlanContext, preserveResolved = false): Promise<PlannedCategory[]> {
   await resolveBrandNames(context.request.brandNames, context);
-  const brands = chooseFallbackBrands(context);
+  const brands = chooseFallbackBrands(context, preserveResolved);
   if (!brands.length) {
     context.warnings.push("No requested brands could be resolved for fallback planning.");
     return [];

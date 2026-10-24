@@ -23,11 +23,11 @@ Optional extras: X1 list uploads are DONE in `c12eab3`; X2 business-member match
 
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
-Latest automated verification after R1–R9: 513 offline tests across 46 files, lint, typecheck, production build, and repository rules all pass. Live agent/fallback smoke evidence is recorded under T12; the category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
+Latest automated verification after the R1–R9 second review: 524 offline tests across 48 files, lint, typecheck, production build, and repository rules all pass. Fresh Denver/Austin agent and fallback smoke checks also pass; see the second-review entry below. The category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
 
 Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback uses name matching and asks for a user choice when names do not match; cache/rate state without Upstash is per process; locations and live category coverage may vary. The requested pull completed; no push or deployment was performed during R1–R9. R3 restored `.env.example` exactly from the original docs commit.
 
-Post-review repair verification (2026-10-24): all seven reported findings are fixed locally; 467 offline tests across 44 files, lint, production build, repository rules (142 files), and typecheck pass. Fresh agent/fallback smoke and the Confirm/map browser check pass. See the final review-repair entry for exact evidence and cache recovery. T1 and T10 remain PARTIAL.
+Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were fixed locally; 467 offline tests across 44 files, lint, production build, repository rules (142 files), and typecheck passed. Agent/fallback smoke and the Confirm/map browser check passed. See that review-repair entry for its evidence and cache recovery. T1 and T10 remain PARTIAL.
 
 ## Waiting for Devin
 
@@ -103,6 +103,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - R4: no tag hierarchy is available in CategoryEvidence, so specificity uses tag-name word count then character length, with stable ties. Sort stronger agent/rule evidence first, dedupe by brand/tag pair, and cap only after category frequency ranking. Native details/summary provides the requested keyboard-accessible expansion. R6 will replace legacy reason-prefix classification with explicit kinds.
 
 - R6: extend CategoryEvidence with a required discriminant: agent/rule carry real brand/tag fields; preference/default carry only kind and reason. Defaults can therefore be suggested for resolved brands with no permitted tags, while still passing the observed-category guard. Non-brand suggestions dedupe by kind/reason. Missing-kind cached plans are misses at the same keys; no cache flush or migration is needed.
+
+- R1–R9 second review: preserve explicit agent/user brand choices independently of which evidence survives the cap. Successful agent completion keeps its observed exact/prefix matches; failed/disabled planning still ranks implicit choices by name then popularity. Backfill reuses finalized choices so it cannot detach retained evidence. Merge saved-preference and observed rule evidence for the same category without changing preference order or removal precedence.
 
 ## Review guide
 
@@ -606,3 +608,27 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: R1's original WIP commit records its initial verification failure; R2 cleared that blocker and final R9 verification confirms R1 is DONE. T1/T10's earlier manual acceptance gaps remain historical owner items outside R1–R9. R9 does not embed its own hash, which would change that hash; the R1–R9 status table is independent of commit IDs.
 - New dependencies: none. No checker/ESLint protections were weakened. `.env.local` was never edited. Both local translation files remain intact and ignored.
 - For Devin: review the nine local commits; push/deploy remain owner actions and were not performed.
+
+### R1–R9 second review: Preserve confirmed brands and category evidence — DONE
+- Date/time (UTC+8): 2026-10-24 18:24
+- What was done:
+  - Re-reviewed all nine fixes, including translation/template preservation, request guards, cache replay, merchant exclusions, judge-code comparison, evidence display, and summary hashes.
+  - Fixed an R1 integration regression: finalization could discard explicit agent choices without retained category evidence, or replace a successful exact/prefix choice with a more popular candidate and discard its valid plan.
+  - Kept implicit unrelated candidates unresolved and removed their stale evidence; fallback backfill now preserves the already-finalized brand choices.
+  - Fixed an R4/R6 integration gap: a saved preference no longer hides genuine rule evidence for the same category. Merged evidence remains sorted, deduplicated, capped at five, and guarded.
+  - Added 11 offline regression cases and independently reviewed both repairs. No other actionable R1–R9 issue was found in this review.
+- Files touched: `src/lib/agent/plan-agent.ts`, `src/lib/fallback/fallback-plan.ts`, `tests/unit/fallback-preferences.test.ts`, `tests/unit/plan-brand-preservation.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test
+  NEXT_TELEMETRY_DISABLED=1 npm run build
+  npm run check:rules && git diff --check
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=1 npm run smoke
+  UPSTASH_REDIS_REST_URL='' UPSTASH_REDIS_REST_TOKEN='' PD_AGENT_DISABLED=0 npm run smoke
+  ```
+- Verification: PASS on the first full verification round: 524 tests / 48 files, lint, typecheck, production build, repository rules (148 files), and diff whitespace. Independent repair review also passed 69 targeted tests across seven files. No tests or checker protections were weakened.
+- Live fallback checks: both presets resolved all 8 intended brands with 0 unresolved and returned 10 merchants / 10 template pitches. Denver plan/research: 5,605 / 14,138 ms; Austin: 2,061 / 12,309 ms. Repeat plans: 11 / 13 ms. REI resolved to Recreational Equipment Inc; Denver omitted Rack Attack and the stadium store.
+- Live agent checks: both presets stayed in agent mode, resolved all 8 intended brands with 0 unresolved, and returned 10 merchants. Denver plan/research: 15,129 / 15,240 ms, with 9 agent pitches and 1 guarded template fallback. Austin: 11,120 / 17,588 ms, with 10 agent pitches. Repeat plans also completed. The SDK emitted its existing JSON-schema compatibility warning; both smoke commands exited 0.
+- Open issues / decisions: both smoke runs used only in-memory cache and wrote no provider response data to disk. Real browser interaction was not repeated because these repairs affect server planning; existing UI and request-flow tests passed. T1/T10 acceptance gaps remain outside R1–R9. The repairs use one additional local commit without rewriting the nine task commits.
+- New dependencies: none. `.env.local`, the restored template, and both ignored translations remain untouched.
+- For Devin: review the local repair commit; no push or deployment was performed.

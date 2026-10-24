@@ -110,13 +110,14 @@ async function tryAgent(context: PlanContext, options: PlanOptions): Promise<str
   }
 }
 
-async function completeBrandResolution(context: PlanContext): Promise<void> {
+async function completeBrandResolution(context: PlanContext, preserveResolved: boolean): Promise<void> {
   for (const name of context.request.brandNames) {
     if (context.brandsByInput.has(name)) continue;
     await resolveBrandNames([name], context);
   }
   if (context.fatalError) throw context.fatalError;
-  const chosenIds = new Set(chooseFallbackBrands(context).map((brand) => brand.entityId));
+  // Keep a successful agent plan's observed matches so popularity ties cannot detach its evidence.
+  const chosenIds = new Set(chooseFallbackBrands(context, preserveResolved).map((brand) => brand.entityId));
   // An implicit first-candidate choice must not survive through an earlier partial plan.
   if (context.plan) context.plan = context.plan.map((category) => ({ ...category,
     evidence: category.evidence.filter((item) => !("brandEntityId" in item) || chosenIds.has(item.brandEntityId)),
@@ -125,12 +126,13 @@ async function completeBrandResolution(context: PlanContext): Promise<void> {
 
 async function completePlan(context: PlanContext, reason: string | null): Promise<PlanResponse["mode"]> {
   if (context.fatalError) throw context.fatalError;
-  await completeBrandResolution(context);
+  await completeBrandResolution(context, reason === null);
   if (!reason && (context.plan?.length ?? 0) < PLAN_MIN_CATEGORIES) reason = "Too few categories have confirmed brand matches; completing the plan with rules.";
   if (!reason) return "agent";
   context.emit({ type: "fallback", at: 0, reason });
   context.warnings.push(reason);
-  const fallback = await buildFallbackPlan(context);
+  // Brand finalization already applied fallback ranking where needed; keep its choices during backfill.
+  const fallback = await buildFallbackPlan(context, true);
   if (context.fatalError) throw context.fatalError;
   const combined = new Map((context.plan ?? []).map((category) => [category.tagId, category]));
   for (const category of fallback) if (!combined.has(category.tagId)) combined.set(category.tagId, category);
