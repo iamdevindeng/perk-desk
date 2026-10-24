@@ -2,7 +2,9 @@
 // Called by: npm test
 import { describe, expect, it } from "vitest";
 import { buildPlanRequest, buildRunRequest, parseListText } from "@/lib/request-builders";
-import { RunRequestSchema } from "@/lib/types";
+import { getPresets } from "@/lib/data";
+import { cacheKey } from "@/lib/hash";
+import { ProfileSchema, RunRequestSchema } from "@/lib/types";
 import { FAKE_BRAND, FAKE_BRAND_ID, FAKE_CATEGORY_ID, FAKE_PLAN_RESPONSE, FAKE_PROFILE } from "../fixtures/fake-plan";
 
 const CATEGORIES = [{ tagId: FAKE_CATEGORY_ID, label: "Coffee shop" }];
@@ -95,5 +97,25 @@ describe("confirmed research requests", () => {
     const profile = { ...FAKE_PROFILE, branches: [{ ...FAKE_PROFILE.branches[0], address: "New address", lat: undefined, lon: undefined }] };
     expect(() => buildRunRequest(profile, FAKE_PLAN_RESPONSE, CATEGORIES)).toThrow();
     expect(() => buildRunRequest(FAKE_PROFILE, FAKE_PLAN_RESPONSE, Array(6).fill(CATEGORIES[0]))).toThrow();
+  });
+});
+
+
+it("preserves both preset run cache keys with the same fictional plan", () => {
+  const keys = getPresets().map((preset) => {
+    // Match preset selection's profile defaults; resolved brands/categories remain hand-written fakes.
+    const profile = ProfileSchema.parse({ ...preset.profile,
+      branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })),
+    });
+    const planRequest = buildPlanRequest(profile, preset.brandsText, preset.id);
+    const plan = { ...FAKE_PLAN_RESPONSE, branches: planRequest.branches };
+    const request = buildRunRequest(profile, plan, plan.categories, {}, preset.id);
+    expect(RunRequestSchema.parse(request)).toEqual(request);
+    return [preset.id, cacheKey("run", request)];
+  });
+  // Captured before R24 tightened validation; this is not a stored Qloo response or live demo key.
+  expect(Object.fromEntries(keys)).toEqual({
+    "denver-demo": "pd:v1:run:ddc5a61c3fb964f15b27946a8ed59da4aef8de1fe6346e41816802a022c1d867",
+    "austin-demo": "pd:v1:run:df0a7f795471a180f4028894c99525643bd135bf12db137ed386743b8cc21b92",
   });
 });

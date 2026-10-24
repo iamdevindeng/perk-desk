@@ -25,7 +25,7 @@ export const ProfileSchema = z.object({
 });
 
 export const TagRefSchema = z.object({ id: z.string(), name: z.string(), type: z.string() });
-export const CategoryTagSchema = z.object({ tagId: CategoryTagIdSchema, label: z.string() });
+export const CategoryTagSchema = z.object({ tagId: CategoryTagIdSchema, label: z.string().min(1).max(80) });
 export const BrandCandidateSchema = z.object({
   entityId: EntityIdSchema, name: z.string(), popularity: z.number(),
   shortDescription: z.string().default(""), tags: z.array(TagRefSchema),
@@ -62,13 +62,13 @@ export const PlanRequestSchema = z.object({
 });
 
 export const RunRequestSchema = z.object({
-  presetId: z.string().optional(), institutionName: z.string().min(1).max(100), city: z.string(),
+  presetId: z.string().optional(), institutionName: z.string().min(1).max(100), city: z.string().min(2).max(80),
   branches: z.array(BranchSchema.extend({ lat: BranchSchema.shape.lat.unwrap(), lon: BranchSchema.shape.lon.unwrap() })).min(1).max(5),
-  brands: z.array(z.object({ entityId: EntityIdSchema, name: z.string() })).min(1).max(10),
+  brands: z.array(z.object({ entityId: EntityIdSchema, name: z.string().min(1).max(120) })).min(1).max(10),
   categories: z.array(CategoryTagSchema).min(1).max(RUN_MAX_CATEGORIES),
   signedNames: z.array(z.string().max(120)).max(500).default([]),
   businessMemberNames: z.array(z.string().max(120)).max(500).default([]),
-  excludeEntityIds: z.array(z.string()).max(500).default([]),
+  excludeEntityIds: z.array(EntityIdSchema).max(500).default([]),
 });
 export const MerchantResultSchema = z.object({
   place: PlaceSchema, categoryTagId: CategoryTagIdSchema, categoryLabel: z.string(),

@@ -1197,3 +1197,28 @@ Verification: all checks passed; 1001 offline tests / 70 files. No live calls or
 Decisions I made: none beyond the specified headers. Cache requests and keys remain unchanged.
 
 Open issues: none.
+
+## R24 — Bound research request fields (2026-10-24)
+
+Status: DONE
+
+- Bounded city, resolved brand name, category label, and excluded entity IDs with the specified schemas.
+- Kept the existing HTTP 400 issue shape and verified rejection happens before cache, limits, or providers.
+- Tested exact minimum/maximum values and snapshotted both preset request hashes before changing validation.
+- Rebuilt both preset requests using the existing builders and fictional resolved plans; hashes and values remained unchanged.
+
+Files touched / staged list (before this log):
+```text
+ src/lib/types.ts                      |  8 +++---
+ tests/unit/request-builders.test.ts   | 24 +++++++++++++++-
+ tests/unit/run-request-bounds.test.ts | 53 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 5 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 1013 offline tests / 71 files. No live calls.
+
+Decisions I made: preset hash fixtures use real hand-written preset profiles and fake resolved brands/categories, never stored Qloo responses. No request defaults, preset data, or hashing logic changed.
+
+Open issues: none.
