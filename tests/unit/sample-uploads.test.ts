@@ -8,10 +8,10 @@ describe("downloadable upload samples", () => {
   it.each([
     { file: "brands-sample.csv", names: ["Patagonia", "REI", "Nike", "Adidas", "Lululemon", "Apple", "LEGO", "Nintendo"] },
     { file: "signed-merchants-sample.csv", names: [
-      "Fake Lantern Coffee", "Fake Willow Bakery", "Fake Books, Beans & More", "Fake Meadow Bikes", "Fake Pebble Pet Shop",
+      "Juniper Lantern Coffee", "Maple Kestrel Bakery", "Paper Finch Books, Beans & More", "Copper Comet Cycles", "Pebble Grove Pet Shop",
     ] },
     { file: "business-members-sample.csv", names: [
-      "Fake Cedar Design Studio", "Fake Harbor Printing", "Fake Maple Repair", "Fake Orchard Florist", "Fake Summit Accounting",
+      "Cedar Kite Design Studio", "Inkstone Harbor Printing", "Willow Gear Repair", "Orchard Wren Florist", "Summit Acorn Accounting",
     ] },
   ])("imports the expected names from $file", ({ file, names }) => {
     expect(parseUploadedList(readFileSync(`public/samples/${file}`, "utf8"))).toEqual(names);

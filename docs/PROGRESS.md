@@ -21,6 +21,8 @@ Codex appends one section per task (AGENTS.md §3). Never delete earlier entries
 
 Optional extras: X1 list uploads are DONE in `c12eab3`; X2 business-member matching and badges are DONE in `5a50d52`.
 
+R13–R15 update (2026-10-24): all three fixes pass. Final verification: 868 offline tests / 58 files, lint, typecheck, production build, and repository/privacy checks. Exact-name chains are excluded without blocking the specified independent names; fresh Denver/Austin fallback smoke checks each return 10 merchants with zero chain matches. Actual CI/Vercel clean installs create no hooks, local hooks retain every required check, and merchant sample names are plausible invented examples. Detailed evidence follows in the R13–R15 entries.
+
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
 Latest automated verification after R11: 634 offline tests across 52 files, lint, typecheck, production build, and repository rules all pass. R11 adds chain exclusions and smoke assertions, removes local machine paths, and checks every tracked text file for their recurrence. Both fallback presets pass the maintained exclusion predicates; the ambiguous Chico's name remains a documented limitation. R10 passed 555 offline tests across 51 files. R10 lowers daily budgets, requires shared rate limits for live Vercel production requests, and logs private usage counts. The R1–R9 second review passed 524 offline tests across 48 files plus fresh Denver/Austin agent and fallback smoke checks; see that entry below. The category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
@@ -896,3 +898,27 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
    4 files changed, 73 insertions(+), 39 deletions(-)
   ```
 - For Devin: no new action required; R15 follows before the authorized push.
+
+### R15: Use plausible invented merchant sample names — DONE
+- Date/time (UTC+8): 2026-10-24 19:35
+- What was done:
+  - Replaced all ten Fake-prefixed names in the merchant and business-member sample CSVs with hand-written invented business names.
+  - Preserved the real consumer brands in `brands-sample.csv` byte for byte, both list headers, and the five-name count in each business list.
+  - Kept exactly one quoted comma-containing name, `Paper Finch Books, Beans & More`, and updated the sample importer assertions.
+- Files touched: `public/samples/{signed-merchants,business-members}-sample.csv`, `tests/unit/sample-uploads.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules
+  npm test -- tests/unit/sample-uploads.test.ts
+  git diff --check
+  ```
+- Verification: PASS on the first round: 868 offline tests / 58 files, lint, typecheck, production build, repository/privacy checks (171 files), and whitespace checks. A separate sample audit confirmed no Fake prefixes, exactly one quoted comma name, and unchanged brand CSV bytes. Independent final review found no actionable issue across R13, R14, and R15.
+- Open issues / decisions: names were invented for the downloadable examples and contain no addresses, phones, or emails. Synthetic unit-test fixtures elsewhere remain unchanged. No new dependency or owner action is needed.
+- Staged change list before adding this progress entry (`git diff --cached --stat`):
+  ```text
+   public/samples/business-members-sample.csv | 10 +++++-----
+   public/samples/signed-merchants-sample.csv | 10 +++++-----
+   tests/unit/sample-uploads.test.ts          |  4 ++--
+   3 files changed, 12 insertions(+), 12 deletions(-)
+  ```
+- Publishing: the user's requested pull fast-forwarded to `147f300`. R13 and R14 are committed as `1ba5838` and `63980ab`; this R15 commit completes the ordered work. All three items passed before the authorized push, which will run the installed pre-push checks without bypasses.
