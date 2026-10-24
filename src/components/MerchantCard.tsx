@@ -98,7 +98,10 @@ export default function MerchantCard({ merchant, status, onStatusChange, selecte
     <CardHeader>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle>{merchant.place.name}</CardTitle>
-        {merchant.multiLocation && <Badge variant="outline">Multi-location brand</Badge>}
+        <div className="flex flex-wrap gap-2">
+          {merchant.multiLocation && <Badge variant="outline">Multi-location brand</Badge>}
+          {merchant.businessMember && <Badge variant="secondary">Already a business member</Badge>}
+        </div>
       </div>
       <p className="text-sm font-medium text-teal-800">{merchant.categoryLabel}</p>
       <p className="text-xs text-slate-500">{(merchant.distanceMeters / METERS_PER_KILOMETER).toFixed(DISTANCE_DECIMALS)} km from {merchant.branchName}</p>

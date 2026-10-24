@@ -1,5 +1,5 @@
 "use client";
-// Edits the institution, city, branches, and already-signed merchant list.
+// Edits the institution, city, branches, and signed/business-member merchant lists.
 // Called by: the main Perk Desk page; changes are persisted by the page.
 import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { UPLOAD_MAX_BYTES } from "@/lib/config";
@@ -16,6 +16,17 @@ import { Textarea } from "@/components/ui/textarea";
 type ProfileFormProps = {
   profile: Profile; onChange: (profile: Profile) => void;
   pickingBranchId?: string; onPickBranch: (id: string) => void; disabled?: boolean;
+};
+type MerchantListField = "signedMerchantsText" | "businessMembersText";
+const MERCHANT_LIST_LABELS = {
+  signedMerchantsText: {
+    id: "signed-merchants", label: "Already-signed merchants", upload: "Import signed merchants from CSV or text",
+    help: "We exclude matching merchants so you can focus on new partnerships.",
+  },
+  businessMembersText: {
+    id: "business-members", label: "Business members", upload: "Import business members from CSV or text",
+    help: "Matching merchants get an Already a business member badge. This list does not exclude merchants or change their rank.",
+  },
 };
 
 function CityField({ value, onChange }: { value: string; onChange: (city: string) => void }): ReactElement {
@@ -36,22 +47,23 @@ function CityField({ value, onChange }: { value: string; onChange: (city: string
   </div>;
 }
 
-function SignedMerchants({ profile, onChange, disabled }: {
-  profile: Profile; onChange: (profile: Profile) => void; disabled: boolean;
+function MerchantList({ profile, onChange, disabled, field }: {
+  profile: Profile; onChange: (profile: Profile) => void; disabled: boolean; field: MerchantListField;
 }): ReactElement {
+  const labels = MERCHANT_LIST_LABELS[field];
   const [reading, setReading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [upload, setUpload] = useState<{ profile: Profile; text: string; version: number } | null>(null);
   const readVersion = useRef(0);
   useEffect(() => {
     return () => { readVersion.current += 1; };
-  }, [profile, disabled]);
+  }, [profile, disabled, field]);
   useEffect(() => {
     // Apply against current committed props, so a late read cannot restore an older preset/profile.
     if (upload?.profile === profile && upload.version === readVersion.current && !disabled) {
-      onChange({ ...profile, signedMerchantsText: upload.text });
+      onChange({ ...profile, [field]: upload.text });
     }
-  }, [upload, profile, onChange, disabled]);
+  }, [upload, profile, onChange, disabled, field]);
   async function readFile(event: ChangeEvent<HTMLInputElement>): Promise<void> {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -74,17 +86,17 @@ function SignedMerchants({ profile, onChange, disabled }: {
   function editText(text: string): void {
     readVersion.current += 1;
     setErrorMessage("");
-    onChange({ ...profile, signedMerchantsText: text });
+    onChange({ ...profile, [field]: text });
   }
   return <div className="space-y-2 border-t border-slate-100 pt-6">
-    <Label htmlFor="signed-merchants">Already-signed merchants <span className="font-normal text-slate-500">(optional)</span></Label>
-    <Textarea id="signed-merchants" value={profile.signedMerchantsText} rows={4} placeholder="One shop name per line"
-      aria-describedby="signed-merchants-help" onChange={(event) => editText(event.target.value)} />
-    <p id="signed-merchants-help" className="text-xs leading-relaxed text-slate-500">We exclude matching merchants so you can focus on new partnerships.</p>
-    <Label htmlFor="signed-merchants-upload" className="block pt-2 text-xs">Import signed merchants from CSV or text</Label>
-    <Input id="signed-merchants-upload" type="file" accept=".csv,.txt" disabled={disabled || reading}
-      aria-describedby="signed-merchants-upload-help" onChange={(event) => { void readFile(event); }} />
-    <p id="signed-merchants-upload-help" className="text-xs leading-relaxed text-slate-500">CSV and text imports use the first column; quote names containing commas. Import replaces the text above so you can review and edit it. Maximum 1 MB.</p>
+    <Label htmlFor={labels.id}>{labels.label} <span className="font-normal text-slate-500">(optional)</span></Label>
+    <Textarea id={labels.id} value={profile[field]} rows={4} placeholder="One shop name per line"
+      aria-describedby={`${labels.id}-help`} onChange={(event) => editText(event.target.value)} />
+    <p id={`${labels.id}-help`} className="text-xs leading-relaxed text-slate-500">{labels.help}</p>
+    <Label htmlFor={`${labels.id}-upload`} className="block pt-2 text-xs">{labels.upload}</Label>
+    <Input id={`${labels.id}-upload`} type="file" accept=".csv,.txt" disabled={disabled || reading}
+      aria-describedby={`${labels.id}-upload-help`} onChange={(event) => { void readFile(event); }} />
+    <p id={`${labels.id}-upload-help`} className="text-xs leading-relaxed text-slate-500">CSV and text imports use the first column; quote names containing commas. Import replaces the text above so you can review and edit it. Maximum 1 MB.</p>
     {reading && <p role="status" className="text-xs text-slate-500">Reading file…</p>}
     {errorMessage && <p role="alert" className="text-sm text-red-800">{errorMessage}</p>}
   </div>;
@@ -108,7 +120,8 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
         </div>
         <BranchEditor branches={profile.branches} onChange={(branches) => onChange({ ...profile, branches })}
           pickingBranchId={pickingBranchId} onPickBranch={onPickBranch} disabled={disabled} />
-        <SignedMerchants profile={profile} onChange={onChange} disabled={disabled} />
+        <MerchantList profile={profile} onChange={onChange} disabled={disabled} field="signedMerchantsText" />
+        <MerchantList profile={profile} onChange={onChange} disabled={disabled} field="businessMembersText" />
       </fieldset>
     </CardContent>
   </Card>;

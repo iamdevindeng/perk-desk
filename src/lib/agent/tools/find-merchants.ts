@@ -7,6 +7,7 @@ import { contextQlooOptions, handleToolError, type CategoryOutcome, type RunCont
 import { citySlug } from "@/lib/hash";
 import { markDuplicateNames } from "@/lib/merchants/chains";
 import { filterPlaces } from "@/lib/merchants/filter";
+import { nameMatches } from "@/lib/merchants/name-match";
 import { assignNearestBranch, computeBrandShares, countIndependents, mergeSeededAndBaseline, scoreCandidates } from "@/lib/merchants/scoring";
 import { findPlaces } from "@/lib/qloo/insights";
 import { isQlooError } from "@/lib/qloo/client";
@@ -67,6 +68,8 @@ async function branchCandidates(branch: LocatedBranch, tagId: string, label: str
   context.excludedCounts.signedOrExcluded += filtered.excludedCounts.signedOrExcluded;
   return filtered.kept.map((candidate) => ({
     ...candidate, brandShares: computeBrandShares(candidate.explain, context.request.brands),
+    // Membership is a follow-up badge only; scoring and eligibility remain unchanged (ARCHITECTURE.md §6.2).
+    businessMember: nameMatches(candidate.place.name, context.request.businessMemberNames),
   }));
 }
 

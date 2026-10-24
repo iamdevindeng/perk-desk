@@ -115,7 +115,7 @@ export function buildRunRequest(
   return RunRequestSchema.parse({
     presetId, institutionName: profile.institutionName, city: profile.city,
     branches: resolvedBranches(profile, plan), brands: chosenBrands(plan, brandOverrides), categories: confirmedCategories,
-    signedNames: parseListText(profile.signedMerchantsText), businessMemberNames: [], excludeEntityIds,
+    signedNames: parseListText(profile.signedMerchantsText), businessMemberNames: parseListText(profile.businessMembersText), excludeEntityIds,
   });
 }
 

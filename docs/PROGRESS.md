@@ -19,9 +19,13 @@ Codex appends one section per task (AGENTS.md §3). Never delete earlier entries
 | T11 Eval | DONE | `2766908` | 15/15 hits after one prompt refinement |
 | T12 Smoke + summary | DONE | `2b10196` | Agent/fallback smoke and missing-key exit verified |
 
+Optional extras: X1 list uploads completed in `29ddfe8`; X2 business-member matching and badges are DONE in the final `X2:` commit.
+
 The local flow works from a saved profile through planning, explicit category confirmation, streamed research, evidence cards, map selection, CSV download, and saved follow-up exclusions. Live browser checks returned 10 merchants. The final category eval reached 15/15 hits with macro precision 0.536; this small development set does not establish general recommendation quality.
 
-Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback chooses the first candidate for ambiguous brands (REI selected Real Madrid CF in the forced-fallback smoke, requiring user correction); cache/rate state without Upstash is per process; locations and live category coverage may vary. No deployment or remote repository action was performed. The existing `.env.example` deletion remains outside every task commit.
+Final automated verification: 404 offline tests across 40 files, lint, production build, and repository rules all pass after X2. Live agent/fallback smoke evidence is recorded under T12; the category eval is under T11. The local dev server was stopped after browser checks; restart with `npm run dev`.
+
+Known limits: native wrappers replace unavailable shadcn-generated components; spreadsheet opening remains unverified after a capture failure; fallback chooses the highest-popularity candidate for ambiguous brands (REI selected Real Madrid CF in the forced-fallback smoke, requiring user correction); cache/rate state without Upstash is per process; locations and live category coverage may vary. No deployment or remote repository action was performed. The existing `.env.example` deletion remains outside every task commit.
 
 ## Waiting for Devin
 
@@ -81,6 +85,10 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - T12: Preserve the specified first-candidate fallback for ambiguous brands; document the observed REI ambiguity instead of adding an unrequested alias heuristic. The UI exposes candidate correction before research.
 
 - X1: Both CSV and text uploads interpret columns; comma-containing names must be quoted. Import replaces the visible editable list, skips a first name/merchant/brand header, and shares existing dedupe/list limits. Normalize embedded cell line breaks to spaces. Reject malformed/empty or oversized files without clearing existing text; cap uploads at 1 MiB.
+
+- Final review correction to T12 wording: `fallback-plan.ts` already sorts ambiguous candidates by popularity and selects the highest; it does not simply use Qloo response order. The observed REI mismatch and need for user correction are unchanged. Earlier T12 wording is retained as history.
+
+- X2: Apply business-member name matching after filtering/scoring so it changes only the badge field. Reuse the local list editor/upload control for signed and business-member lists. Existing CSV export automatically includes the membership flag.
 
 ## Review guide
 
@@ -379,3 +387,23 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 - Open issues / decisions: uploads use CSV syntax even for .txt; ordinary pasted text remains one name per line and retains unquoted commas. Business-member upload arrives with X2's new field.
 - New dependencies: none.
 - For Devin: no new owner-only action.
+
+### X2: Business-member matching and badges — DONE
+- Date/time (UTC+8): 2026-10-24 10:57
+- What was done:
+  - Added an optional saved business-member paste box with the same CSV/text import controls.
+  - Included parsed/deduplicated business-member names in research requests.
+  - Matched normalized merchant names after scoring/filtering and displayed the Already a business member badge.
+  - Verified unchanged scores, order, exclusions, independent counts, and coexistence with multi-location badges.
+- Files touched: `src/components/{ProfileForm,MerchantCard}.tsx`, `src/lib/request-builders.ts`, `src/lib/agent/tools/find-merchants.ts`, `tests/unit/{request-builders,business-members,merchant-card}.test.ts`, `docs/PROGRESS.md`.
+- How to verify:
+  ```bash
+  npm run lint && npm test && npm run build && npm run check:rules
+  npm run dev
+  ```
+  Add business-member names before planning; matching cards show a badge without a ranking boost.
+- Verification: PASS (404 tests, production build, lint, rules). One targeted test initially assumed incidental alphabetical ordering; it was corrected to compare membership by name while a separate test compares the complete ranking/order before and after matching. Final standard checks passed.
+- Live checks: imported handwritten fake names into the business-member field, reloaded, and verified persistence. Restored the Denver preset afterward. No API calls were made for this UI check; matching and rendered badge behavior were verified with offline fake fixtures. Local development server stopped after checks.
+- Open issues / decisions: business membership is a badge only and does not exclude merchants, change ranks, or become a pitch claim. Final review corrected T12's explanation of ambiguous fallback selection (highest popularity, as the existing code already implemented); earlier historical wording remains with an explicit correction above. Previously recorded T1/T10 gaps remain owner review items.
+- New dependencies: none.
+- For Devin: all owner-only actions and remaining manual checks are listed in Waiting for Devin.

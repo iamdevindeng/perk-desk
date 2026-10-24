@@ -38,6 +38,14 @@ describe("planning requests", () => {
 });
 
 describe("confirmed research requests", () => {
+  it("trims and deduplicates business-member names without changing the pasted text", () => {
+    const profile = { ...FAKE_PROFILE, businessMembersText: " Fake Coffee, LLC \r\nFAKE COFFEE, LLC\n\nFake Tea" };
+    const result = buildRunRequest(profile, FAKE_PLAN_RESPONSE, CATEGORIES);
+    expect(result.businessMemberNames).toEqual(["Fake Coffee, LLC", "Fake Tea"]);
+    expect(profile.businessMembersText).toBe(" Fake Coffee, LLC \r\nFAKE COFFEE, LLC\n\nFake Tea");
+    expect(result.signedNames).toEqual([]);
+  });
+
   it("excludes signed/not-a-fit IDs without changing the signed-merchants text", () => {
     const profile = { ...FAKE_PROFILE, signedMerchantsText: "Fake, LLC\nfake, llc", merchantStatus: {
       "00000000-0000-4000-8000-000000000002": { name: "Fake Signed", status: "signed" as const, updatedAt: "2026-10-23" },
