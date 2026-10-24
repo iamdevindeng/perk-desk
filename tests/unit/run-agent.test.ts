@@ -128,7 +128,7 @@ describe("research model and completion", () => {
     expect(result.mode).toBe("agent");
     expect(model.doGenerateCalls).toHaveLength(2);
     expect(result.merchants.find((card) => card.place.entityId === place.entityId)?.pitchSource).toBe("agent");
-    expect(writePitches).toHaveBeenCalledWith(expect.any(Array), FAKE_RUN_REQUEST.institutionName, { model });
+    expect(writePitches).toHaveBeenCalledWith(expect.any(Array), FAKE_RUN_REQUEST.institutionName, { model, signal: expect.any(AbortSignal) });
   });
 
   it("researches omitted confirmed categories even when the model finishes immediately", async () => {

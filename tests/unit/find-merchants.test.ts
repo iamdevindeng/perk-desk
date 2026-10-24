@@ -38,7 +38,7 @@ describe("merchant research", () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].branchId).toBe(FAKE_BRANCHES[0].id);
     expect(candidates[0].brandShares).toEqual([{ brandName: context.request.brands[0].name, sharePercent: 100 }]);
-    expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${COFFEE}`, { count: 1, complete: true }, DENSITY_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${COFFEE}`, { count: 1, complete: true }, DENSITY_TTL_S, expect.any(AbortSignal));
     await findMerchantsForCategory({ tagId: COFFEE }, context);
     expect(findPlaces).toHaveBeenCalledTimes(4);
   });
@@ -74,7 +74,7 @@ describe("merchant research", () => {
       expect(context.results.get(tagId)!.independentCount).toBe(0);
       expect(context.results.get(tagId)!.candidates[0].multiLocation).toBe(true);
       expect(context.knownDensities.get(tagId)).toBe(0);
-      expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${tagId}`, { count: 0, complete: true }, DENSITY_TTL_S);
+      expect(setJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${tagId}`, { count: 0, complete: true }, DENSITY_TTL_S, expect.any(AbortSignal));
     }
   });
 

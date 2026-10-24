@@ -2,7 +2,7 @@
 // Called by: the plan route, smoke/eval scripts, and plan-agent unit tests
 import { generateText, isStepCount, tool, type LanguageModel, type Tool } from "ai";
 import { PLAN_MAX_CATEGORIES, PLAN_MAX_STEPS, PLAN_MAX_SUBMISSIONS, PLAN_MIN_CATEGORIES, PLAN_TIMEOUT_MS, TRACE_SUMMARY_MAX } from "@/lib/config";
-import { contextQlooOptions, createPlanContext, handleToolError, type PlanContext } from "@/lib/agent/context";
+import { contextQlooOptions, createPlanContext, handleToolError, researchStopped, type ResearchOptions, type PlanContext } from "@/lib/agent/context";
 import { applyPlanGuards, PlanSubmissionSchema, type PlanSubmission } from "@/lib/agent/guards";
 import { agentModel, AGENT_CALL_SETTINGS } from "@/lib/agent/model";
 import { buildPlanUserPrompt, PLAN_SYSTEM_PROMPT } from "@/lib/agent/prompts";
@@ -15,7 +15,7 @@ import { createQlooError } from "@/lib/qloo/client";
 import { resolveLocality } from "@/lib/qloo/insights";
 import { PlanRequestSchema, PlanResponseSchema, ResolvedBrandSchema, type Branch, type PlanRequest, type PlanResponse, type TraceEvent } from "@/lib/types";
 
-type PlanOptions = { emit?: (event: TraceEvent) => void; model?: LanguageModel };
+type PlanOptions = ResearchOptions & { onCacheable?: (cacheable: boolean) => void; emit?: (event: TraceEvent) => void; model?: LanguageModel };
 type Locality = { name: string; lat: number; lon: number };
 type SubmitResult = { accepted: boolean; kept: string[]; errors: string[] };
 
@@ -31,7 +31,7 @@ export function expandPlanRequest(request: PlanRequest): PlanRequest {
 }
 
 async function lookupLocality(query: string, context: PlanContext): Promise<Locality | null> {
-  if (!query.trim()) return null;
+  if (researchStopped(context) || !query.trim()) return null;
   try {
     return await resolveLocality(query, contextQlooOptions(context));
   } catch (error) {
@@ -91,14 +91,15 @@ function buildSubmitPlanTool(context: PlanContext): Tool<PlanSubmission, SubmitR
 }
 
 async function tryAgent(context: PlanContext, options: PlanOptions): Promise<string | null> {
+  if (researchStopped(context)) return "Planning stopped; using available categories.";
   if (isAgentDisabled()) return "Agent mode is disabled; using rule-based categories.";
   if (!options.model && !hasDeepSeekKey()) return "Planning model is unavailable; using rule-based categories.";
   try {
     await generateText({
       model: options.model ?? agentModel(), instructions: PLAN_SYSTEM_PROMPT, prompt: buildPlanUserPrompt(context),
       tools: { resolveBrands: buildResolveBrandsTool(context), searchCategories: buildSearchCategoriesTool(context), submitPlan: buildSubmitPlanTool(context) },
-      toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.timeout(PLAN_TIMEOUT_MS),
-      stopWhen: [isStepCount(PLAN_MAX_STEPS), () => context.fatalError !== null || context.budgetReached || (context.plan !== null &&
+      toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.any([AbortSignal.timeout(PLAN_TIMEOUT_MS), context.signal]),
+      stopWhen: [isStepCount(PLAN_MAX_STEPS), () => context.fatalError !== null || researchStopped(context) || (context.plan !== null &&
         (context.plan.length >= PLAN_MIN_CATEGORIES || context.submitCount >= PLAN_MAX_SUBMISSIONS))],
       onStepFinish: (step) => {
         if (step.text.trim()) context.emit({ type: "agent_note", at: 0, text: step.text.slice(0, TRACE_SUMMARY_MAX) });
@@ -112,6 +113,7 @@ async function tryAgent(context: PlanContext, options: PlanOptions): Promise<str
 
 async function completeBrandResolution(context: PlanContext, preserveResolved: boolean): Promise<void> {
   for (const name of context.request.brandNames) {
+    if (researchStopped(context)) break;
     if (context.brandsByInput.has(name)) continue;
     await resolveBrandNames([name], context);
   }
@@ -157,7 +159,7 @@ function buildResponse(context: PlanContext, mode: PlanResponse["mode"], city: P
 
 export async function runPlan(request: PlanRequest, options: PlanOptions = {}): Promise<PlanResponse> {
   const trace: TraceEvent[] = [];
-  const context = createPlanContext(expandPlanRequest(PlanRequestSchema.parse(request)), (event) => { trace.push(event); options.emit?.(event); });
+  const context = createPlanContext(expandPlanRequest(PlanRequestSchema.parse(request)), (event) => { trace.push(event); options.emit?.(event); }, options);
   const city = await resolveLocations(context);
   if (!context.request.branches.length) return buildResponse(context, "fallback", city, trace);
   context.emit({ type: "step", at: 0, step: "resolve_brands", status: "start", summary: "Resolving member brands" });
@@ -166,5 +168,6 @@ export async function runPlan(request: PlanRequest, options: PlanOptions = {}): 
   const mode = await completePlan(context, reason);
   context.emit({ type: "step", at: 0, step: "resolve_brands", status: "done", summary: `Checked ${context.brandsByInput.size} brand names` });
   context.emit({ type: "step", at: 0, step: "pick_categories", status: "done", summary: `Prepared ${context.plan?.length ?? 0} categories for confirmation` });
+  options.onCacheable?.(!researchStopped(context));
   return buildResponse(context, mode, city, trace);
 }

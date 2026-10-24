@@ -2,8 +2,8 @@
 // Called by: the run route, smoke scripts, and run-agent unit tests
 import { generateText, isStepCount, tool, type LanguageModel, type Tool } from "ai";
 import { z } from "zod";
-import { BRAND_CHECK_MAX, BRAND_CHECK_MIN_POPULARITY, MIN_INDEPENDENTS, RUN_AGENT_TIMEOUT_MS, RUN_MAX_STEPS, TRACE_SUMMARY_MAX } from "@/lib/config";
-import { contextQlooOptions, createRunContext, handleToolError, type RunContext } from "@/lib/agent/context";
+import { BRAND_CHECK_MIN_REMAINING_MS, FALLBACK_MIN_REMAINING_MS, PITCH_MIN_REMAINING_MS, BRAND_CHECK_MAX, BRAND_CHECK_MIN_POPULARITY, MIN_INDEPENDENTS, RUN_AGENT_TIMEOUT_MS, RUN_MAX_STEPS, TRACE_SUMMARY_MAX } from "@/lib/config";
+import { contextQlooOptions, createRunContext, handleToolError, hasResearchTime, researchStopped, type ResearchOptions, type RunContext } from "@/lib/agent/context";
 import { checkPitch } from "@/lib/agent/guards";
 import { agentModel, AGENT_CALL_SETTINGS } from "@/lib/agent/model";
 import { writePitches } from "@/lib/agent/pitch-writer";
@@ -20,7 +20,7 @@ import { createQlooError } from "@/lib/qloo/client";
 import { searchBrandExact } from "@/lib/qloo/search";
 import { MerchantResultSchema, RunRequestSchema, RunResultSchema, type CategoryReport, type MerchantCandidate, type MerchantResult, type RunRequest, type RunResult, type StepId, type TraceEvent } from "@/lib/types";
 
-type RunOptions = { model?: LanguageModel; onCacheable?: (cacheable: boolean) => void };
+type RunOptions = ResearchOptions & { model?: LanguageModel; onCacheable?: (cacheable: boolean) => void };
 const FinishInputSchema = z.object({ note: z.string().max(TRACE_SUMMARY_MAX) });
 type FinishInput = z.infer<typeof FinishInputSchema>;
 
@@ -43,14 +43,15 @@ function buildFinishTool(context: RunContext): Tool<FinishInput, { finished: boo
 }
 
 async function tryResearchAgent(context: RunContext, options: RunOptions): Promise<string | null> {
+  if (researchStopped(context)) return "Research stopped; using available results.";
   if (isAgentDisabled()) return "Agent mode is disabled; using deterministic research.";
   if (!options.model && !hasDeepSeekKey()) return "Research model is unavailable; using deterministic research.";
   try {
     await generateText({
       model: options.model ?? agentModel(), instructions: RUN_SYSTEM_PROMPT, prompt: buildRunUserPrompt(context),
       tools: { findMerchants: buildFindMerchantsTool(context), searchCategories: buildSearchCategoriesTool(context), finishResearch: buildFinishTool(context) },
-      toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.timeout(RUN_AGENT_TIMEOUT_MS),
-      stopWhen: [isStepCount(RUN_MAX_STEPS), () => context.finished || context.fatalError !== null || context.budgetReached],
+      toolChoice: "auto", ...AGENT_CALL_SETTINGS, abortSignal: AbortSignal.any([AbortSignal.timeout(RUN_AGENT_TIMEOUT_MS), context.signal]),
+      stopWhen: [isStepCount(RUN_MAX_STEPS), () => context.finished || context.fatalError !== null || researchStopped(context)],
       onStepFinish: (finishedStep) => {
         if (finishedStep.text.trim()) context.emit({ type: "agent_note", at: 0, text: finishedStep.text.slice(0, TRACE_SUMMARY_MAX) });
       },
@@ -71,7 +72,7 @@ function markKnownBrand(entityId: string, context: RunContext): void {
 async function checkMerchantBrands(candidates: MerchantCandidate[], context: RunContext): Promise<MerchantCandidate[]> {
   const checked = candidates.map((candidate) => ({ ...candidate }));
   for (const candidate of checked.slice(0, BRAND_CHECK_MAX)) {
-    if (context.budgetReached) break;
+    if (!hasResearchTime(context, BRAND_CHECK_MIN_REMAINING_MS)) break;
     try {
       const brand = await searchBrandExact(candidate.place.name, contextQlooOptions(context));
       if (brand && normalizeName(brand.name) === normalizeName(candidate.place.name) && brand.popularity >= BRAND_CHECK_MIN_POPULARITY) {
@@ -108,8 +109,8 @@ async function finishMerchants(context: RunContext, mode: RunResult["mode"], opt
   const shortlist = await checkMerchantBrands(buildShortlist(candidates, context.request.branches), context);
   const cards = shortlist.map(resultCard);
   let pitches = new Map<string, string>();
-  if (mode === "agent" && !context.budgetReached) {
-    try { pitches = await writePitches(cards, context.request.institutionName, options); }
+  if (mode === "agent" && hasResearchTime(context, PITCH_MIN_REMAINING_MS)) {
+    try { pitches = await writePitches(cards, context.request.institutionName, { ...options, signal: context.signal }); }
     catch {
       const reason = "Pitch writing was unavailable; template pitches were used.";
       context.warnings.push(reason); context.emit({ type: "fallback", at: 0, reason });
@@ -138,15 +139,18 @@ async function performResearch(context: RunContext, options: RunOptions): Promis
     context.warnings.push(reason);
   }
   // Even a model that immediately finishes cannot omit confirmed categories (ARCHITECTURE.md §6.1).
-  await runFallbackResearch(context, reason !== null);
+  if (hasResearchTime(context, FALLBACK_MIN_REMAINING_MS)) await runFallbackResearch(context, reason !== null);
   if (context.fatalError) throw context.fatalError;
-  if (!context.successfulLookups) throw createQlooError("upstream", null, "Merchant lookups failed; try again in a minute.");
+  const hasCandidates = [...context.results.values()].some((outcome) => outcome.candidates.length > 0);
+  if (!context.successfulLookups || (researchStopped(context) && !hasCandidates)) {
+    throw createQlooError("upstream", null, "Qloo is having trouble; try again in a minute.");
+  }
   return reason ? "fallback" : "agent";
 }
 
 export async function runResearch(request: RunRequest, emit: (event: TraceEvent) => void, options: RunOptions = {}): Promise<RunResult> {
   const startedAt = Date.now();
-  const context = createRunContext(RunRequestSchema.parse(request), emit);
+  const context = createRunContext(RunRequestSchema.parse(request), emit, options);
   step(context, "resolve_brands", "start", "Loading confirmed member brands");
   step(context, "resolve_brands", "done", `Using ${context.request.brands.length} confirmed brands`);
   step(context, "pick_categories", "start", "Loading confirmed merchant categories");
@@ -161,7 +165,7 @@ export async function runResearch(request: RunRequest, emit: (event: TraceEvent)
   step(context, "rank_pitch", "start", "Balancing the shortlist and preparing pitches");
   const finished = await finishMerchants(context, mode, options);
   const { merchants } = finished;
-  options.onCacheable?.(!context.budgetReached && context.cacheable && context.request.categories.every((category) => context.results.get(category.tagId)?.complete) &&
+  options.onCacheable?.(!researchStopped(context) && context.cacheable && context.request.categories.every((category) => context.results.get(category.tagId)?.complete) &&
     [...context.results.values()].every((outcome) => outcome.complete));
   step(context, "rank_pitch", "done", `Prepared ${merchants.length} merchants`);
   return RunResultSchema.parse({ mode: finished.mode, merchants, categories: categoryReports(context), excludedCounts: context.excludedCounts,

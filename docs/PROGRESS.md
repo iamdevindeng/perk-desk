@@ -980,3 +980,53 @@ Verification: lint/typecheck passed; 870 offline tests / 60 files passed; produc
 Decisions I made: retain legacy secret-name detection in protected privacy scripts so old private values remain protected; this is not a runtime feature. The new request authorizes pull and local commits, with push awaiting Devin. Demo request defaults, preset inputs and cache keys are unchanged.
 
 Open issues: none for R16.
+
+## R17 — Deadlines, circuit breaker, and disconnect cancellation (2026-10-24)
+
+Status: DONE
+
+- Applied 240-second research and 120-second planning deadlines, combined with client disconnect and stream cancellation signals.
+- Propagated cancellation through Qloo pacing/retries/fetch, model and pitch calls, and optional cache reads/writes.
+- Stopped live Qloo work after three timeout/upstream/network failures; preserved gathered candidates or emitted the safe upstream error when none exist.
+- Reserved time for finishing: no fallback top-ups below 90 seconds, brand checks below 60 seconds, or model pitches below 50 seconds.
+- Marked partial work with agent notes and prevented result caching; disconnected clients receive no further events or new cache writes.
+- Added fake-clock/provider/storage regressions for deadlines, breaker, partial plans/results, phase guards, cancellation, and unchanged healthy streaming/cache behavior.
+
+Files touched / staged list (before this log):
+```text
+ src/app/api/plan/route.ts                |  15 ++-
+ src/app/api/run/route.ts                 |  37 +++++--
+ src/lib/agent/context.ts                 |  81 +++++++++++---
+ src/lib/agent/pitch-writer.ts            |   5 +-
+ src/lib/agent/plan-agent.ts              |  15 ++-
+ src/lib/agent/run-agent.ts               |  28 +++--
+ src/lib/agent/tools/find-merchants.ts    |  12 +-
+ src/lib/agent/tools/resolve-brands.ts    |   7 +-
+ src/lib/agent/tools/search-categories.ts |   5 +-
+ src/lib/config.ts                        |   6 +
+ src/lib/fallback/fallback-run.ts         |   8 +-
+ src/lib/qloo/client.ts                   |  81 +++++++++-----
+ src/lib/store/cache.ts                   |  43 ++++++--
+ src/lib/stream.ts                        |  65 +++++++----
+ tests/unit/cache-deadline.test.ts        |  81 ++++++++++++++
+ tests/unit/find-merchants.test.ts        |   4 +-
+ tests/unit/plan-deadline.test.ts         |  70 ++++++++++++
+ tests/unit/plan-route.test.ts            |  14 ++-
+ tests/unit/qloo-client.test.ts           |   2 +-
+ tests/unit/qloo-lifecycle.test.ts        | 139 +++++++++++++++++++++++
+ tests/unit/route-lifecycle.test.ts       | 145 ++++++++++++++++++++++++
+ tests/unit/run-agent.test.ts             |   2 +-
+ tests/unit/run-deadline.test.ts          | 184 +++++++++++++++++++++++++++++++
+ tests/unit/run-route.test.ts             |   4 +-
+ tests/unit/search-categories.test.ts     |   2 +-
+ tests/unit/stream.test.ts                |  43 ++++++++
+ 26 files changed, 962 insertions(+), 136 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all commands passed; 907 offline tests / 65 files. Full-tree privacy and staged diff checks passed. No live provider calls.
+
+Decisions I made: the overall deadline also covers Redis cache waits, because an optional storage outage must not prevent partial completion. Signal-aware Redis operations use the installed SDK signal callback and an abort race with listener cleanup. Healthy empty research remains a valid result; interrupted empty research returns upstream. Normal cache keys, defaults and TTLs remain unchanged.
+
+Open issues: none for R17.

@@ -26,7 +26,9 @@ function request(body: unknown): Request {
 }
 
 beforeEach(() => {
-  vi.mocked(runPlan).mockReset().mockResolvedValue(FAKE_PLAN_RESPONSE);
+  vi.mocked(runPlan).mockReset().mockImplementation(async (_request, options) => {
+    options?.onCacheable?.(true); return FAKE_PLAN_RESPONSE;
+  });
   vi.mocked(getJson).mockReset().mockResolvedValue(null);
   vi.mocked(setJson).mockReset().mockResolvedValue(undefined);
   vi.mocked(checkLimit).mockReset().mockResolvedValue({ ok: true });
@@ -42,8 +44,10 @@ describe("plan route validation", () => {
     const response = await POST(request(FAKE_PLAN_REQUEST));
     expect(response.status).toBe(200);
     expect(PlanResponseSchema.parse(await response.json())).toEqual(FAKE_PLAN_RESPONSE);
-    expect(runPlan).toHaveBeenCalledWith(FAKE_PLAN_REQUEST, {});
-    expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S);
+    expect(runPlan).toHaveBeenCalledWith(FAKE_PLAN_REQUEST, {
+      signal: expect.any(AbortSignal), deadlineAt: expect.any(Number), onCacheable: expect.any(Function),
+    });
+    expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S, expect.any(AbortSignal));
     expect(maxDuration).toBe(300);
     expect(console.info).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^\[usage\] scope=plan ip_hash=[a-f0-9]{12} qloo_calls=0 llm_calls=0$/));
   });
@@ -92,7 +96,7 @@ describe("preset expansion and cache", () => {
     expect(expanded.brandNames).not.toEqual(input.brandNames);
     expect(expanded.preferences).toEqual(input.preferences);
     expect(expanded.brandOverrides).toEqual(input.brandOverrides);
-    expect(getJson).toHaveBeenCalledWith(cacheKey("plan", expanded));
+    expect(getJson).toHaveBeenCalledWith(cacheKey("plan", expanded), expect.any(AbortSignal));
   });
 
   it("ignores altered preset profile fields when building the cache key", async () => {
@@ -132,7 +136,7 @@ describe("preset expansion and cache", () => {
     vi.mocked(getJson).mockResolvedValue({ ...FAKE_PLAN_RESPONSE, categories: [{ ...category, evidence: [legacyEvidence] }] });
     expect((await POST(request(FAKE_PLAN_REQUEST))).status).toBe(200);
     expect(runPlan).toHaveBeenCalledOnce();
-    expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(cacheKey("plan", FAKE_PLAN_REQUEST), FAKE_PLAN_RESPONSE, RESULT_TTL_S, expect.any(AbortSignal));
   });
 
   it("does not cache plans with no categories", async () => {

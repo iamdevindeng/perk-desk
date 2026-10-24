@@ -45,7 +45,7 @@ describe("run route boundaries", () => {
   it("streams steps, a result and done; caches events without done", async () => {
     const trace = await traceFor();
     expect(trace.map((event) => event.type)).toEqual(["step", "result", "done"]);
-    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S, expect.any(AbortSignal));
     const saved = vi.mocked(setJson).mock.calls[0][1] as { events: TraceEvent[] };
     expect(saved.events.map((event) => event.type)).toEqual(["step", "result"]);
     expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip");
@@ -142,7 +142,7 @@ describe("run cache and limits", () => {
     vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 0, result }] });
     const trace = await traceFor();
     expect(runResearch).toHaveBeenCalledOnce();
-    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S);
+    expect(setJson).toHaveBeenCalledWith(cacheKey("run", FAKE_RUN_REQUEST), { complete: true, events: expect.any(Array) }, RESULT_TTL_S, expect.any(AbortSignal));
     expect(trace.find((event) => event.type === "result")?.result.merchants[0].place.name).toBe(merchant.place.name);
   });
 

@@ -7,11 +7,31 @@ const memory = new Map<string, { value: unknown; expiresAt: number }>();
 let redis: Redis | undefined;
 let warned = false;
 
-function redisClient(): Redis | null {
+function redisClient(signal?: AbortSignal): Redis | null {
   if (!hasUpstash()) return null;
   const environment = getEnv();
-  redis ??= new Redis({ url: environment.UPSTASH_REDIS_REST_URL!, token: environment.UPSTASH_REDIS_REST_TOKEN! });
+  const credentials = { url: environment.UPSTASH_REDIS_REST_URL!, token: environment.UPSTASH_REDIS_REST_TOKEN! };
+  // The callback form makes the installed SDK throw on abort instead of returning an abort reason as data.
+  if (signal) return new Redis({ ...credentials, signal: () => signal });
+  redis ??= new Redis(credentials);
   return redis;
+}
+
+async function optionalCacheWork(work: () => Promise<unknown>, signal?: AbortSignal): Promise<unknown | null> {
+  if (!signal) return await work();
+  if (signal.aborted) return null;
+  let stop = (): void => undefined;
+  const aborted = new Promise<null>((resolve) => {
+    stop = (): void => resolve(null);
+    signal.addEventListener("abort", stop, { once: true });
+  });
+  try {
+    // Storage is optional: a pending SDK backoff must not hold research past its deadline.
+    const result = await Promise.race([work(), aborted]);
+    return signal.aborted ? null : result;
+  } finally {
+    signal.removeEventListener("abort", stop);
+  }
 }
 
 function warnOnce(): void {
@@ -21,10 +41,11 @@ function warnOnce(): void {
   console.warn("Cache unavailable; continuing without cached data.");
 }
 
-export async function getJson(key: string): Promise<unknown | null> {
+export async function getJson(key: string, signal?: AbortSignal): Promise<unknown | null> {
+  if (signal?.aborted) return null;
   try {
-    const client = redisClient();
-    if (client) return await client.get(key);
+    const client = redisClient(signal);
+    if (client) return await optionalCacheWork(async () => client.get(key), signal);
     const entry = memory.get(key);
     if (!entry) return null;
     if (entry.expiresAt <= Date.now()) {
@@ -34,22 +55,22 @@ export async function getJson(key: string): Promise<unknown | null> {
     // Match Redis's serialization boundary so callers cannot mutate cached results.
     return structuredClone(entry.value);
   } catch {
-    warnOnce();
+    if (!signal?.aborted) warnOnce();
     return null;
   }
 }
 
-export async function setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-  if (ttlSeconds <= 0) return;
+export async function setJson(key: string, value: unknown, ttlSeconds: number, signal?: AbortSignal): Promise<void> {
+  if (ttlSeconds <= 0 || signal?.aborted) return;
   try {
-    const client = redisClient();
+    const client = redisClient(signal);
     if (client) {
-      await client.set(key, value, { ex: ttlSeconds });
+      await optionalCacheWork(async () => client.set(key, value, { ex: ttlSeconds }), signal);
       return;
     }
     memory.set(key, { value: structuredClone(value), expiresAt: Date.now() + ttlSeconds * 1000 });
   } catch {
-    warnOnce();
+    if (!signal?.aborted) warnOnce();
   }
 }
 

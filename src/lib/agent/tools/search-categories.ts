@@ -2,7 +2,7 @@
 // Called by: plan/run agents, fallback planning, and category-search unit tests
 import { tool, type Tool } from "ai";
 import { z } from "zod";
-import { contextQlooOptions, handleToolError, type PlanContext, type RunContext } from "@/lib/agent/context";
+import { contextQlooOptions, handleToolError, researchStopped, type PlanContext, type RunContext } from "@/lib/agent/context";
 import { getCategoryDefaults } from "@/lib/data";
 import { citySlug } from "@/lib/hash";
 import { isBlacklistedCategory, searchPlaceCategories } from "@/lib/qloo/tags";
@@ -18,7 +18,7 @@ type SearchCategoriesOutput = CategorySearchResult[] | { error: string };
 
 async function categoryWithDensity(category: CategoryTag, context: PlanContext | RunContext): Promise<CategorySearchResult> {
   const key = `pd:v1:density:${citySlug(context.request.city)}:${category.tagId}`;
-  const density = DensitySchema.safeParse(await getJson(key));
+  const density = DensitySchema.safeParse(await getJson(key, context.signal));
   context.candidateCategories.set(category.tagId, category.label);
   if (density.success) context.knownDensities.set(category.tagId, density.data.count);
   return {
@@ -28,6 +28,7 @@ async function categoryWithDensity(category: CategoryTag, context: PlanContext |
 }
 
 export async function searchCategoriesForContext(query: string, context: PlanContext | RunContext): Promise<SearchCategoriesOutput> {
+  if (researchStopped(context)) return { error: "Research stopped; using available categories." };
   context.emit({ type: "tool_call", at: 0, tool: "searchCategories", summary: "Finding place categories" });
   try {
     const input = SearchCategoriesInputSchema.parse({ query });

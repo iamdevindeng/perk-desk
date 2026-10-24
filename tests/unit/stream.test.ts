@@ -82,3 +82,46 @@ describe("NDJSON stream", () => {
     await Promise.resolve();
   });
 });
+
+
+describe("stream cancellation", () => {
+  it("aborts work when the reader disconnects", async () => {
+    const onCancel = vi.fn();
+    let finish: () => void = () => undefined;
+    const response = createNdjsonResponse(async () => { await new Promise<void>((resolve) => { finish = resolve; }); }, { onCancel });
+    await response.body?.cancel();
+    expect(onCancel).toHaveBeenCalledOnce();
+    finish(); await Promise.resolve();
+  });
+
+  it("closes immediately on request abort and detaches its listener", async () => {
+    const abort = new AbortController();
+    const remove = vi.spyOn(abort.signal, "removeEventListener");
+    let finish: () => void = () => undefined;
+    const response = createNdjsonResponse(async (emit) => {
+      await new Promise<void>((resolve) => { finish = resolve; });
+      emit({ type: "result", at: 0, result: FAKE_RUN_RESULT });
+    }, { signal: abort.signal });
+    abort.abort();
+    expect(await response.text()).toBe("");
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    finish(); await Promise.resolve();
+  });
+
+  it("removes the abort listener after a healthy result", async () => {
+    const abort = new AbortController();
+    const remove = vi.spyOn(abort.signal, "removeEventListener");
+    const onCancel = vi.fn();
+    const response = createNdjsonResponse(async (emit) => { emit({ type: "result", at: 0, result: FAKE_RUN_RESULT }); }, { signal: abort.signal, onCancel });
+    expect((await events(response)).map((event) => event.type)).toEqual(["result", "done"]);
+    expect(remove).toHaveBeenCalledWith("abort", expect.any(Function));
+    abort.abort(); expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("does not start work for an already aborted request", async () => {
+    const abort = new AbortController(); abort.abort();
+    const work = vi.fn(async () => undefined);
+    expect(await createNdjsonResponse(work, { signal: abort.signal }).text()).toBe("");
+    expect(work).not.toHaveBeenCalled();
+  });
+});

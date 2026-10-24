@@ -3,14 +3,13 @@
 import { tool, type Tool } from "ai";
 import { z } from "zod";
 import { DENSITY_TTL_S, MERCHANT_SAMPLE_MAX, MIN_INDEPENDENTS, TRACE_SUMMARY_MAX } from "@/lib/config";
-import { contextQlooOptions, handleToolError, type CategoryOutcome, type RunContext } from "@/lib/agent/context";
+import { contextQlooOptions, handleToolError, researchStopped, type CategoryOutcome, type RunContext } from "@/lib/agent/context";
 import { citySlug } from "@/lib/hash";
 import { markDuplicateNames } from "@/lib/merchants/chains";
 import { filterPlaces } from "@/lib/merchants/filter";
 import { nameMatches } from "@/lib/merchants/name-match";
 import { assignNearestBranch, computeBrandShares, countIndependents, mergeSeededAndBaseline, scoreCandidates } from "@/lib/merchants/scoring";
 import { findPlaces } from "@/lib/qloo/insights";
-import { isQlooError } from "@/lib/qloo/client";
 import { isBlacklistedCategory } from "@/lib/qloo/tags";
 import { setJson } from "@/lib/store/cache";
 import { CategoryTagIdSchema, type MerchantCandidate, type Place, type RunRequest } from "@/lib/types";
@@ -45,7 +44,7 @@ function summarize(outcome: CategoryOutcome): FindMerchantsSummary {
 async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boolean, context: RunContext): Promise<Place[] | null> {
   try {
     if (context.fatalError) throw context.fatalError;
-    if (context.budgetReached) return null;
+    if (researchStopped(context)) return null;
     const places = await findPlaces({
       lat: branch.lat, lon: branch.lon, radiusMeters: branch.radiusMeters, tagId,
       brandIds: seeded ? context.request.brands.map((brand) => brand.entityId) : [],
@@ -53,8 +52,7 @@ async function placesForBranch(branch: LocatedBranch, tagId: string, seeded: boo
     context.successfulLookups += 1;
     return places;
   } catch (error) {
-    if (isQlooError(error) && ["auth", "quota", "config", "budget"].includes(error.code)) handleToolError(context, error);
-    context.warnings.push(`${branch.name}: ${seeded ? "taste" : "baseline"} lookup failed; available results were kept.`);
+    handleToolError(context, error, `${branch.name}: ${seeded ? "taste" : "baseline"} lookup failed; available results were kept.`);
     context.cacheable = false;
     return null;
   }
@@ -80,9 +78,9 @@ async function branchCandidates(branch: LocatedBranch, tagId: string, label: str
 
 async function persistDensity(tagId: string, context: RunContext): Promise<void> {
   const outcome = context.results.get(tagId)!;
-  if (!outcome.complete) return;
+  if (!outcome.complete || researchStopped(context)) return;
   const count = outcome.independentCount;
-  await setJson(`pd:v1:density:${citySlug(context.request.city)}:${tagId}`, { count, complete: true }, DENSITY_TTL_S);
+  await setJson(`pd:v1:density:${citySlug(context.request.city)}:${tagId}`, { count, complete: true }, DENSITY_TTL_S, context.signal);
   // Concurrent category completion can change duplicate flags during the write; persist the latest count.
   if (context.results.get(tagId)!.independentCount !== count) await persistDensity(tagId, context);
 }

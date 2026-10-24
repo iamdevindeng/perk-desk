@@ -28,7 +28,7 @@ describe("category search tool", () => {
     expect(result).toEqual([{ tagId: FAKE_CATEGORY_ID, label: "Coffee shop", knownIndependents: 8, usableInDemoCities: true }]);
     expect(context.candidateCategories.get(FAKE_CATEGORY_ID)).toBe("Coffee shop");
     expect(context.knownDensities.get(FAKE_CATEGORY_ID)).toBe(8);
-    expect(getJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${FAKE_CATEGORY_ID}`);
+    expect(getJson).toHaveBeenCalledWith(`pd:v1:density:denver-co:${FAKE_CATEGORY_ID}`, expect.any(AbortSignal));
     expect(searchPlaceCategories).toHaveBeenCalledWith("coffee", expect.objectContaining({ onCall: expect.any(Function) }));
   });
 

@@ -3,7 +3,7 @@
 import { tool, type Tool } from "ai";
 import { z } from "zod";
 import { BRAND_PROMPT_TAGS_MAX, BRAND_SEARCH_TAKE } from "@/lib/config";
-import { contextQlooOptions, handleToolError, type BrandResolution, type PlanContext } from "@/lib/agent/context";
+import { contextQlooOptions, handleToolError, researchStopped, type BrandResolution, type PlanContext } from "@/lib/agent/context";
 import { normalizeName } from "@/lib/merchants/name-match";
 import { filterAllowedBrandTags, searchBrands } from "@/lib/qloo/search";
 import { PlanRequestSchema, type BrandCandidate, type ResolvedBrand } from "@/lib/types";
@@ -77,7 +77,10 @@ export async function resolveBrandNames(names: string[], context: PlanContext): 
     // Use the original input spelling for overrides; ignore names invented by the model.
     const inputNames = [...new Set(context.request.brandNames.filter((name) => requestedNames.has(name.trim().toLowerCase())))];
     const results: BrandToolResult[] = [];
-    for (const inputName of inputNames) results.push(toolResult(await resolveOneBrand(inputName, context)));
+    for (const inputName of inputNames) {
+      if (researchStopped(context)) break;
+      results.push(toolResult(await resolveOneBrand(inputName, context)));
+    }
     context.emit({ type: "tool_result", at: 0, tool: "resolveBrands", summary: `Checked ${results.length} brand names` });
     return results;
   } catch (error) {

@@ -123,7 +123,7 @@ describe("Qloo slim cache", () => {
     expect(first).toEqual({ name: "Fake Coffee Co" });
     expect(second).toEqual(first);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(mocks.setJson).toHaveBeenCalledWith(expect.stringMatching(/^pd:v1:qloo:/), { validated: true, value: first }, QLOO_CACHE_TTL_S);
+    expect(mocks.setJson).toHaveBeenCalledWith(expect.stringMatching(/^pd:v1:qloo:/), { validated: true, value: first }, QLOO_CACHE_TTL_S, undefined);
     expect(onCall.mock.calls.map(([event]) => event.cached)).toEqual([false, true]);
   });
 

@@ -12,7 +12,10 @@ import { isQlooBudgetReached, recordUsageCall } from "@/lib/store/usage";
 export type QlooPath = "/search" | "/v2/tags" | "/v2/insights";
 export type QlooParams = Record<string, string | number | boolean>;
 export type QlooCallInfo = { endpoint: QlooPath; summary: string; ms: number; cached: boolean };
-export type QlooCallOptions = { onCall?: (info: QlooCallInfo) => void };
+export type QlooCallOptions = {
+  signal?: AbortSignal; beforeCall?: () => void; onError?: (error: QlooError) => void;
+  onCall?: (info: QlooCallInfo) => void;
+};
 export type QlooErrorCode = "config" | "auth" | "quota" | "timeout" | "upstream" | "network" | "bad_request" | "budget";
 export type QlooError = Error & { code: QlooErrorCode; status: number | null };
 
@@ -46,29 +49,46 @@ function buildUrl(path: QlooPath, params: QlooParams): URL {
   return url;
 }
 
-async function sleep(milliseconds: number): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+function checkAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw createQlooError("timeout", null, "Qloo is having trouble; try again in a minute.");
 }
 
-async function waitForCallSlot(): Promise<void> {
+async function sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+  checkAborted(signal);
+  await new Promise<void>((resolve, reject) => {
+    const abort = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(createQlooError("timeout", null, "Qloo is having trouble; try again in a minute."));
+    };
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, milliseconds);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+  });
+}
+
+async function waitForCallSlot(signal?: AbortSignal): Promise<void> {
+  checkAborted(signal);
   const now = Date.now();
   const callAt = Math.max(now, nextCallAt);
   // Reserve before awaiting so concurrent branch queries receive distinct slots.
   nextCallAt = callAt + QLOO_MIN_GAP_MS;
-  if (callAt > now) await sleep(callAt - now);
+  if (callAt > now) await sleep(callAt - now, signal);
 }
 
-async function fetchResponse(url: URL, apiKey: string): Promise<Response> {
-  await waitForCallSlot();
+async function fetchResponse(url: URL, apiKey: string, options: QlooCallOptions): Promise<Response> {
+  await waitForCallSlot(options.signal);
+  checkAborted(options.signal);
+  options.beforeCall?.();
   if (isQlooBudgetReached()) throw createQlooError("budget", null, RESEARCH_BUDGET_MESSAGE);
+  const timeout = AbortSignal.timeout(QLOO_TIMEOUT_MS);
+  const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   try {
     // Count each transport attempt, including a retried 429 or a failed fetch (FIXES-R2 R10c).
     recordUsageCall("qloo");
-    return await fetch(url, {
-      headers: { "X-Api-Key": apiKey }, signal: AbortSignal.timeout(QLOO_TIMEOUT_MS), redirect: "error",
-    });
+    return await fetch(url, { headers: { "X-Api-Key": apiKey }, signal, redirect: "error" });
   } catch (error) {
-    throw createQlooError(isTimeout(error) ? "timeout" : "network", null, "Qloo is having trouble; try again in a minute.");
+    throw createQlooError(signal.aborted || isTimeout(error) ? "timeout" : "network", null, "Qloo is having trouble; try again in a minute.");
   }
 }
 
@@ -88,18 +108,20 @@ function rejectErrorResponse(response: Response): void {
   throw createQlooError(code, response.status, "Qloo is having trouble; try again in a minute.");
 }
 
-async function readResponse(url: URL, apiKey: string): Promise<unknown> {
-  let response = await fetchResponse(url, apiKey);
+async function readResponse(url: URL, apiKey: string, options: QlooCallOptions): Promise<unknown> {
+  let response = await fetchResponse(url, apiKey, options);
   if (response.status === 429 && response.headers.get("x-month-ratelimit-remaining") !== "0") {
     await response.body?.cancel();
-    await sleep(QLOO_RETRY_AFTER_MS);
-    response = await fetchResponse(url, apiKey);
+    await sleep(QLOO_RETRY_AFTER_MS, options.signal);
+    response = await fetchResponse(url, apiKey, options);
   }
   rejectErrorResponse(response);
   try {
-    return await response.json();
+    const result: unknown = await response.json();
+    checkAborted(options.signal);
+    return result;
   } catch (error) {
-    throw createQlooError(isTimeout(error) ? "timeout" : "upstream", response.status, "Qloo returned an unreadable response; try again in a minute.");
+    throw createQlooError(options.signal?.aborted || isTimeout(error) ? "timeout" : "upstream", response.status, "Qloo returned an unreadable response; try again in a minute.");
   }
 }
 
@@ -108,12 +130,15 @@ function reportCall(path: QlooPath, startedAt: number, cached: boolean, options:
 }
 
 export async function qlooGet(path: QlooPath, params: QlooParams, options: QlooCallOptions = {}): Promise<unknown> {
-  const apiKey = getEnv().QLOO_API_KEY;
-  if (!apiKey?.trim()) throw createQlooError("config", null, "Server is missing its Qloo key.");
-  const url = buildUrl(path, params);
   const startedAt = Date.now();
   try {
-    return await readResponse(url, apiKey);
+    checkAborted(options.signal);
+    const apiKey = getEnv().QLOO_API_KEY;
+    if (!apiKey?.trim()) throw createQlooError("config", null, "Server is missing its Qloo key.");
+    return await readResponse(buildUrl(path, params), apiKey, options);
+  } catch (error) {
+    if (isQlooError(error)) options.onError?.(error);
+    throw error;
   } finally {
     reportCall(path, startedAt, false, options);
   }
@@ -124,7 +149,7 @@ export async function cachedQlooCall<T>(
 ): Promise<T> {
   const startedAt = Date.now();
   const key = cacheKey("qloo", { path, params });
-  const stored = await getJson(key);
+  const stored = await getJson(key, options.signal);
   // Legacy values may have come from an invalid HTTP-200 envelope; keep keys, refresh their contents.
   const cached = z.object({ validated: z.literal(true), value: schema }).safeParse(stored);
   if (cached?.success) {
@@ -132,13 +157,17 @@ export async function cachedQlooCall<T>(
     return cached.data.value;
   }
   try {
-    const result = schema.safeParse(slim(await qlooGet(path, params)));
+    // The wrapper owns one logical outcome, including parsing; the transport must not report it twice.
+    const raw = await qlooGet(path, params, { signal: options.signal, beforeCall: options.beforeCall });
+    const result = schema.safeParse(slim(raw));
     if (!result.success) throw createQlooError("upstream", null, "Qloo returned an unexpected response; try again in a minute.");
-    await setJson(key, { validated: true, value: result.data }, QLOO_CACHE_TTL_S);
+    checkAborted(options.signal);
+    await setJson(key, { validated: true, value: result.data }, QLOO_CACHE_TTL_S, options.signal);
     return result.data;
   } catch (error) {
-    if (isQlooError(error)) throw error;
-    throw createQlooError("upstream", null, "Qloo returned an unexpected response; try again in a minute.");
+    const failure = isQlooError(error) ? error : createQlooError("upstream", null, "Qloo returned an unexpected response; try again in a minute.");
+    options.onError?.(failure);
+    throw failure;
   } finally {
     reportCall(path, startedAt, false, options);
   }

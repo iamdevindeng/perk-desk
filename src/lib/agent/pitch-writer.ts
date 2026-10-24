@@ -25,14 +25,15 @@ function validPitches(output: PitchOutput, merchants: MerchantResult[]): Map<str
 }
 
 export async function writePitches(
-  merchants: MerchantResult[], institutionName: string, options: { model?: LanguageModel } = {},
+  merchants: MerchantResult[], institutionName: string, options: { model?: LanguageModel; signal?: AbortSignal } = {},
 ): Promise<Map<string, string>> {
+  if (options.signal?.aborted) throw new Error("Research stopped.");
   if (!merchants.length || isAgentDisabled() || (!options.model && !hasDeepSeekKey())) return new Map();
   try {
     const result = await generateText({
       model: options.model ?? agentModel(), ...AGENT_CALL_SETTINGS,
       instructions: PITCH_SYSTEM_PROMPT, prompt: buildPitchPrompt({ merchants, institutionName }),
-      output: Output.object({ schema: PitchOutputSchema }), abortSignal: AbortSignal.timeout(PITCH_TIMEOUT_MS),
+      output: Output.object({ schema: PitchOutputSchema }), abortSignal: AbortSignal.any([AbortSignal.timeout(PITCH_TIMEOUT_MS), ...(options.signal ? [options.signal] : [])]),
     });
     return validPitches(PitchOutputSchema.parse(result.output), merchants);
   } catch {

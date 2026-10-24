@@ -2,7 +2,7 @@
 // Called by: the browser's POST /api/run request and run-route unit tests
 import { z } from "zod";
 import { runResearch } from "@/lib/agent/run-agent";
-import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_REPLAY_DELAY_MS } from "@/lib/config";
+import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_DEADLINE_MS, RUN_REPLAY_DELAY_MS } from "@/lib/config";
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
@@ -38,8 +38,8 @@ async function validateRequest(request: Request): Promise<RunRequest | Response>
   return parsed.data;
 }
 
-async function cachedEvents(key: string): Promise<TraceEvent[] | null> {
-  const parsed = CachedRunSchema.safeParse(await getJson(key));
+async function cachedEvents(key: string, signal: AbortSignal): Promise<TraceEvent[] | null> {
+  const parsed = CachedRunSchema.safeParse(await getJson(key, signal));
   if (!parsed.success) return null;
   const events = parsed.data.events;
   // Corrupt, incomplete, or error traces must not become successful cached replays.
@@ -51,35 +51,48 @@ async function cachedEvents(key: string): Promise<TraceEvent[] | null> {
   return events;
 }
 
-async function replay(events: TraceEvent[], emit: Emit): Promise<void> {
+async function replay(events: TraceEvent[], emit: Emit, signal: AbortSignal): Promise<void> {
   emit({ type: "agent_note", at: 0, text: "Replaying a cached research result." });
   for (const event of events) {
+    if (signal.aborted) return;
     await new Promise((resolve) => setTimeout(resolve, RUN_REPLAY_DELAY_MS));
     emit(event.type === "qloo_call" ? { ...event, cached: true } : event);
   }
 }
 
-async function runWork(input: RunRequest, key: string, emit: Emit): Promise<void> {
+type RunLifetime = { signal: AbortSignal; clientSignal: AbortSignal; deadlineAt: number };
+
+async function runWork(input: RunRequest, key: string, emit: Emit, lifetime: RunLifetime): Promise<void> {
+  if (lifetime.clientSignal.aborted) return;
   if (!hasQlooKey()) throw createQlooError("config", null, "Server is missing its Qloo key.");
   const events: TraceEvent[] = [];
-  const collect = createEmitter((event) => { events.push(event); emit(event); });
+  const collect = createEmitter((event) => { if (!lifetime.clientSignal.aborted) { events.push(event); emit(event); } });
   let complete = false;
-  const result = RunResultSchema.parse(await runResearch(input, collect, { onCacheable: (value) => { complete = value; } }));
+  const result = RunResultSchema.parse(await runResearch(input, collect, {
+    signal: lifetime.signal, deadlineAt: lifetime.deadlineAt, onCacheable: (value) => { complete = value; },
+  }));
+  if (lifetime.clientSignal.aborted) return;
   collect({ type: "result", at: 0, result });
   // Old envelopes lack completeness evidence and are replaced after a healthy rerun at the same key.
-  if (complete) await setJson(key, { complete: true, events }, RESULT_TTL_S);
+  if (complete && !lifetime.signal.aborted) await setJson(key, { complete: true, events }, RESULT_TTL_S, lifetime.signal);
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const cancel = new AbortController();
+  const clientSignal = AbortSignal.any([request.signal, cancel.signal]);
+  const signal = AbortSignal.any([clientSignal, AbortSignal.timeout(RUN_DEADLINE_MS)]);
+  const lifetime = { signal, clientSignal, deadlineAt: Date.now() + RUN_DEADLINE_MS };
+  const streamOptions = { signal: clientSignal, onCancel: () => cancel.abort() };
   const input = await validateRequest(request);
   if (input instanceof Response) return input;
   const key = cacheKey("run", input);
-  const cached = await cachedEvents(key);
-  if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit); });
+  const cached = await cachedEvents(key, signal);
+  if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit, clientSignal); }, streamOptions);
+  if (clientSignal.aborted) return new Response(null, { status: 204 });
   // Check shared budgets before opening the stream so store failures can return HTTP 503.
   const ip = getClientIp(request);
   const limit = await checkLimit("run", ip);
   if (limit.reason === "store") return Response.json({ error: "config", message: limit.message }, { status: 503 });
-  if (!limit.ok) return createNdjsonResponse(async (emit) => { emit({ type: "limited", at: 0, message: LIVE_LIMIT_MESSAGE }); });
-  return createNdjsonResponse(async (emit) => { await withRunUsage(ip, async () => { await runWork(input, key, emit); }); });
+  if (!limit.ok) return createNdjsonResponse(async (emit) => { emit({ type: "limited", at: 0, message: LIVE_LIMIT_MESSAGE }); }, streamOptions);
+  return createNdjsonResponse(async (emit) => { await withRunUsage(ip, async () => { await runWork(input, key, emit, lifetime); }); }, streamOptions);
 }
