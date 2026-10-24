@@ -16,14 +16,17 @@ Example values below are **fake** (made-up names, IDs `00000000-...`). Never com
 ## 2. Brand search: `GET /search`
 `/search?query=<name>&types=urn:entity:brand&take=3` **[verified]**
 
-Response:
-```json
-{ "results": [ {
-  "name": "Fake Outdoor Co", "entity_id": "00000000-0000-4000-8000-000000000001",
-  "types": ["urn:entity:brand"], "popularity": 0.97, "disambiguation": "Retailer",
-  "properties": { "short_description": "...", "description": "...", "industry": ["..."], "official_site": "https://..." },
-  "tags": [ { "tag_id": "urn:tag:keyword:qloo:hiking", "name": "Hiking", "type": "urn:tag:keyword:qloo" } ]
-} ] }
+Response shape (field notation, with hand-written fake examples):
+```text
+results[]:
+  name: Fake Outdoor Co
+  entity_id: 00000000-0000-4000-8000-000000000001
+  types: [urn:entity:brand]
+  popularity: 0.97
+  disambiguation: Retailer
+  properties: short_description, description, industry[], official_site
+  tags[]: tag_id, name, type
+    example: urn:tag:keyword:qloo:hiking, Hiking, urn:tag:keyword:qloo
 ```
 - Brand tags use the key **`tag_id`** (place tags use `id`, §4). **[verified]** Normalize both to `TagRef { id, name, type }`.
 - Brands carry ~80–155 tags. Types seen: `urn:tag:keyword:qloo`, `urn:tag:lifestyle:qloo`, `urn:tag:interest_adjacency:qloo`, `urn:tag:product_category:qloo`, `urn:tag:product_service:qloo`, `urn:tag:industry:qloo`, `urn:tag:consumption_context:qloo`, `urn:tag:genre:brand`, `urn:tag:wikipedia_category` (e.g. "Yoga merchandise"). **[verified]** Not every brand has every type.

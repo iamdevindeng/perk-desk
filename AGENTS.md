@@ -25,9 +25,11 @@ Do **T1, T2, ... T12 in order**. For each task:
    npm run lint && npm test && npm run build && npm run check:rules
    ```
    plus the task-specific checks listed in the task. (`check:rules` exists from T1 on; before it exists, skip it.)
-4. If verification passes: append a PROGRESS entry (§3), then commit **once**:
+4. If verification passes: stage task files by explicit path, run `git diff --cached --stat`, and paste that list into the PROGRESS entry (§3). Stage `docs/PROGRESS.md` explicitly, review the final staged diff/stat, then commit **once**:
    ```bash
-   git add -A && git commit -m "T<n>: <short title>"
+   git add -- <explicit task file paths> docs/PROGRESS.md
+   git diff --cached --stat
+   git commit -m "T<n>: <short title>"
    ```
 5. If verification fails: fix and re-run. **After the 3rd failed attempt on the same task**: stop working on it, record the failure in PROGRESS (status `FAILED`, the exact failing command and the last ~20 lines of its output, what you tried), commit what you have with message `T<n>: WIP (verification failing, see PROGRESS)`, and move on to the next task. Never stall. Never loop on the same error.
 6. Later tasks may depend on a failed one. Do what you can; stub the missing piece with a clearly marked `// TODO(T<n> failed): ...` and say so in PROGRESS.
@@ -59,6 +61,13 @@ List anything that needs one of these under "Waiting for Devin" in PROGRESS.
 - Never print, log, echo, or `cat` key values or `.env.local`. Never write keys into any file, test, fixture, trace event, or commit. Never put a key in a URL; Qloo gets it only in the `X-Api-Key` header.
 - Never use a `NEXT_PUBLIC_` prefix for a secret.
 - `.env.example` contains names only.
+
+**Automatic commit and push checks (FIXES-R4 R12):**
+- Never use `--no-verify`. Never disable, edit, or weaken the hooks, `scripts/check-privacy.mjs`, `scripts/privacy-rules.mjs`, or `scripts/check-rules.mjs` unless a task explicitly says so.
+- Never use `git add -A` or `git add .`. Stage files by explicit path. Before every commit, run `git diff --cached --stat` and paste the staged list into its PROGRESS entry.
+- If `check:privacy` fails, remove the offending content; never whitelist it yourself. Record what was blocked in PROGRESS without the matched value.
+- Pre-commit checks staged privacy and the required author; pre-push runs lint, typecheck, offline tests, rules, and full-tree privacy. Keep both hooks installed with `npm install`.
+- `scripts/check-privacy.mjs` and `scripts/check-rules.mjs` may read only the four named secret values from `.env.local` and the environment for private exact comparison. `scripts/install-hooks.mjs` may read `CI` and `VERCEL` to skip hook installation. Application environment reads remain confined to `src/lib/env.ts`.
 
 **Data:**
 - **Never commit Qloo response data** (Qloo's hackathon rules forbid storing it in a public repo). No recorded API responses, no snapshots, no dumps. Smoke/eval scripts print counts and names only and write nothing to disk.

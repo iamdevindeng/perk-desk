@@ -33,6 +33,7 @@ perk-desk/
 ├─ vitest.config.ts  vitest.eval.config.ts [+]
 ├─ docs/        PRD.md  ARCHITECTURE.md  QLOO_API.md  TASKS.md  PROGRESS.md
 ├─ scripts/ [+] check-rules.mjs  smoke.ts
+│              check-privacy.mjs  privacy-rules.mjs  check-author.mjs  install-hooks.mjs  (R12 commit/push guards)
 ├─ public/      (generated)
 │  └─ samples/  brands-sample.csv  signed-merchants-sample.csv  business-members-sample.csv  (hand-written examples)
 ├─ src/
@@ -342,6 +343,7 @@ Triggered when: no `DEEPSEEK_API_KEY`, `PD_AGENT_DISABLED=1`, `APICallError`, ti
 | Cache / limits | `@upstash/redis@^1`, `@upstash/ratelimit@^2` | required for live Vercel production requests; local/preview can use in-memory fallback |
 | Map | `leaflet@^1.9`, `react-leaflet@^5`, dev `@types/leaflet@^1.9` | OpenStreetMap tiles `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, attribution "© OpenStreetMap contributors" |
 | Tests / scripts | dev `vitest@^4`, dev `tsx@^4` | vitest 4 (v5 needs Node ≥ 22.12) |
+| Local Git hooks | dev `simple-git-hooks@2.14.0` | R12: guarded prepare installs commit/push checks; skips CI, Vercel, and non-Git archives |
 | Hosting | Vercel (later, by Devin) | not part of the overnight run |
 
 If `react-leaflet@^5` has a peer conflict with the installed React, use the newest version npm resolves without `--force`, and record it.

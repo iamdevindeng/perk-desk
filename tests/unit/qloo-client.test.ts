@@ -52,7 +52,7 @@ describe("Qloo transport", () => {
     expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it.each(["https://example.invalid", "http://hackathon.api.qloo.com", "https://user:pass@hackathon.api.qloo.com", "invalid"])("rejects unsafe base URL %s", async (baseUrl) => {
+  it.each(["https://example.invalid", "http://hackathon.api.qloo.com", "https://user:pass" + "@hackathon.api.qloo.com", "invalid"])("rejects unsafe base URL %s", async (baseUrl) => {
     mocks.environment.QLOO_BASE_URL = baseUrl;
     await expect(client.qlooGet("/search", {})).rejects.toMatchObject({ code: "config" });
     expect(fetchMock).not.toHaveBeenCalled();

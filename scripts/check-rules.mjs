@@ -1,9 +1,11 @@
 // Checks repo rules that ESLint cannot, including headers, directories, fake IDs, secrets, and local paths.
 // Called by: `npm run check:rules` (AGENTS.md §2, after every task). Exit code 1 = at least one violation.
 import { isUtf8 } from "node:buffer";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { collectSecretValues, scanPrivacyFile } from "./privacy-rules.mjs";
 
 // WHY: the tree in docs/ARCHITECTURE.md §2 is fixed; Codex must not invent folders.
 const ALLOWED_DIRECTORIES = [
@@ -20,8 +22,8 @@ const HEADER_EXEMPT = [/^src\/components\/ui\//, /^next-env\.d\.ts$/, /\.config\
 const CODE_FILE = /\.(ts|tsx|mjs)$/;
 const UUID = /\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g;
 const FAKE_UUID = /^00000000-0000-4000-8000-0000000000[0-9]{2}$/;
-const ENV_READ_ALLOWED = ["src/lib/env.ts", "vitest.eval.config.ts", "scripts/check-rules.mjs", "next.config.ts"];
-const SECRET_ENV_NAMES = ["QLOO_API_KEY", "DEEPSEEK_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "JUDGE_BYPASS_CODE"];
+const ENV_READ_ALLOWED = ["src/lib/env.ts", "vitest.eval.config.ts", "scripts/check-rules.mjs", "next.config.ts",
+  "scripts/check-privacy.mjs", "scripts/install-hooks.mjs"];
 
 const problems = [];
 
@@ -67,7 +69,7 @@ function checkJson(file) {
 function checkFixtureIds(file, text) {
   if (!file.startsWith("tests/") && !file.startsWith("src/data/")) return;
   for (const match of text.match(UUID) ?? []) {
-    if (!FAKE_UUID.test(match)) problems.push(`non-fake UUID ${match.slice(0, 8)}… in ${file} (use 00000000-0000-4000-8000-0000000000NN)`);
+    if (!FAKE_UUID.test(match)) problems.push(`non-fake UUID in ${file} (use the documented fake UUID form)`);
   }
 }
 
@@ -77,27 +79,32 @@ function checkEnvAccess(file, text) {
   if (/NEXT_PUBLIC_[A-Z_]*(KEY|TOKEN|SECRET|CODE)/.test(text)) problems.push(`secret-like NEXT_PUBLIC_ variable in ${file}`);
 }
 
-function secretAssignmentValue(line) {
-  const assignment = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line);
-  if (!assignment || !SECRET_ENV_NAMES.includes(assignment[1])) return "";
-  const value = assignment[2].trim();
-  const quotedValue = /^(?:"([^"]*)"|'([^']*)')\s*(?:#.*)?$/.exec(value);
-  return quotedValue ? quotedValue[1] ?? quotedValue[2] : value.split("#", 1)[0].trim();
-}
-
 function readSecretValues() {
   // Values are only compared, never printed.
-  // WHY: documented URLs/model names and comments are public configuration, not secrets.
-  if (!existsSync(".env.local")) return [];
-  return readFileSync(".env.local", "utf8").split("\n")
-    .map(secretAssignmentValue)
-    .filter((value) => value.length >= 12);
+  const dotenvText = existsSync(".env.local") ? readFileSync(".env.local", "utf8") : "";
+  return collectSecretValues(process.env, dotenvText);
 }
 
 function checkSecrets(file, text, secretValues) {
   if (/^\.env/.test(path.posix.basename(file)) && file !== ".env.example") problems.push(`env file would be committed: ${file}`);
   if (/\bsk-[A-Za-z0-9]{24,}\b/.test(text)) problems.push(`API-key-like string (sk-…) in ${file}`);
   if (secretValues.some((value) => text.includes(value))) problems.push(`a value from .env.local appears in ${file}`);
+}
+
+function printProblems(files, secretValues) {
+  // Legacy rule diagnostics must not undo the privacy scanner's filename redaction.
+  const names = new Set(files);
+  for (const file of files) {
+    let directory = path.posix.dirname(file);
+    while (directory !== ".") { names.add(directory); directory = path.posix.dirname(directory); }
+  }
+  const privateNames = [...names].filter((file) => scanPrivacyFile("filename.txt", file, secretValues).length > 0)
+    .sort((first, second) => second.length - first.length);
+  for (const problem of problems) {
+    let message = problem;
+    for (const file of privateNames) message = message.split(file).join("[redacted filename]");
+    console.error(`✗ ${message}`);
+  }
 }
 
 function main() {
@@ -115,11 +122,14 @@ function main() {
     checkEnvAccess(file, text);
     checkSecrets(file, text, secretValues);
   }
+  const privacyScript = fileURLToPath(new URL("./check-privacy.mjs", import.meta.url));
+  const privacy = spawnSync(process.execPath, [privacyScript, "--all"], { stdio: "inherit" });
+  if (privacy.error || privacy.status !== 0) problems.push("privacy scan failed (see rule diagnostics above)");
   if (problems.length === 0) {
     console.log(`check:rules OK (${files.length} files)`);
     return;
   }
-  for (const problem of problems) console.error(`✗ ${problem}`);
+  printProblems(files, secretValues);
   console.error(`check:rules FAILED: ${problems.length} problem(s)`);
   process.exit(1);
 }

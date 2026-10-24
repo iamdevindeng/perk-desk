@@ -24,14 +24,14 @@ afterEach(() => {
   repositoryDirectory = "";
 });
 
-function runChecker(files: { file: string; contents: string | Buffer }[]): { status: number | null; output: string } {
+function runChecker(files: { file: string; contents: string | Buffer }[], environment?: NodeJS.ProcessEnv): { status: number | null; output: string } {
   for (const fixture of files) {
     const filename = join(repositoryDirectory, fixture.file);
     mkdirSync(dirname(filename), { recursive: true });
     writeFileSync(filename, fixture.contents);
   }
-  execFileSync("git", ["add", "--", "."], { cwd: repositoryDirectory, stdio: "ignore" });
-  const result = spawnSync(process.execPath, [CHECKER_PATH], { cwd: repositoryDirectory, encoding: "utf8" });
+  execFileSync("git", ["add", "--", ...files.map((fixture) => fixture.file)], { cwd: repositoryDirectory, stdio: "ignore" });
+  const result = spawnSync(process.execPath, [CHECKER_PATH], { cwd: repositoryDirectory, env: environment, encoding: "utf8" });
   if (result.error) throw result.error;
   return { status: result.status, output: result.stdout + result.stderr };
 }
@@ -43,6 +43,36 @@ function textFixture(file: string, value: string): string {
 }
 
 describe("tracked local machine path checks", () => {
+  it("never prints a UUID excerpt that coincides with a short known secret", () => {
+    const secret = "abcd".repeat(2);
+    const identifier = [secret, "2".repeat(4), "4".repeat(4), "8".repeat(4), "3".repeat(12)].join("-");
+    const result = runChecker([{ file: "tests/fixtures/unsafe.ts", contents: `// Synthetic check.\n// ${identifier}\n` }],
+      { NODE_ENV: "test", PATH: "/usr/bin:/bin", JUDGE_BYPASS_CODE: secret });
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("known-secret");
+    expect(result.output).toContain("non-fake UUID");
+    expect(result.output).not.toContain(secret);
+  });
+
+  it("does not leak a secret filename through legacy rule diagnostics", () => {
+    const secret = "sk-" + "z".repeat(30);
+    const result = runChecker([{ file: `scripts/${secret}.mjs`, contents: "missing headers\n" }]);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("missing 2-line header");
+    expect(result.output).toContain("[redacted filename]");
+    expect(result.output).not.toContain(secret);
+  });
+
+  it("redacts private directory names in tree-rule diagnostics", () => {
+    const secret = "sk-" + "x".repeat(30);
+    const file = `docs/${secret}/note.ts`;
+    const result = runChecker([{ file, contents: "// Synthetic check.\n// Called by: a unit test\n" }]);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("directory not in ARCHITECTURE");
+    expect(result.output).toContain("[redacted filename]");
+    expect(result.output).not.toContain(secret);
+  });
+
   it("accepts neutral descriptions, relative paths, and ordinary clean text", () => {
     const files = TEXT_FILES.map((file) => ({ file, contents: textFixture(file, "local screenshot, not committed") }));
     files.push({ file: "README.md", contents: "Users/example/file\nhome/example/file\ndocs/example.md\n" });
@@ -63,12 +93,13 @@ describe("tracked local machine path checks", () => {
     });
   });
 
-  it.each(["nul", "non-utf8"])("skips %s binary content even if its bytes contain a local path", (kind) => {
+  it.each(["nul", "non-utf8"])("blocks private path bytes in %s binary content through the R12 privacy scan", (kind) => {
     const localPath = ["", "Users", "example", "file"].join("/");
     const prefix = kind === "nul" ? Buffer.from([0]) : Buffer.from([255]);
     const contents = Buffer.concat([prefix, Buffer.from(localPath)]);
     const result = runChecker([{ file: "public/example.bin", contents }]);
-    expect(result.status).toBe(0);
-    expect(result.output).toContain("check:rules OK");
+    expect(result.status).toBe(1);
+    expect(result.output).toContain("local-path");
+    expect(result.output).not.toContain(localPath);
   });
 });

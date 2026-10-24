@@ -33,6 +33,7 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 Things Codex must not do (remote actions, accounts, secrets) or could not finish. Add items as they come up.
 
+- [x] Authorize the R11c/R12 push: on 2026-10-24 the user explicitly authorized coordination, commit, and push despite the no-remote-actions rule. The coordinated finalization entry below supersedes the earlier publishing blocker.
 - [x] Authorize publishing the local commits: the R10 request explicitly permits the agent to push the rebased R1–R9/review commits together with R10 after verification, superseding the earlier no-push instruction.
 - [ ] Create the Vercel project, set env vars (QLOO_API_KEY, DEEPSEEK_API_KEY, required UPSTASH_* for production live work, JUDGE_BYPASS_CODE), deploy, check `maxDuration`.
 - [ ] Set a private `JUDGE_BYPASS_CODE` for judging and verify the limit/retry flow in the deployed environment.
@@ -49,6 +50,8 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
 
 (Interpretations of unclear spec points, with the reason. One bullet each.)
 
+- R12 coordinated finalization: the user's explicit push authorization supersedes the previous no-remote-actions blocker for publishing R11c/R12. The other active R12 chat confirmed its subagents and tool processes stopped; this chat owns final staging, verification, commit, and push. Deployment and resource provisioning remain out of scope.
+- R12 follow-up: interpret public SVG path data narrowly as numeric `d` attributes on `path` elements in the five existing exact asset paths. Mask that data only for IP/phone checks, preserving line positions; scan all original bytes for every other content rule. Add ICO to the image restriction so the exact Next.js favicon exception is meaningful. Preserve existing R12 work and include it in the completed local commit.
 - R11c/R12: R11a and R11b are already committed at task start; verify their implementation and continue with the remaining items in order. Automatic approval review blocked the requested pull because of the older remote-action rule. Continue authorized local work while explicit confirmation for pull/push is pending; do not bypass that block.
 
 - R11: The current request authorizes pulling and pushing the two verified R11 commits; deployment and resource provisioning remain out of scope.
@@ -736,3 +739,96 @@ Things Codex must not do (remote actions, accounts, secrets) or could not finish
    10 files changed, 50 insertions(+), 3 deletions(-)
   ```
 - For Devin: pull/push remain blocked by automatic approval review pending confirmation of the project-rule override; all R11c local work is complete.
+
+### R12: Automatic privacy guards and exact allowlist follow-up — DONE
+- Date/time (UTC+8): 2026-10-24 19:02
+- What was done:
+  - Completed the pending staged-file privacy scanner, full-tree index/worktree scan, author check, and guarded Git-hook installer. Diagnostics contain relative filenames, line numbers, and rule names without matched private values.
+  - Exempted only root `package-lock.json` from the 50 KB JSON size limit and only `src/app/favicon.ico` from the source image restriction. Both retain all content checks, including response-data detection.
+  - Kept the three exact RFC 5737 documentation networks exempt, with comments and tests for endpoints, adjacent networks, and ambiguous leading-zero prefixes.
+  - Exempted numeric SVG path data from only IP/phone patterns in the exact files `public/file.svg`, `public/globe.svg`, `public/next.svg`, `public/vercel.svg`, and `public/window.svg`. Each path has a reason comment; metadata, comments, CDATA, other attributes, and all other rules remain scanned.
+  - Added offline staged-file regressions proving synthetic secrets, home-directory paths, and non-placeholder personal emails are blocked. The 64 follow-up cases also exercise exact paths, nearby paths, numeric known secrets, and preserved diagnostic line numbers.
+  - Preserved the pending R12 sanitization of documentation and synthetic test literals; no new documentation-wide, directory-wide, or extension-wide exception was added. The required commit/push hooks remain installed.
+- Files touched: `AGENTS.md`, `docs/{ARCHITECTURE,FIXES-R4,QLOO_API,PROGRESS}.md`, `package.json`, `package-lock.json`, `scripts/{check-author,check-privacy,check-rules,install-hooks,privacy-rules}.mjs`, `tests/fixtures/{privacy-repository,qloo-fake}.ts`, `tests/unit/{check-rules,csv,git-hooks,privacy-allowlist,privacy-content,privacy-files,privacy-git,qloo-client,qloo-insights}.test.ts`.
+- How to verify:
+  ```bash
+  VERCEL=1 npm ci --offline --no-audit --no-fund
+  npm run prepare
+  npm run lint && npm run typecheck && npm test
+  NEXT_TELEMETRY_DISABLED=1 npm run build
+  npm run check:rules
+  node scripts/check-privacy.mjs --all
+  node scripts/check-author.mjs
+  git diff --cached --check
+  ```
+- Verification: PASS: 824 offline tests across 58 files; lint, typecheck, production build, repository rules, author check, and staged whitespace checks. The explicit full-tree command reported `check:privacy OK (170 tracked files)` before any push. The Vercel-style clean install succeeded from the local package cache and skipped hook installation as intended; local prepare then installed both hooks. The build used approved local worker-port access. Independent review found no remaining actionable issue in the exemptions, staged/full-tree behavior, or hook commands.
+- Blocked-content record: the initial full-tree scan reported eight old-index findings: a local-path example and response markers in documentation, synthetic phone literals, and a URL credential string matching the email rule. Their working copies were already sanitized by the pending R12 work; staging those reviewed files removed the findings without weakening detection. No matched value was logged here.
+- Open issues / decisions: the follow-up explicitly authorizes these narrow changes to the protected privacy rules. Other privacy checks and hook commands remain strict. No Qloo/DeepSeek calls, deployment, push, remote changes, or resource provisioning occurred. The existing no-remote-actions rule remains applicable.
+- New dependency: `simple-git-hooks@2.14.0`, explicitly required by R12b and already present in the pending R12 changes; existing application dependencies do not manage Git hooks.
+- Staged change list before adding this progress entry (`git diff --cached --stat`):
+  ```text
+   AGENTS.md                            |  13 ++-
+   docs/ARCHITECTURE.md                 |   2 +
+   docs/FIXES-R4.md                     |   5 +-
+   docs/QLOO_API.md                     |  19 +++--
+   package-lock.json                    |  12 +++
+   package.json                         |   8 ++
+   scripts/check-author.mjs             |  22 +++++
+   scripts/check-privacy.mjs            |  70 +++++++++++++++
+   scripts/check-rules.mjs              |   9 +-
+   scripts/install-hooks.mjs            |  19 +++++
+   scripts/privacy-rules.mjs            | 159 +++++++++++++++++++++++++++++++++++
+   tests/fixtures/privacy-repository.ts |  39 +++++++++
+   tests/fixtures/qloo-fake.ts          |   2 +-
+   tests/unit/check-rules.test.ts       |   9 +-
+   tests/unit/csv.test.ts               |   5 +-
+   tests/unit/git-hooks.test.ts         | 102 ++++++++++++++++++++++
+   tests/unit/privacy-allowlist.test.ts | 127 ++++++++++++++++++++++++++++
+   tests/unit/privacy-content.test.ts   | 135 +++++++++++++++++++++++++++++
+   tests/unit/privacy-files.test.ts     | 107 +++++++++++++++++++++++
+   tests/unit/privacy-git.test.ts       | 120 ++++++++++++++++++++++++++
+   tests/unit/qloo-client.test.ts       |   2 +-
+   tests/unit/qloo-insights.test.ts     |   2 +-
+   22 files changed, 965 insertions(+), 23 deletions(-)
+  ```
+- For Devin: the verified local commits are ready for the owner-authorized publishing step recorded in Waiting for Devin.
+
+#### R12 coordinated finalization — DONE
+- Date/time (UTC+8): 2026-10-24 19:10
+- Coordination: the user explicitly authorized coordination with the other R12 chat, followed by commit and push despite the project no-remote-actions rule. The other chat confirmed its subagents had stopped writing and no tool processes remained active. Its changes were reviewed and explicitly restaged before final checks.
+- Additional work preserved from that handoff:
+  - Tightened IPv4 matching to detect an address after a hyphen and before a filename extension, with negative coverage for invalid octets.
+  - Redacted private filenames and directory names from legacy rule-checker diagnostics; removed UUID excerpts that could coincide with a known secret.
+  - Shared exact known-secret collection between the privacy checker and rule checker, with the corresponding environment-access rule documented.
+  - Preserved `public/window.svg` separator normalization; its SVG commands and numeric tokens are unchanged. This file is additional to the earlier Files touched list.
+- Final verification: PASS: 829 offline tests across 58 files, lint, production build, typecheck, repository rules, author check, staged whitespace checks, and index/worktree consistency. `node scripts/check-privacy.mjs --all` reported `check:privacy OK (170 tracked files)`. Independent review found no actionable code issue. A refresh of `origin/main` confirmed zero remote-only commits; the existing local R11c commit remains ready to publish with R12.
+- How to verify: use the commands in the R12 entry above. The final pre-commit and pre-push hooks remain enabled and will recheck the commit/push; no bypass or Git configuration change is used.
+- Final staged change list before this finalization note (`git diff --cached --stat`):
+  ```text
+   AGENTS.md                            |  13 ++-
+   docs/ARCHITECTURE.md                 |   2 +
+   docs/FIXES-R4.md                     |   5 +-
+   docs/PROGRESS.md                     |  55 ++++++++++++
+   docs/QLOO_API.md                     |  19 +++--
+   package-lock.json                    |  12 +++
+   package.json                         |   8 ++
+   public/window.svg                    |   2 +-
+   scripts/check-author.mjs             |  22 +++++
+   scripts/check-privacy.mjs            |  70 +++++++++++++++
+   scripts/check-rules.mjs              |  46 ++++++----
+   scripts/install-hooks.mjs            |  19 +++++
+   scripts/privacy-rules.mjs            | 159 +++++++++++++++++++++++++++++++++++
+   tests/fixtures/privacy-repository.ts |  39 +++++++++
+   tests/fixtures/qloo-fake.ts          |   2 +-
+   tests/unit/check-rules.test.ts       |  43 ++++++++--
+   tests/unit/csv.test.ts               |   5 +-
+   tests/unit/git-hooks.test.ts         | 102 ++++++++++++++++++++++
+   tests/unit/privacy-allowlist.test.ts | 127 ++++++++++++++++++++++++++++
+   tests/unit/privacy-content.test.ts   | 135 +++++++++++++++++++++++++++++
+   tests/unit/privacy-files.test.ts     | 107 +++++++++++++++++++++++
+   tests/unit/privacy-git.test.ts       | 134 +++++++++++++++++++++++++++++
+   tests/unit/qloo-client.test.ts       |   2 +-
+   tests/unit/qloo-insights.test.ts     |   2 +-
+   24 files changed, 1088 insertions(+), 42 deletions(-)
+  ```
+- Open issues / decisions: no remaining implementation blocker for R12. The authorized push follows this recorded verification; existing deployment and manual product-review items remain separate.

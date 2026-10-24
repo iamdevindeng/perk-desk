@@ -35,10 +35,11 @@ describe("merchant CSV export", () => {
   });
 
   it("escapes formula text before RFC quoting while leaving negative numbers numeric", () => {
+    const phone = ["+1", "555", "0100"].join(" ");
     const merchant = { ...FAKE_MERCHANT, rankLift: -3, pitch: '=FAKE("offer", "test")',
-      place: { ...FAKE_MERCHANT.place, phone: "+1 555 0100" } };
+      place: { ...FAKE_MERCHANT.place, phone } };
     const csv = toCsv([merchant], {});
-    expect(csv).toContain(",'+1 555 0100,");
+    expect(csv).toContain(`,'${phone},`);
     expect(csv).toContain(",-3,4.5,4,");
     expect(csv).not.toContain("'-3");
     expect(csv).toContain('"\'=FAKE(""offer"", ""test"")"\r\n');

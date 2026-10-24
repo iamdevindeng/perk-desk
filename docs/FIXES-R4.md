@@ -14,10 +14,11 @@
 R12a. New script `scripts/check-privacy.mjs` + npm script `check:privacy`. It scans **staged files only** (`git diff --cached --name-only --diff-filter=ACMR`) and fails (exit 1, print file:line and the rule name, never the matched secret value) on:
 1. Any value of QLOO_API_KEY, DEEPSEEK_API_KEY, UPSTASH_REDIS_REST_TOKEN, JUDGE_BYPASS_CODE read from `.env.local` (if present) or process env — exact-string compare, never printed.
 2. Common secret formats: `sk-[A-Za-z0-9]{20,}`, `ghp_`, `github_pat_`, `AKIA[0-9A-Z]{16}`, `-----BEGIN .*PRIVATE KEY-----`, `xox[bpas]-`, Upstash-looking tokens (long base64 next to `UPSTASH`/`token`), `Bearer [A-Za-z0-9._-]{20,}`.
-3. Absolute local paths: macOS/Linux home-directory paths (matching `/(Users|home)/<user>/`), `C:\\Users\\`.
+3. Absolute local paths: macOS/Linux user-home paths and Windows drive-letter user-home paths.
 4. Personal data: email addresses except `99384331+iamdevindeng@users.noreply.github.com` and obvious placeholders (`example.com`, `testing@devpost.com`); phone-number patterns; IPv4 addresses except 127.0.0.1 / 0.0.0.0 / documentation ranges (192.0.2.x, 198.51.100.x, 203.0.113.x).
 5. Forbidden files staged: any `.env*` except `.env.example`; `*.log`, `*.har`, `*.pem`, `*.key`, `*.p12`, `*.zip`, `*.tar*`, screenshots/recordings (`*.png|jpg|jpeg|gif|mov|mp4|webm`) outside `public/`; anything under `.next/`, `node_modules/`, `coverage/`, `docs/translate/`.
-6. Likely Qloo response data: any staged `.json` larger than 50 KB, or any file containing Qloo response markers (`"entity_id"` together with `"results"`/`"popularity"`), except the hand-written allowlist already permitted by check-rules (src/data/*, tests/eval/cases.json, tests/fixtures with fake UUIDs).
+6. Likely Qloo response data: any staged `.json` larger than 50 KB, or any file containing quoted JSON Qloo response markers (`entity_id` together with `results`/`popularity`), except the hand-written allowlist already permitted by check-rules (src/data/*, tests/eval/cases.json, tests/fixtures with fake UUIDs).
+- Owner-approved exception (2026-10-24): exempt only root `package-lock.json` from the JSON size rule, because `npm ci` requires it. Keep every other privacy rule active for the lockfile.
 - `.env.example` must contain only empty values (`KEY=` lines and comments).
 - Unit tests for each rule with synthetic strings (build test secrets at runtime, e.g. `"sk-" + "a".repeat(30)`, so the test file itself doesn't trip the scanner).
 

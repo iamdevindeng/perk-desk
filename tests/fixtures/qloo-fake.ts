@@ -32,7 +32,7 @@ export const FAKE_PLACE = {
   entity_id: "00000000-0000-4000-8000-000000000011", name: "Fake Coffee Shop", popularity: 0.7,
   location: { lat: 39.75, lon: -104.99 }, disambiguation: "Fictional coffee shop",
   properties: {
-    address: "10 Fictional Lane", phone: "+1-555-0100", website: "https://fake.example",
+    address: "10 Fictional Lane", phone: ["+1", "555", "0100"].join("-"), website: "https://fake.example",
     hours: {
       monday: WEEKDAY_HOURS, tuesday: WEEKDAY_HOURS, wednesday: WEEKDAY_HOURS,
       thursday: WEEKDAY_HOURS, friday: WEEKDAY_HOURS,

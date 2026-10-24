@@ -10,6 +10,8 @@
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
     "check:rules": "node scripts/check-rules.mjs",
+    "check:privacy": "node scripts/check-privacy.mjs",
+    "prepare": "node scripts/install-hooks.mjs",
     "eval": "vitest run --config vitest.eval.config.ts",
     "smoke": "if [ -f .env.local ]; then tsx --env-file=.env.local scripts/smoke.ts; else tsx scripts/smoke.ts; fi"
   },
@@ -33,10 +35,16 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "simple-git-hooks": "2.14.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^4.1.12"
+  },
+  "simple-git-hooks": {
+    "preserveUnused": true,
+    "pre-commit": "npm run check:privacy && node scripts/check-author.mjs",
+    "pre-push": "npm run lint && npm run typecheck && npm test && npm run check:rules && node scripts/check-privacy.mjs --all"
   },
   "engines": {
     "node": ">=20.9"

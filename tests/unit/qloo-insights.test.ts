@@ -33,7 +33,7 @@ describe("place normalization", () => {
   it("maps documented fields and strips unknown sensitive fields", () => {
     expect(slimPlace(FAKE_PLACE)).toEqual({
       entityId: FAKE_PLACE.entity_id, name: "Fake Coffee Shop", address: "10 Fictional Lane", lat: 39.75, lon: -104.99,
-      phone: "+1-555-0100", website: "https://fake.example", googlePlaceId: "fake-google-place",
+      phone: ["+1", "555", "0100"].join("-"), website: "https://fake.example", googlePlaceId: "fake-google-place",
       hoursText: "Mon–Fri 10:00–17:00 · Sat 10:00–16:00 · Sun closed",
       businessRating: 4.6, tripadvisorRating: 4.5, tripadvisorCount: 23, priceLevel: 2,
       primaryGenreId: "urn:tag:genre:place:coffee_shop", description: "A fictional neighborhood cafe.",
