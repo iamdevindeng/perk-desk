@@ -10,12 +10,12 @@ describe("merchant CSV export", () => {
   it("exports all sixteen columns in order with CRLF records and one decimal kilometre distances", () => {
     const merchant = { ...FAKE_MERCHANT, distanceMeters: 1250, multiLocation: true };
     const csv = toCsv([merchant], {});
-    expect(csv).toBe(`${HEADER}\r\nFake Central Branch,1.3,Fake Corner Cafe,Coffee shop,2 Example Lane,555-0100,https://example.invalid/cafe,https://www.google.com/maps/search/?api=1&query=Fake+Corner+Cafe,Fake Coffee Co 100%,2,4.5,4,yes,no,to_contact,${merchant.pitch}\r\n`);
+    expect(csv).toBe(`\uFEFF${HEADER}\r\nFake Central Branch,1.3,Fake Corner Cafe,Coffee shop,2 Example Lane,555-0100,https://example.invalid/cafe,https://www.google.com/maps/search/?api=1&query=Fake+Corner+Cafe,Fake Coffee Co 100%,2,4.5,4.0,yes,no,to_contact,${merchant.pitch}\r\n`);
     expect(csv.split("\r\n")[0].split(",")).toHaveLength(16);
   });
 
   it("returns a valid header-only CSV for an empty list", () => {
-    expect(toCsv([], {})).toBe(`${HEADER}\r\n`);
+    expect(toCsv([], {})).toBe(`\uFEFF${HEADER}\r\n`);
   });
 
   it("quotes commas, quotes, CR and LF without altering the cell contents", () => {
@@ -40,7 +40,7 @@ describe("merchant CSV export", () => {
       place: { ...FAKE_MERCHANT.place, phone } };
     const csv = toCsv([merchant], {});
     expect(csv).toContain(`,'${phone},`);
-    expect(csv).toContain(",-3,4.5,4,");
+    expect(csv).toContain(",-3,4.5,4.0,");
     expect(csv).not.toContain("'-3");
     expect(csv).toContain('"\'=FAKE(""offer"", ""test"")"\r\n');
   });
@@ -58,7 +58,42 @@ describe("merchant CSV export", () => {
     const merchant = { ...FAKE_MERCHANT, brandShares: [{ brandName: "Fake Coffee", sharePercent: 53 }, { brandName: "Fake Tea", sharePercent: 47 }] };
     const csv = toCsv([merchant], { [merchant.place.entityId]: { name: merchant.place.name, status: "not_a_fit", updatedAt: "2026-10-23" } });
     const cells = csv.split("\r\n")[1].split(",");
-    expect(cells[8]).toBe("Fake Coffee 53% · Fake Tea 47%");
+    expect(cells[8]).toBe("Fake Coffee 53%; Fake Tea 47%");
+    expect(csv).not.toContain("·");
     expect(cells[14]).toBe("not_a_fit");
+  });
+
+  it("adds one UTF-8 BOM at the beginning regardless of the number of rows", () => {
+    const csv = toCsv([FAKE_MERCHANT, FAKE_MERCHANT], {});
+    expect(csv.charCodeAt(0)).toBe(0xfeff);
+    expect(csv.match(/\uFEFF/g)).toHaveLength(1);
+    expect(csv.slice(1).startsWith(`${HEADER}\r\n`)).toBe(true);
+  });
+
+  it("formats a synthetic US number nationally before formula protection", () => {
+    const phone = ["+1", "202", "555", "0100"].join("");
+    const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, phone } };
+    const cell = toCsv([merchant], {}).split("\r\n")[1].split(",")[5];
+    expect(cell).toBe(["(202)", "555-0100"].join(" "));
+    expect(cell.startsWith("'")).toBe(false);
+    expect(merchant.place.phone).toBe(phone);
+  });
+
+  it("keeps a synthetic non-US number unchanged behind the formula prefix", () => {
+    const phone = ["+44", "20", "7946", "0100"].join("");
+    const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, phone } };
+    expect(toCsv([merchant], {}).split("\r\n")[1].split(",")[5]).toBe(`'${phone}`);
+  });
+
+  it("rounds both ratings to one decimal without floating-point noise", () => {
+    const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place,
+      businessRating: 4.300000190734863, tripadvisorRating: 4.699999809265137 } };
+    const cells = toCsv([merchant], {}).split("\r\n")[1].split(",");
+    expect(cells.slice(10, 12)).toEqual(["4.3", "4.7"]);
+  });
+
+  it.each(["\t", "\r"])("protects leading control text %j before escaping quotes and commas", (prefix) => {
+    const merchant = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: `${prefix}Fake, "Cafe"` } };
+    expect(toCsv([merchant], {})).toContain(`,"'${prefix}Fake, ""Cafe""",`);
   });
 });

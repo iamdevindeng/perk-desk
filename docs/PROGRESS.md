@@ -1121,3 +1121,27 @@ Verification: all checks passed; 983 offline tests / 68 files. No live calls or 
 Decisions I made: the existing nearest-branch rule still resolves multiple sightings of the same entity before comparing distinct same-name locations. Added only an exact ESLint import exception for the requested pure dedupe module; all other server boundaries and privacy checks remain enforced. Cache keys and request shapes are unchanged.
 
 Open issues: the existing Austin cache can render nine unique merchants until refreshed after deployment.
+
+## R21 — Spreadsheet-safe CSV formatting (2026-10-24)
+
+Status: DONE
+
+- Added exactly one UTF-8 BOM and replaced member-brand separators with semicolons.
+- Formatted exact US international phone strings in national form before formula guarding; other numbers retain text protection.
+- Rounded both rating columns to one decimal and extended text guards to leading tab/CR.
+- Expanded offline CSV tests for precision, quoting, encoding, and synthetic phone cases.
+
+Files touched / staged list (before this log):
+```text
+ src/lib/csv.ts         | 17 +++++++++++------
+ tests/unit/csv.test.ts | 43 +++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 50 insertions(+), 10 deletions(-)
+```
+
+How to verify: `npm run lint && npm run typecheck && npm test && NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules`.
+
+Verification: all checks passed; 989 offline tests / 68 files. No live calls. Native Excel was not used; acceptance is verified by exact exported bytes and cell values.
+
+Decisions I made: use the shared rating precision constant, including a trailing .0 for whole-number ratings. Synthetic full phone values are constructed at test runtime, retaining the strict privacy scanner.
+
+Open issues: none for the requested automated checks.
