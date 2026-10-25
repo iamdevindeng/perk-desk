@@ -1828,3 +1828,48 @@ Verification: 1351 offline tests / 93 files, lint, TypeScript, production build,
 Decisions I made: scope keys by component identity as well as reset version; do not remove the remount behavior required by R43. Preserve the unrelated R44 revert. No storage, request, preset, cache, rate-limit, dependency, or protected-check changes.
 
 Open issues: the supplied screenshot shows only the first of three recorded errors, so the other two entries were not independently identified. This repair addresses the confirmed duplicate-key defect.
+
+## R44 — Make the logo scroll back to the top (2026-10-25)
+
+Status: DONE
+
+- Made ProgramIntro a client component and changed the Perk Desk eyebrow to a non-submit button with the exact accessible label, pointer cursor, and visible keyboard focus ring.
+- Preserve the eyebrow's typography, color, and spacing. Clicking only scrolls to top 0, smoothly by default and immediately when reduced motion is requested.
+- Added actual-page offline tests proving profile, member brands, and storage remain unchanged, with no reload, navigation, or network request.
+
+Files touched / staged list (before this log):
+```text
+ src/components/ProgramIntro.tsx  | 11 ++++--
+ tests/unit/program-intro.test.ts | 72 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1354 offline tests / 94 files, lint, TypeScript, production build, repository rules, and privacy scans passed. Independent review found no issues. The four added tests also cover browsers without matchMedia. The existing dev server on port 3000 still returns HTTP 200 from the local homepage and was left running.
+
+Decisions I made: use the same reduced-motion query and fallback as the existing page-navigation helper, while keeping the logo action limited to scrollTo. No state, storage, routing, request, dependency, preset, cache, rate-limit, or protected-check changes.
+
+Open issues: none for R42–R44. All three items are implemented in order and committed locally, with no live API calls, push, deployment, or remote resource action. Review at http://localhost:3000.
+
+## FIXES-R12 Step 0 — Restore R44 (2026-10-25)
+
+Status: DONE
+
+- Ran the requested `git revert --no-edit ff4851c` to restore the logo action and its four offline regressions.
+- Resolved the appended-log conflict by preserving both the R43 follow-up and the restored R44 history.
+- Confirmed all four R44 tests pass; the existing dev server remains listening on port 3000.
+
+Files touched / staged list (before this entry):
+```text
+ docs/PROGRESS.md                 | 23 +++++++++++++
+ src/components/ProgramIntro.tsx  | 11 ++++--
+ tests/unit/program-intro.test.ts | 72 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm test -- tests/unit/program-intro.test.ts`.
+
+Decisions I made: keep the later R43 key fix and its progress entry when resolving the revert conflict. The normal revert continues as a new local commit; no history rewrite.
+
+Open issues: none. No live API calls or push.
