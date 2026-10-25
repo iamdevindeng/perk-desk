@@ -1563,3 +1563,28 @@ Verification: all checks passed; 1185 offline tests / 81 files. Production build
 Decisions I made: keep the reset notice local to CityField and compare the original blank branch object and branch count. This avoids changing selectPreset and keeps the notice when planning only recreates the branches array without editing the blank branch. No dependency, preset data, cache identity, or protection changes.
 
 Open issues: none for R36. No push or remote action.
+
+
+## R37 — Keep every branch marker clickable (2026-10-25)
+
+Status: DONE
+
+- Split branch trade areas and branch markers into separate components.
+- Render all trade-area circles first, all branch markers second, and merchant markers last.
+- Make every trade-area circle non-interactive while retaining branch popups and map-pick callbacks.
+- Added an offline rendering regression for multiple branches, an unlocated branch, popup content, and merchant selection.
+
+Files touched / staged list (before this log):
+```text
+ src/components/MerchantMap.tsx  | 32 +++++++++++++++++-------------
+ tests/unit/merchant-map.test.ts | 44 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 58 insertions(+), 18 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1186 offline tests / 81 files. Mocked Leaflet rendering confirms the exact layer order and interactive=false on both trade areas. Existing desktop/mobile map-pick tests still pass. Production build used local worker permission with provider/store credentials cleared. Independent review found no issues. No live API calls.
+
+Decisions I made: retain both components in MerchantMap.tsx and preserve all existing marker styles, popup content, controls, and selection callbacks. No preset data or cache changes.
+
+Open issues: none for R37. No push or remote action.

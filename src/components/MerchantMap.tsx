@@ -32,22 +32,24 @@ function MapBehavior({ center, onPickLocation }: { center: MapCenter; onPickLoca
   return null;
 }
 
-function BranchLocation({ branch }: { branch: Branch }): ReactElement | null {
+function BranchTradeArea({ branch }: { branch: Branch }): ReactElement | null {
+  if (branch.lat === undefined || branch.lon === undefined) return null;
+  return <Circle center={[branch.lat, branch.lon]} radius={branch.radiusMeters} interactive={false}
+    pathOptions={{ color: "#0f766e", fillColor: "#14b8a6", fillOpacity: MAP_BRANCH_AREA_OPACITY }} />;
+}
+
+function BranchMarker({ branch }: { branch: Branch }): ReactElement | null {
   if (branch.lat === undefined || branch.lon === undefined) return null;
   const position: [number, number] = [branch.lat, branch.lon];
   const source = branch.locationSource === "qloo_locality" ? "Approximate location" : "Branch location";
-  return <>
-    <Circle center={position} radius={branch.radiusMeters}
-      pathOptions={{ color: "#0f766e", fillColor: "#14b8a6", fillOpacity: MAP_BRANCH_AREA_OPACITY }} />
-    <CircleMarker center={position} radius={MAP_BRANCH_MARKER_RADIUS}
-      pathOptions={{ color: "#ffffff", fillColor: "#0f766e", fillOpacity: 1 }}>
-      <Popup><div className="space-y-1 text-slate-800">
-        <strong>{branch.name}</strong>
-        {branch.address && <p>{branch.address}</p>}
-        <p>{source}</p>
-      </div></Popup>
-    </CircleMarker>
-  </>;
+  return <CircleMarker center={position} radius={MAP_BRANCH_MARKER_RADIUS}
+    pathOptions={{ color: "#ffffff", fillColor: "#0f766e", fillOpacity: 1 }}>
+    <Popup><div className="space-y-1 text-slate-800">
+      <strong>{branch.name}</strong>
+      {branch.address && <p>{branch.address}</p>}
+      <p>{source}</p>
+    </div></Popup>
+  </CircleMarker>;
 }
 
 function ResultBounds({ branches, merchants }: { branches: Branch[]; merchants: MerchantResult[] }): null {
@@ -120,7 +122,9 @@ export default function MerchantMap({ center, branches, merchants, selectedMerch
         attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'} />
       <MapBehavior center={center} onPickLocation={onPickLocation} />
       <ResultBounds branches={branches} merchants={merchants} />
-      {branches.map((branch) => <BranchLocation key={branch.id} branch={branch} />)}
+      {/* Keep every branch marker above every trade area so overlapping circles cannot cover it. */}
+      {branches.map((branch) => <BranchTradeArea key={branch.id} branch={branch} />)}
+      {branches.map((branch) => <BranchMarker key={branch.id} branch={branch} />)}
       {merchants.map((merchant) => <MerchantLocation key={merchant.place.entityId} merchant={merchant}
         selected={selectedMerchantId === merchant.place.entityId} onSelect={onSelectMerchant} />)}
     </MapContainer>
