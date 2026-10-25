@@ -7,7 +7,7 @@ import { emptyProfile, loadProfile, saveProfile } from "@/lib/profile-storage";
 import type { Profile } from "@/lib/types";
 import { FAKE_BRAND, FAKE_PLAN_RESPONSE, FAKE_PROFILE, FAKE_RUN_RESULT } from "../fixtures/fake-plan";
 import { elementProps, findElement, flushPage, invoke, pageHarness, renderPage, resetPage, unmountPage } from "../fixtures/page-harness";
-import { componentText } from "../fixtures/component-harness";
+import { componentText, findComponents } from "../fixtures/component-harness";
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -35,6 +35,15 @@ const setItem = vi.fn((key: string, value: string) => { values.set(key, value); 
 function render(): ReturnType<typeof renderPage> { return renderPage(Home); }
 function props(type: string): Record<string, unknown> { return elementProps(render(), type); }
 function reset(): void { invoke(props("PresetPicker").onStartBlank); render(); }
+function expectUniqueSiblingKeys(): void {
+  // Inspect the raw sibling arrays: the fake hook renderer does not run React reconciliation.
+  for (const element of findComponents(render(), () => true)) {
+    const children = Array.isArray(element.props.children) ? element.props.children : [element.props.children];
+    const keys = children.flatMap((child: unknown) =>
+      child && typeof child === "object" && "key" in child && child.key !== null ? [child.key] : []);
+    expect(new Set(keys).size).toBe(keys.length);
+  }
+}
 async function finishPlan(): Promise<void> {
   invoke(props("Button").onClick);
   pageHarness.plans.at(-1)!.resolve(structuredClone(FAKE_PLAN_RESPONSE)); await flushPage(); render();
@@ -138,4 +147,13 @@ it.each(["not ready", "planning", "running"])("disables Start blank while %s", a
 it("clears demo identity so later ordinary inputs are not treated as an edited demo", () => {
   invoke(props("PresetPicker").onSelect, getPresets()[0]); reset();
   expect(componentText(render())).not.toContain("Changes run live research and count toward today's limit.");
+});
+
+it("keeps sibling form keys unique initially and after every preset and blank reset", () => {
+  expectUniqueSiblingKeys();
+  for (const preset of getPresets()) {
+    invoke(props("PresetPicker").onSelect, preset); expectUniqueSiblingKeys();
+    reset(); expectUniqueSiblingKeys();
+  }
+  reset(); expectUniqueSiblingKeys();
 });

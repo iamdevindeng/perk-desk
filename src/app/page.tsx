@@ -130,9 +130,9 @@ export default function Home(): ReactElement {
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <PresetPicker onSelect={selectPreset} onStartBlank={startBlank} disabled={busy || !ready} />
-        <ProfileForm key={branchLookupVersion} profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
+        <ProfileForm key={`profile-${branchLookupVersion}`} profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
-        <TasteInput key={branchLookupVersion} value={brandsText} onChange={editBrands} disabled={busy || !ready} />
+        <TasteInput key={`taste-${branchLookupVersion}`} value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
         <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900"
           aria-describedby={profile.branches.every(branchHasLocation) ? undefined : "branch-location-hint"}>

@@ -1804,3 +1804,27 @@ Verification: 1350 offline tests / 93 files, lint, TypeScript, production build,
 Decisions I made: the shared ProfileSchema rejects empty institution names, so a browser-only schema permits the exact blank profile while preserving every request schema and rejecting other incomplete profiles. Moved the unchanged planning/research hooks into src/lib/page-research.ts within the existing lib directory and grouped profile actions to keep the page/functions below the readability limits. This is the only source file-tree extension. Reused the lookup version for form remounts and the existing navigation helper for focus/scroll. No new storage key, dependency, folder, API shape, cache identity, preset data, rate limit, or protected check changed.
 
 Open issues: none for R43. No live provider call, push, deployment, or remote action occurred; the existing dev server remains running.
+
+## R43 follow-up — Give reset forms distinct sibling keys (2026-10-25)
+
+Status: DONE
+
+- Fixed the browser-reported duplicate React key: ProfileForm and TasteInput shared the numeric reset version under the same parent. Their keys now have distinct profile/taste prefixes while retaining the shared version for remounts.
+- Added a regression that inspects explicit keys in each raw sibling array initially, after both preset selections, and after repeated blank resets. Existing reset/remount assertions remain intact.
+- Confirmed the new regression fails on the previous code and passes after the repair. The earlier fake-hook harness did not run React reconciliation, so it had missed the duplicate-key warning.
+- Preserved the concurrent local R44 revert in ff4851c. It removed the ProgramIntro test during the first full run; verification was repeated against the current tree.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                    |  4 ++--
+ tests/unit/page-start-blank.test.ts | 20 +++++++++++++++++++-
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1351 offline tests / 93 files, lint, TypeScript, production build, repository rules, and privacy scans passed on the current tree. Read-only browser inspection found the error overlay closed but stale duplicated profile sections remaining from the earlier invalid reconciliation; reload once to discard that old DOM. The dev server remains listening on port 3000. No live API calls or push occurred.
+
+Decisions I made: scope keys by component identity as well as reset version; do not remove the remount behavior required by R43. Preserve the unrelated R44 revert. No storage, request, preset, cache, rate-limit, dependency, or protected-check changes.
+
+Open issues: the supplied screenshot shows only the first of three recorded errors, so the other two entries were not independently identified. This repair addresses the confirmed duplicate-key defect.
