@@ -118,7 +118,7 @@ export default function CategoryConfirm({
   return <Card>
     <CardHeader>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <CardTitle id="category-confirm-heading" tabIndex={-1} className="scroll-mt-6">Choose your merchant categories</CardTitle>
+        <CardTitle id="category-confirm-heading" tabIndex={-1}>Choose your merchant categories</CardTitle>
         <Badge variant="outline" className="border-teal-200 text-teal-800">Review before research</Badge>
       </div>
       <CardDescription>Check the brand matches and evidence, then select up to {RUN_MAX_CATEGORIES} categories.</CardDescription>

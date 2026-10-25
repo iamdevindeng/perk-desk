@@ -2,6 +2,7 @@
 // Called by: Next.js App Router
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { PAGE_SCROLL_OFFSET_PX } from "@/lib/config";
 import "./globals.css";
 
 const PAGE_TITLE = "Perk Desk";
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactNode {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased" style={{ scrollPaddingTop: PAGE_SCROLL_OFFSET_PX }}>
       <body className="min-h-full flex flex-col">
         {children}
         <footer className="border-t px-6 py-5 text-sm text-muted-foreground">

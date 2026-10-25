@@ -3,6 +3,7 @@
 import { createElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import Home from "@/app/page";
+import { PAGE_SCROLL_OFFSET_PX, TOP_BAR_HEIGHT_PX, TOP_BAR_Z_INDEX } from "@/lib/config";
 import { loadProfile, saveProfile } from "@/lib/profile-storage";
 import { FAKE_PROFILE } from "../fixtures/fake-plan";
 import { componentText, findComponents, renderComponents, resetComponents, type TestElement } from "../fixtures/component-harness";
@@ -46,13 +47,37 @@ beforeEach(async () => {
 });
 afterEach(() => { resetComponents(); vi.unstubAllGlobals(); });
 
-it("uses an accessible non-submit button with the original eyebrow styling and visible keyboard focus", () => {
+it("uses an accessible non-submit logo button with visible keyboard focus", () => {
   expect(logo().type).toBe("button"); expect(logo().props.type).toBe("button");
   expect(componentText(logo())).toBe("Perk Desk"); expect(logo().props.href).toBeUndefined();
   const classes = String(logo().props.className);
-  for (const token of ["mb-3", "text-sm", "font-bold", "uppercase", "tracking-[0.2em]", "text-teal-700", "cursor-pointer", "focus-visible:"]) {
+  for (const token of ["text-sm", "font-bold", "uppercase", "tracking-[0.2em]", "text-teal-700", "cursor-pointer", "focus-visible:"]) {
     expect(classes).toContain(token);
   }
+});
+
+it("keeps the logo inside a full-width sticky bar while the introduction scrolls with the main content", () => {
+  const bar = findComponents(tree, (element) => String(element.props.className).split(/\s+/).includes("sticky"))[0];
+  expect(bar).toBeDefined();
+  const classes = String(bar.props.className).split(/\s+/);
+  expect(classes).toEqual(expect.arrayContaining(["sticky", "top-0", "w-full", "border-b"]));
+  expect(classes.some((name) => ["bg-white", "bg-slate-50"].includes(name))).toBe(true);
+  expect(bar.props.style).toMatchObject({ height: TOP_BAR_HEIGHT_PX, zIndex: TOP_BAR_Z_INDEX });
+  expect(findComponents(bar, (element) => element.props["aria-label"] === "Perk Desk, back to top")).toHaveLength(1);
+  expect(componentText(bar)).toBe("Perk Desk");
+  const main = findComponents(tree, (element) => element.type === "main")[0];
+  expect(findComponents(main, (element) => element === bar)).toHaveLength(0);
+  expect(findComponents(main, (element) => element.type === "h1")).toHaveLength(1);
+  expect(componentText(main)).toContain("Turn the brands your members love into a focused list of local merchants near your branches.");
+});
+
+it("keeps the sticky map below the same header and navigation gap", () => {
+  const map = field("merchant-map-card");
+  expect(map.type).toBe("aside");
+  expect(map.props.className).toContain("lg:sticky");
+  expect(map.props.className).toContain("lg:top-[var(--page-scroll-offset)]");
+  expect(map.props.className).not.toContain("lg:top-6");
+  expect(map.props.style).toMatchObject({ "--page-scroll-offset": `${PAGE_SCROLL_OFFSET_PX}px` });
 });
 
 it.each([false, true, undefined])("scrolls to top with reduced motion=%s without changing profile, brands, storage, or navigation", (reduced) => {

@@ -106,7 +106,7 @@ export default function MerchantCard({ merchant, status, onStatusChange, selecte
   return <Card id={`merchant-${merchant.place.entityId}`} tabIndex={0} role="article" aria-label={merchant.place.name}
     aria-current={selected ? "true" : undefined} onMouseEnter={onSelect} onFocus={onSelect} onClick={onSelect}
     onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") onSelect(); }}
-    className={`scroll-mt-6 transition-shadow focus-visible:outline-2 focus-visible:outline-teal-600 ${selected ? "border-teal-400 ring-2 ring-teal-100" : "hover:border-slate-300"}`}>
+    className={`transition-shadow focus-visible:outline-2 focus-visible:outline-teal-600 ${selected ? "border-teal-400 ring-2 ring-teal-100" : "hover:border-slate-300"}`}>
     <CardHeader>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle>{merchant.place.name}</CardTitle>
@@ -158,7 +158,7 @@ export function MerchantResults({ result, profile, brands = [], selectedMerchant
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle id="merchant-results-heading" tabIndex={-1} className="scroll-mt-6">Your merchant shortlist</CardTitle>
+          <CardTitle id="merchant-results-heading" tabIndex={-1}>Your merchant shortlist</CardTitle>
           <Badge variant={result.mode === "fallback" ? "secondary" : "outline"}>{result.mode === "fallback" ? "Fallback mode" : "Agent mode"}</Badge>
         </div>
         <div className="flex items-center justify-between gap-3">

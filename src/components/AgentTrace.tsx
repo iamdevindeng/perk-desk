@@ -69,7 +69,7 @@ export default function AgentTrace({ events, onRetry, disabled = false }: AgentT
   const error = events.findLast((event) => event.type === "error");
   const ended = events.some((event) => ["result", "error", "limited", "done"].includes(event.type));
   return <Card>
-    <CardHeader><CardTitle id="research-progress-heading" tabIndex={-1} className="scroll-mt-6">Research progress</CardTitle>
+    <CardHeader><CardTitle id="research-progress-heading" tabIndex={-1}>Research progress</CardTitle>
       <p aria-live="polite" className="text-xs text-slate-500">{liveCalls} Qloo calls · cached {cachedCalls}</p>
     </CardHeader>
     <CardContent className="space-y-4">

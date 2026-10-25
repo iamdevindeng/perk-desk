@@ -133,7 +133,7 @@ export default function MerchantMap({ center, branches, merchants, candidates = 
   const locatedCount = branches.filter((branch) => branch.lat !== undefined && branch.lon !== undefined).length;
   return <section aria-label="Branch trade areas map" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
-      <div><h2 id="merchant-map-heading" tabIndex={-1} className="scroll-mt-6 font-semibold text-slate-900">Your local area</h2>
+      <div><h2 id="merchant-map-heading" tabIndex={-1} className="font-semibold text-slate-900">Your local area</h2>
         <p className="mt-1 text-sm text-slate-500">{locatedCount} branch {locatedCount === 1 ? "location" : "locations"}
           {merchants.length > 0 && ` · ${merchants.length} merchants`}</p></div>
       <div className="space-y-1 text-xs text-slate-600">

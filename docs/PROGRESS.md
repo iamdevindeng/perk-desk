@@ -1873,3 +1873,36 @@ How to verify: `npm test -- tests/unit/program-intro.test.ts`.
 Decisions I made: keep the later R43 key fix and its progress entry when resolving the revert conflict. The normal revert continues as a new local commit; no history rewrite.
 
 Open issues: none. No live API calls or push.
+
+## R45 — Keep the logo reachable in a sticky top bar (2026-10-25)
+
+Status: DONE
+
+- Moved the restored R44 logo into a slim, full-width sticky header; the title and intro still scroll normally.
+- Share one 48px bar height and 24px gap through config constants; the map and document navigation both use the resulting 72px offset.
+- Set the bar above Leaflet controls with an explained z-index of 1100 and removed conflicting per-target margins.
+- Preserved logo accessibility, reduced-motion behavior, and state/storage isolation; added layout and shared-offset regressions.
+
+Files touched / staged list (before this log):
+```text
+ src/app/layout.tsx                 |  3 ++-
+ src/app/page.tsx                   | 12 +++++++-----
+ src/components/AgentTrace.tsx      |  2 +-
+ src/components/CategoryConfirm.tsx |  2 +-
+ src/components/MerchantCard.tsx    |  4 ++--
+ src/components/MerchantMap.tsx     |  2 +-
+ src/components/ProgramHeader.tsx   | 20 ++++++++++++++++++++
+ src/components/ProgramIntro.tsx    | 10 +---------
+ src/lib/config.ts                  |  5 +++++
+ tests/unit/program-intro.test.ts   | 29 +++++++++++++++++++++++++++--
+ tests/unit/sticky-header.test.ts   | 28 ++++++++++++++++++++++++++++
+ 11 files changed, 95 insertions(+), 22 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1365 offline tests / 95 files, lint, TypeScript, production build, rules, and full-tree privacy passed. The first build could not bind a sandbox worker port; the elevated retry reused the cached error. Moved only `.next/cache/turbopack` to a temporary backup, then the third build passed with local worker access. The separate `.next/dev` cache and server were preserved. Independent code review found no blocking issue.
+
+Decisions I made: use document-level scroll padding so every current/future navigation target, including the R43 input and merchant cards, shares the same offset. Added one single-purpose ProgramHeader.tsx inside the existing components directory to keep the intro and sticky bar responsibilities separate. No dependency, folder, schema, preset, cache key, rate limit, or protected check changed.
+
+Open issues: none. No live API calls or push. The existing server remains on port 3000.

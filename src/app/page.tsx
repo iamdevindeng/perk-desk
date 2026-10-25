@@ -2,16 +2,17 @@
 // Coordinates the editable program profile, planning request, and branch map.
 // Called by: Next.js App Router as the single Perk Desk page
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from "react";
 import PresetPicker from "@/components/PresetPicker";
 import ProgramIntro from "@/components/ProgramIntro";
+import ProgramHeader from "@/components/ProgramHeader";
 import ProfileForm from "@/components/ProfileForm";
 import TasteInput from "@/components/TasteInput";
 import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
-import { LIVE_LIMIT_MESSAGE } from "@/lib/config";
+import { LIVE_LIMIT_MESSAGE, PAGE_SCROLL_OFFSET_PX } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { emptyProfile, isEmptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
@@ -125,7 +126,7 @@ export default function Home(): ReactElement {
   const trace = research.runEvents.length ? research.runEvents : plan?.trace ?? [];
   const visibleTrace: TraceEvent[] = plan?.limited && !research.runEvents.length
     ? [...trace, { type: "limited", at: 0, message: plan.message ?? LIVE_LIMIT_MESSAGE }] : trace;
-  return <main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-8 lg:py-12">
+  return <><ProgramHeader /><main className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-8 sm:px-8 lg:py-12">
     <ProgramIntro />
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
@@ -151,11 +152,12 @@ export default function Home(): ReactElement {
           independentsOnly={independentsOnly} onIndependentsOnlyChange={setIndependentsOnly}
           onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}
       </div>
-      <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 scroll-mt-6 lg:sticky lg:top-6">
+      <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 lg:sticky lg:top-[var(--page-scroll-offset)]"
+        style={{ "--page-scroll-offset": `${PAGE_SCROLL_OFFSET_PX}px` } as CSSProperties}>
         <MerchantMap center={center} branches={profile.branches} candidates={branchCandidates} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={!busy && pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>
       </aside>
     </div>
-  </main>;
+  </main></>;
 }
