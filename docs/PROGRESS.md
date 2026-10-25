@@ -1932,3 +1932,29 @@ Verification: 1377 offline tests / 96 files, lint, TypeScript, production build,
 Decisions I made: whitespace-only addresses count as blank, matching R40. Tie manual expansion to the branch ID so city changes cannot reveal the next placeholder accidentally. Show 0 in the display badge while the placeholder is hidden and offer only Add manually there; the underlying one-branch profile is unchanged.
 
 Open issues: none. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes. Port 3000 remains running.
+
+## R47 — Make credit union setup the primary entry (2026-10-26)
+
+Status: DONE
+
+- Applied the exact setup card title/description and made Start with my credit union the first full-width teal action.
+- Updated only the confirmation wording in the existing R43 reset logic and removed the obsolete helper.
+- Kept both demo labels, branch-count sub-lines, and callbacks; placed their smaller outline buttons after Or explore a demo, stacked on mobile.
+- Updated reset/cancellation/focus regressions and added real component checks for ordering, styling, copy, and both local preset loads.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                       |  2 +-
+ src/components/PresetPicker.tsx        | 30 +++++++++---------
+ tests/unit/page-start-blank-ui.test.ts | 56 ++++++++++++++++++++++++++++------
+ tests/unit/page-start-blank.test.ts    |  4 +--
+ 4 files changed, 65 insertions(+), 27 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1380 offline tests / 96 files, lint, TypeScript, production build, rules, and full-tree privacy passed. Independent review found no actionable issue. R45/R46 browser checks passed at 1440×1000 and 390×844: sticky bar and reset target remained visible, logo restored scroll without data changes, manual entry focused the stored placeholder, and city changes returned to the empty state. Plan readiness and the hint tracked address entry correctly. No app API requests occurred; external requests were blocked.
+
+Decisions I made: use the existing Plan button teal classes for the main action and a separate responsive demo grid below it. Preserve all reset and preset callback logic and props.
+
+Open issues: none. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes. The original port 3000 server is still running.

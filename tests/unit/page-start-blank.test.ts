@@ -87,7 +87,7 @@ it("leaves the profile, brands, plan, results, preview, selections, keys, and st
   }
   expect([...values]).toEqual(stored); expect(setItem).toHaveBeenCalledTimes(writes);
   expect(input.focus).not.toHaveBeenCalled();
-  expect(confirm).toHaveBeenCalledExactlyOnceWith("Start blank? This clears your profile, branches, member brands and results in this browser.");
+  expect(confirm).toHaveBeenCalledExactlyOnceWith("Start with your own credit union? This clears the current profile, branches, member brands and results in this browser.");
 });
 
 it("saves a blank profile, clears all page state, remounts forms, and focuses the name after acceptance", async () => {
@@ -133,7 +133,7 @@ it("still asks when member brand text alone differs from blank", () => {
   expect(confirm).toHaveBeenCalledOnce();
 });
 
-it.each(["not ready", "planning", "running"])("disables Start blank while %s", async (state) => {
+it.each(["not ready", "planning", "running"])("disables starting with my credit union while %s", async (state) => {
   if (state === "not ready") { resetPage(); render(); }
   else if (state === "planning") invoke(props("Button").onClick);
   else { await finishPlan(); invoke(props("CategoryConfirm").onConfirm); }

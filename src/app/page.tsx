@@ -79,7 +79,7 @@ function profileActions(input: ProfileActionsInput) {
   }
   function startBlank(): void {
     const alreadyBlank = isEmptyProfile(input.profile) && input.brandsText === "" && !input.hasOutput;
-    if (!alreadyBlank && !window.confirm("Start blank? This clears your profile, branches, member brands and results in this browser.")) return;
+    if (!alreadyBlank && !window.confirm("Start with your own credit union? This clears the current profile, branches, member brands and results in this browser.")) return;
     input.updateProfile(emptyProfile()); input.setBrandsText(""); input.setPresetId(undefined); clearResults();
     input.setPickingBranchId(undefined); input.setSelectedMerchantId(undefined); input.setIndependentsOnly(false); input.setBranchCandidates([]);
     input.setBranchLookupVersion((version) => version + 1); input.navigation.navigate("institution-name");
