@@ -94,6 +94,8 @@ export const PAGE_SCROLL_GAP_PX = 24;
 export const PAGE_SCROLL_OFFSET_PX = TOP_BAR_HEIGHT_PX + PAGE_SCROLL_GAP_PX;
 // Keep the sticky logo above Leaflet panes (700) and controls (1000).
 export const TOP_BAR_Z_INDEX = 1100;
+// Keep explanations above Leaflet controls (1000) but below the sticky logo.
+export const INFO_TOOLTIP_Z_INDEX = 1090;
 export const MAP_MAX_ZOOM = 19;
 export const MAP_BRANCH_MARKER_RADIUS = 7;
 export const MAP_BRANCH_AREA_OPACITY = 0.1;

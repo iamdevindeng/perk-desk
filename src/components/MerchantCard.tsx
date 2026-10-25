@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
@@ -169,7 +170,11 @@ export function MerchantResults({ result, profile, brands = [], selectedMerchant
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Label className="flex items-center gap-2"><Switch checked={independentsOnly} onCheckedChange={onIndependentsOnlyChange} />Independents only</Label>
+          <div className="flex items-center gap-2">
+            <Label className="flex items-center gap-2"><Switch checked={independentsOnly} onCheckedChange={onIndependentsOnlyChange} />Independents only</Label>
+            <InfoTooltip label="What does Independents only mean?"
+              text="Hides local brands with 2+ locations nearby. National chains are already excluded." />
+          </div>
           <ExportButton merchants={visible} merchantStatus={profile.merchantStatus} brands={brands} />
         </div>
         <ResultNotes result={result} profile={profile} />

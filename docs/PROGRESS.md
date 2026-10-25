@@ -1980,3 +1980,31 @@ Verification: final `npm test` passed 1380 offline tests / 96 files. Lint, TypeS
 Decisions I made: retain natural text wrapping instead of forcing a mobile overflow. No other copy or layout change was needed for R48.
 
 Open issues: none for FIXES-R12. Step 0 and R45–R48 are complete in order. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes occurred. The isolated verification browser is closed; the original dev server (PID 36027) remains running on port 3000.
+
+## R49 — Explain the Independents only filter (2026-10-26)
+
+Status: DONE
+
+- Added a reusable native information button with the exact requested label and explanation, a stable tooltip ID, and an accessible description.
+- Kept the icon outside the switch label; hover, focus, click/touch, Escape, and outside-pointer dismissal work without changing the filter.
+- Used a 240px popup with no animation and a shared stacking constant above Leaflet controls and below the sticky bar.
+- Added 11 offline regression tests for accessibility, interaction sequencing, listener cleanup, exact copy, and switch independence.
+- Checked the real UI at 375×812 and 1440×1000 with invented plan/run responses and all external requests blocked.
+
+Files touched / staged list (before this log):
+```text
+ src/components/MerchantCard.tsx    |   7 +-
+ src/components/ui/info-tooltip.tsx |  49 +++++++++++++
+ src/lib/config.ts                  |   2 +
+ tests/unit/info-tooltip.test.ts    | 138 +++++++++++++++++++++++++++++++++++++
+ tests/unit/merchant-card.test.ts   |   9 +++
+ 5 files changed, 204 insertions(+), 1 deletion(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1391 offline tests / 97 files, lint, TypeScript, production build, repository rules, full-tree/staged privacy, and whitespace checks passed. The first unit run exposed a missing Node stub in the new offline test harness; the stub was added and all tests passed. Browser checks confirmed keyboard focus/blur, hover/leave, Escape without icon focus, outside click, and first/second emulated touch taps. The switch remained unchanged. The popup was fully on screen at 375px with no clipping ancestor or horizontal overflow, and both viewport screenshots were visually reviewed. Browser network errors were only deliberately blocked map tiles. Independent component review found no blocking issue.
+
+Decisions I made: capture visibility on pointerdown so touch focus cannot open and immediately close the popup on the same tap. Keep the hidden tooltip mounted so aria-describedby always resolves, and attach dismissal listeners only while it is open. Center the popup under the icon; no ancestor overflow change was needed. All files stay within the existing directories specified by R49.
+
+Open issues: none for R49. No live provider calls, push, new dependencies, filtering changes, preset changes, cache changes, schema changes, rate-limit changes, or protected-check changes. The existing dev server (PID 83678) remains running on port 3000.

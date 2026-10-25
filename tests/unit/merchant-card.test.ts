@@ -78,3 +78,12 @@ it("passes plan aliases through the results component to cards and CSV export", 
   expect(exported?.props.brands).toBe(props.brands);
   expect(exported?.props.merchants).toEqual([merchant]);
 });
+
+it("explains Independents only with the exact text and an icon outside its switch label", () => {
+  const markup = renderToStaticMarkup(createElement(MerchantResults, {
+    result: FAKE_RUN_RESULT, profile: FAKE_PROFILE, independentsOnly: false,
+    onIndependentsOnlyChange: () => {}, onSelectMerchant: () => {}, onStatusChange: () => {},
+  }));
+  expect(markup).toContain("Hides local brands with 2+ locations nearby. National chains are already excluded.");
+  expect(markup).toMatch(/Independents only<\/label><span[^>]*><button[^>]*aria-label="What does Independents only mean\?"/);
+});
