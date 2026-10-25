@@ -1535,3 +1535,31 @@ Verification: all checks passed; 1165 offline tests / 79 files. Full-week, weekd
 Decisions I made: cached day ranges follow the existing Monday-to-Sunday formatter order; reversed ranges remain unchanged as ordinary text. Day coverage is a set so duplicated days cannot stand in for missing days. Added only the three requested README limitations and retained the R27 category sentence.
 
 Open issues: none for R30–R35. This final code round is complete in order with one local commit per item. Request shapes/defaults, presets, canonical hashing, cache keys/prefixes, daily limits, and protection scripts/hooks remain unchanged. No push, deployment, live provider call, or remote cache action occurred. Owner follow-ups for the combined R6/R7 push, demo re-warm, real social screenshot, and retired environment setting remain in Waiting for Devin.
+
+
+## R36 — Keep branches within the selected city (2026-10-25)
+
+Status: DONE
+
+- Reset branches to one blank branch with a fresh ID and the default radius only when the City select changes; preserve every other profile field.
+- Show the requested city-reset status, retain it while typing Other city or changing unrelated fields, and hide it after branch edits, map picks, or preset selection.
+- Reject located branches more than 50 km from a resolved city with the requested warning; retain the existing missing-city and empty-plan behavior.
+- Added offline form/page and planning regressions, including every branch in both unchanged presets.
+
+Files touched / staged list (before this log):
+```text
+ src/components/ProfileForm.tsx    |  27 ++++--
+ src/lib/agent/plan-agent.ts       |  11 ++-
+ src/lib/config.ts                 |   1 +
+ tests/unit/plan-locations.test.ts |  82 +++++++++++++++++
+ tests/unit/profile-city.test.ts   | 180 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 290 insertions(+), 11 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1185 offline tests / 81 files. Production build used local worker permission with provider/store credentials cleared. The component tests exercise real page preset and map-pick callbacks; the location tests mock all service calls. Independent review caught and fixed premature notice dismissal after an empty plan, with a regression test. No live API calls.
+
+Decisions I made: keep the reset notice local to CityField and compare the original blank branch object and branch count. This avoids changing selectPreset and keeps the notice when planning only recreates the branches array without editing the blank branch. No dependency, preset data, cache identity, or protection changes.
+
+Open issues: none for R36. No push or remote action.

@@ -2,10 +2,10 @@
 // Edits the institution, city, branches, and signed/business-member merchant lists.
 // Called by: the main Perk Desk page; changes are persisted by the page.
 import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
-import { UPLOAD_MAX_BYTES } from "@/lib/config";
+import { DEFAULT_RADIUS_M, UPLOAD_MAX_BYTES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { parseUploadedList } from "@/lib/request-builders";
-import type { Profile } from "@/lib/types";
+import type { Branch, Profile } from "@/lib/types";
 import BranchEditor from "@/components/BranchEditor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,21 +31,30 @@ const MERCHANT_LIST_LABELS = {
   },
 };
 
-function CityField({ value, onChange }: { value: string; onChange: (city: string) => void }): ReactElement {
+function CityField({ profile, onChange }: { profile: Profile; onChange: (profile: Profile) => void }): ReactElement {
   const cities = getCities();
-  const knownCity = cities.some((city) => city.label === value);
+  const knownCity = cities.some((city) => city.label === profile.city);
+  const [reset, setReset] = useState<{ branch: Branch; cityLabel: string } | null>(null);
+  function selectCity(value: string): void {
+    const branch = { id: crypto.randomUUID(), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M };
+    setReset({ branch, cityLabel: value === "other" ? "the new city" : value });
+    onChange({ ...profile, city: value === "other" ? "" : value, branches: [branch] });
+  }
+  // Edits and presets replace the branch; an empty plan may only recreate its array.
+  const showReset = profile.branches.length === 1 && reset?.branch === profile.branches[0];
   return <div className="space-y-2">
     <Label htmlFor="profile-city">City</Label>
-    <Select id="profile-city" value={knownCity ? value : "other"}
-      onChange={(event) => onChange(event.target.value === "other" ? "" : event.target.value)}>
+    <Select id="profile-city" value={knownCity ? profile.city : "other"}
+      onChange={(event) => selectCity(event.target.value)}>
       {cities.map((city) => <option key={city.label} value={city.label}>{city.label}</option>)}
       <option value="other">Other city</option>
     </Select>
     {!knownCity && <div className="space-y-2 pt-1">
       <Label htmlFor="profile-other-city">Other city (City, ST)</Label>
-      <Input id="profile-other-city" value={value} placeholder="Portland, OR" required autoComplete="address-level2"
-        onChange={(event) => onChange(event.target.value)} />
+      <Input id="profile-other-city" value={profile.city} placeholder="Portland, OR" required autoComplete="address-level2"
+        onChange={(event) => onChange({ ...profile, city: event.target.value })} />
     </div>}
+    {showReset && <p role="status" className="text-sm text-slate-500">City changed, so branches were reset. Add your branches in {reset.cityLabel}.</p>}
   </div>;
 }
 
@@ -120,7 +129,7 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
             <Input id="institution-name" value={profile.institutionName} placeholder="Your credit union" autoComplete="organization" required
               onChange={(event) => onChange({ ...profile, institutionName: event.target.value })} />
           </div>
-          <CityField value={profile.city} onChange={(city) => onChange({ ...profile, city })} />
+          <CityField profile={profile} onChange={onChange} />
         </div>
         <BranchEditor branches={profile.branches} onChange={(branches) => onChange({ ...profile, branches })}
           pickingBranchId={pickingBranchId} onPickBranch={onPickBranch} disabled={disabled} />

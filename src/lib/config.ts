@@ -13,6 +13,7 @@ export const BRAND_TAGS_MAX = 40;
 export const TAG_SEARCH_TAKE = 15;
 export const INSIGHTS_TAKE = 30;
 export const DEFAULT_RADIUS_M = 6000;
+export const BRANCH_MAX_CITY_DISTANCE_M = 50000;
 export const MIN_INDEPENDENTS = 6;
 export const PLAN_MIN_CATEGORIES = 2;
 export const PLAN_MAX_CATEGORIES = 6;

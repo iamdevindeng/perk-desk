@@ -1,7 +1,7 @@
 // Orchestrates location resolution, guarded planning, and deterministic fallback categories.
 // Called by: the plan route, smoke/eval scripts, and plan-agent unit tests
 import { generateText, isStepCount, tool, type LanguageModel, type Tool } from "ai";
-import { PLAN_MAX_CATEGORIES, PLAN_MAX_STEPS, PLAN_MAX_SUBMISSIONS, PLAN_MIN_CATEGORIES, PLAN_TIMEOUT_MS, TRACE_SUMMARY_MAX } from "@/lib/config";
+import { BRANCH_MAX_CITY_DISTANCE_M, PLAN_MAX_CATEGORIES, PLAN_MAX_STEPS, PLAN_MAX_SUBMISSIONS, PLAN_MIN_CATEGORIES, PLAN_TIMEOUT_MS, TRACE_SUMMARY_MAX } from "@/lib/config";
 import { contextQlooOptions, createPlanContext, handleToolError, researchStopped, type ResearchOptions, type PlanContext } from "@/lib/agent/context";
 import { applyPlanGuards, PlanSubmissionSchema, type PlanSubmission } from "@/lib/agent/guards";
 import { agentModel, AGENT_CALL_SETTINGS } from "@/lib/agent/model";
@@ -11,6 +11,7 @@ import { buildSearchCategoriesTool } from "@/lib/agent/tools/search-categories";
 import { findPreset, getCities } from "@/lib/data";
 import { hasDeepSeekKey, isAgentDisabled } from "@/lib/env";
 import { buildFallbackPlan, chooseFallbackBrands } from "@/lib/fallback/fallback-plan";
+import { haversineMeters } from "@/lib/merchants/distance";
 import { createQlooError } from "@/lib/qloo/client";
 import { resolveLocality } from "@/lib/qloo/insights";
 import { PlanRequestSchema, PlanResponseSchema, ResolvedBrandSchema, type Branch, type PlanRequest, type PlanResponse, type TraceEvent } from "@/lib/types";
@@ -57,7 +58,13 @@ async function resolveLocations(context: PlanContext): Promise<PlanResponse["cit
   const branches: Branch[] = [];
   for (const branch of context.request.branches) {
     const located = await locateBranch(branch, context);
-    if (located) branches.push(located);
+    if (!located) continue;
+    if (point && located.lat !== undefined && located.lon !== undefined &&
+      haversineMeters(point, { lat: located.lat, lon: located.lon }) > BRANCH_MAX_CITY_DISTANCE_M) {
+      context.warnings.push(`Branch ${located.name} is more than 50 km from ${context.request.city}; pick its location on the map.`);
+      continue;
+    }
+    branches.push(located);
   }
   context.request = { ...context.request, branches };
   if (!branches.length) context.warnings.push("No branch locations were resolved; pick a location on the map.");
