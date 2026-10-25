@@ -42,8 +42,9 @@ describe("public page metadata", () => {
 });
 
 it("gives both demo buttons full width with left-aligned text and separated arrows", () => {
-  const markup = renderToStaticMarkup(createElement(PresetPicker, { onSelect: () => {} }));
-  const buttons = Array.from(markup.matchAll(/<button\b[^>]*class="([^"]+)"/g), (match) => match[1].split(/\s+/));
+  const markup = renderToStaticMarkup(createElement(PresetPicker, { onSelect: () => {}, onStartBlank: () => {} }));
+  const buttons = Array.from(markup.matchAll(/<button\b[^>]*class="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g))
+    .filter((match) => match[2].includes("demo")).map((match) => match[1].split(/\s+/));
   expect(buttons).toHaveLength(2);
   for (const classes of buttons) {
     expect(classes).toEqual(expect.arrayContaining(["w-full", "justify-between", "text-left"]));

@@ -1,7 +1,7 @@
 // Checks profile persistence under normal, corrupt, and unavailable storage.
 // Called by: npm test with a small in-memory browser-storage substitute
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
+import { emptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { FAKE_PROFILE } from "../fixtures/fake-plan";
 
 const values = new Map<string, string>();
@@ -48,6 +48,25 @@ describe("browser profile storage", () => {
     saveProfile(FAKE_PROFILE);
     saveProfile({ ...FAKE_PROFILE, institutionName: "" });
     expect(loadProfile()).toEqual(FAKE_PROFILE);
+  });
+
+  it("overwrites the profile with a saved blank and preserves unrelated storage", () => {
+    saveProfile({ ...FAKE_PROFILE, branchesByCity: { "Fake City, CO": FAKE_PROFILE.branches },
+      merchantStatus: { "fake-merchant": { name: "Fake Shop", status: "signed", updatedAt: "2026-10-25" } } });
+    values.set("unrelated-key", "unrelated-value");
+    saveProfile(emptyProfile());
+    expect(loadProfile()).toEqual(emptyProfile());
+    expect(JSON.parse(values.get("perkdesk:v1:profile")!)).toEqual(emptyProfile());
+    expect(values.get("unrelated-key")).toBe("unrelated-value");
+    expect([...values.keys()]).toEqual(["perkdesk:v1:profile", "unrelated-key"]);
+  });
+
+  it("preserves a saved blank while other invalid partial profiles are edited", () => {
+    saveProfile(emptyProfile());
+    saveProfile({ ...emptyProfile(), city: "Fake City, CO" });
+    expect(loadProfile()).toEqual(emptyProfile());
+    saveProfile({ ...FAKE_PROFILE, branches: [{ ...FAKE_PROFILE.branches[0], name: "" }] });
+    expect(loadProfile()).toEqual(emptyProfile());
   });
 
   it("is safe during server rendering", () => {

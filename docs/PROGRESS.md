@@ -1772,3 +1772,35 @@ Verification: 1318 offline tests / 90 files, lint, TypeScript, production build,
 Decisions I made: the candidate layer uses a dedicated pane below Leaflet's normal overlays because JSX ordering alone cannot keep newly mounted candidates below existing branch markers. Candidate signatures include sorted identities and coordinates, so reordered arrays do not move the view. The factory move preserves existing profile behavior and the readability limits. No API shapes, presets, cache keys, rate limits, dependencies, or protected checks changed.
 
 Open issues: none for R42. Start blank will clear this same temporary state in R43. The existing server on port 3000 was left running. No push or remote action occurred.
+
+## R43 — Start blank from the demo picker (2026-10-25)
+
+Status: DONE
+
+- Added the full-width secondary Start blank button and exact browser-clear explanation, disabled with the demo buttons until ready and while busy.
+- Ask the exact confirmation before any changes unless the profile equals the blank profile ignoring branch IDs, member brands are empty, and there is no plan or result. Cancellation preserves data, selection, component keys, and storage.
+- Reset the profile, city branch memory, merchant status, brands, demo identity, planning/research state, trace/errors, stage, picking/selection, filter, and candidates. Remount profile/taste/lookup state and focus/scroll to the institution name after the reset commits.
+- Save and reload the exact blank profile under the existing profile key while retaining invalid-edit protection and leaving unrelated browser storage untouched.
+- Added offline storage, page, and real component-tree tests, including cancelled resets and late upload/lookup completions.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                       | 131 +++++++++---------------------
+ src/components/PresetPicker.tsx        |   6 +-
+ src/lib/page-research.ts               |  92 +++++++++++++++++++++
+ src/lib/profile-storage.ts             |  20 ++++-
+ tests/unit/metadata.test.ts            |   5 +-
+ tests/unit/page-start-blank-ui.test.ts |  91 +++++++++++++++++++++
+ tests/unit/page-start-blank.test.ts    | 141 +++++++++++++++++++++++++++++++++
+ tests/unit/profile-blank.test.ts       |  46 +++++++++++
+ tests/unit/profile-storage.test.ts     |  21 ++++-
+ 9 files changed, 454 insertions(+), 99 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1350 offline tests / 93 files, lint, TypeScript, production build, repository rules, and privacy scans passed. Independent review found no blocking issues. A focused lint check rejected passing a ref into the action factory; the busy check now lives directly in the event handler. The first component integration test exposed an unstable fake setter; its local mock now preserves React's setter identity. All checks passed after those fixes. The existing server returned HTTP 200 from the local homepage on port 3000; no app API was called.
+
+Decisions I made: the shared ProfileSchema rejects empty institution names, so a browser-only schema permits the exact blank profile while preserving every request schema and rejecting other incomplete profiles. Moved the unchanged planning/research hooks into src/lib/page-research.ts within the existing lib directory and grouped profile actions to keep the page/functions below the readability limits. This is the only source file-tree extension. Reused the lookup version for form remounts and the existing navigation helper for focus/scroll. No new storage key, dependency, folder, API shape, cache identity, preset data, rate limit, or protected check changed.
+
+Open issues: none for R43. No live provider call, push, deployment, or remote action occurred; the existing dev server remains running.

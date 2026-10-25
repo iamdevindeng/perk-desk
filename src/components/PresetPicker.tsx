@@ -7,13 +7,14 @@ import type { Preset } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type PresetPickerProps = { onSelect: (preset: Preset) => void; disabled?: boolean };
+type PresetPickerProps = { onSelect: (preset: Preset) => void; onStartBlank: () => void; disabled?: boolean };
 
-export default function PresetPicker({ onSelect, disabled = false }: PresetPickerProps): ReactElement {
+export default function PresetPicker({ onSelect, onStartBlank, disabled = false }: PresetPickerProps): ReactElement {
   return <Card className="border-teal-200 bg-teal-50/40">
     <CardHeader>
       <CardTitle>Start with a demo</CardTitle>
       <CardDescription>Explore a fictional credit union with branches and member brands already filled in.</CardDescription>
+      <p className="text-xs text-slate-500">Clear this browser&apos;s profile and results.</p>
     </CardHeader>
     <CardContent className="grid gap-3 sm:grid-cols-2">
       {getPresets().map((preset) => <Button key={preset.id} variant="outline" disabled={disabled}
@@ -24,6 +25,7 @@ export default function PresetPicker({ onSelect, disabled = false }: PresetPicke
         </span>
         <span aria-hidden="true" className="shrink-0 text-lg text-teal-700">→</span>
       </Button>)}
+      <Button variant="secondary" disabled={disabled} onClick={onStartBlank} className="w-full sm:col-span-2">Start blank</Button>
     </CardContent>
   </Card>;
 }

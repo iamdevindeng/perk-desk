@@ -11,26 +11,17 @@ import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
-import { LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { LIVE_LIMIT_MESSAGE } from "@/lib/config";
 import { getCities } from "@/lib/data";
-import { dedupeMerchants } from "@/lib/merchants/dedupe";
-import { emptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
+import { emptyProfile, isEmptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
-import { buildPlanRequest, buildRunRequest, mergePreferences, presetRequestChanges } from "@/lib/request-builders";
-import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
-import { ProfileSchema, type Branch, type BranchLookupResponse, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
+import { buildPlanRequest, presetRequestChanges } from "@/lib/request-builders";
+import { usePlanning, useResearch, type Stage } from "@/lib/page-research";
+import { ProfileSchema, type Branch, type BranchLookupResponse, type MerchantResult, type MerchantStatus, type Preset, type Profile, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
   ssr: false, loading: () => <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" aria-label="Loading map" />,
 });
-
-type Stage = "edit" | "planning" | "confirm" | "running" | "results";
-
-function useRequestVersion() {
-  const versionRef = useRef(0);
-  useEffect(() => () => { versionRef.current += 1; }, []);
-  return versionRef;
-}
 
 function useStage() {
   const [stage, updateStage] = useState<Stage>("edit");
@@ -44,11 +35,6 @@ function branchHasLocation(branch: Branch): boolean { return (branch.lat !== und
 function canPlan(profile: Profile, brandsText: string): boolean {
   try { buildPlanRequest(profile, brandsText); return profile.branches.every(branchHasLocation); }
   catch { return false; }
-}
-
-function requestError(error: unknown): string {
-  if (error instanceof Error && error.name !== "ZodError") return error.message;
-  return "Check your profile, branch locations, and category choices, then try again.";
 }
 
 function useSavedProfile() {
@@ -68,68 +54,36 @@ function useSavedProfile() {
   return { profile, updateProfile, ready, branchCandidates, setBranchCandidates };
 }
 
-type PlanInputs = { navigation: PageNavigation; profile: Profile; brandsText: string; presetId?: string; updateProfile: (profile: Profile) => void; setStage: (stage: Stage) => void };
+type ProfileActionsInput = {
+  profile: Profile; brandsText: string; hasOutput: boolean; pickingBranchId?: string;
+  navigation: PageNavigation; updateProfile: (profile: Profile) => void; setStage: (stage: Stage) => void;
+  clearPlanning: () => void; clearResearch: () => void;
+  setBrandsText: (text: string) => void; setPresetId: (id: string | undefined) => void;
+  setBranchLookupVersion: (update: (version: number) => number) => void; setBranchCandidates: (places: BranchLookupResponse["places"]) => void;
+  setPickingBranchId: (id: string | undefined) => void; setSelectedMerchantId: (id: string | undefined) => void; setIndependentsOnly: (value: boolean) => void;
+};
 
-function usePlanning(input: PlanInputs) {
-  const versionRef = useRequestVersion();
-  const [plan, setPlan] = useState<PlanResponse | null>(null);
-  const [canonicalPlan, setCanonicalPlan] = useState<PlanResponse | null>(null);
-  const [confirmedCategories, setConfirmedCategories] = useState<CategoryTag[]>([]);
-  const [brandOverrides, setBrandOverrides] = useState<Record<string, string>>({});
-  const [errorMessage, setErrorMessage] = useState("");
-  async function startPlan(): Promise<void> {
-    const requestVersion = ++versionRef.current;
-    input.navigation.cancel(); input.setStage("planning"); setErrorMessage("");
-    try {
-      const response = await postPlan(buildPlanRequest(input.profile, input.brandsText, input.presetId, brandOverrides));
-      if (requestVersion !== versionRef.current) return;
-      if (input.presetId && !response.limited && !presetRequestChanges({ ...input, brandOverrides }).plan) setCanonicalPlan(response);
-      setPlan(response); setConfirmedCategories(response.categories.slice(0, RUN_MAX_CATEGORIES)); input.setStage("confirm");
-      if (!response.limited) input.navigation.navigate("category-confirm-heading");
-      input.updateProfile({ ...input.profile, branches: input.profile.branches.map((branch) => response.branches.find((located) => located.id === branch.id) ?? branch) });
-    } catch (error) {
-      if (requestVersion !== versionRef.current) return;
-      setErrorMessage(requestError(error)); input.setStage("edit");
-    }
+function profileActions(input: ProfileActionsInput) {
+  function clearResults(): void { input.clearPlanning(); input.clearResearch(); input.setStage("edit"); }
+  function editProfile(next: Profile): void {
+    input.updateProfile(next); input.setPresetId(undefined); clearResults();
+    if (!next.branches.some((branch) => branch.id === input.pickingBranchId)) input.setPickingBranchId(undefined);
   }
-  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setPlan(null); setCanonicalPlan(null); setBrandOverrides({}); setConfirmedCategories([]); setErrorMessage(""); }
-  const needsReplan = plan !== null && Object.entries(brandOverrides).some(([name, entityId]) => plan.brands.find((brand) => brand.inputName === name)?.entityId !== entityId);
-  return { plan, canonicalPlan, confirmedCategories, setConfirmedCategories, brandOverrides, setBrandOverrides, needsReplan, errorMessage, setErrorMessage, startPlan, clear };
-}
-
-type ResearchInputs = PlanInputs & { plan: PlanResponse | null; categories: CategoryTag[]; overrides: Record<string, string>; needsReplan: boolean; setErrorMessage: (message: string) => void };
-
-function useResearch(input: ResearchInputs) {
-  const versionRef = useRequestVersion();
-  const [runEvents, setRunEvents] = useState<TraceEvent[]>([]);
-  const [result, setResult] = useState<RunResult | null>(null);
-  function clear(): void { input.navigation.cancel(); versionRef.current += 1; setRunEvents([]); setResult(null); }
-  async function startRun(): Promise<void> {
-    if (!input.plan || input.needsReplan || !input.categories.length) return;
-    clear(); input.setStage("running"); input.setErrorMessage(""); input.navigation.navigate("research-progress-heading");
-    const requestVersion = versionRef.current;
-    let succeeded = false;
-    try {
-      const profile = { ...input.profile, categoryPreferences: mergePreferences(input.profile.categoryPreferences, input.plan.categories, input.categories) };
-      const request = buildRunRequest(profile, input.plan, input.categories, input.overrides, input.presetId);
-      input.updateProfile(profile);
-      await streamRun(request, (event) => {
-        if (requestVersion !== versionRef.current) return;
-        setRunEvents((previous) => [...previous, event]);
-        if (event.type === "result") { setResult(dedupeMerchants(event.result)); succeeded = true; input.navigation.navigate("merchant-results-heading"); }
-      });
-    } catch (error) {
-      if (requestVersion !== versionRef.current) return;
-      input.navigation.cancel();
-      const message = requestError(error);
-      const serverError = isRunRequestError(error) ? error : null;
-      setRunEvents((previous) => [...previous, { type: "error", at: 0, code: serverError?.code ?? "internal", message: serverError?.message ?? "Something went wrong." }]);
-      input.setErrorMessage(message); setResult(null); succeeded = false;
-    }
-    if (requestVersion !== versionRef.current) return;
-    input.setStage(succeeded ? "results" : "confirm");
+  function editBrands(text: string): void { input.setBrandsText(text); input.setPresetId(undefined); clearResults(); }
+  function selectPreset(preset: Preset): void {
+    const profile = ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
+    input.updateProfile({ ...profile, branchesByCity: rememberBranchesByCity(input.profile) });
+    input.setBrandsText(preset.brandsText); input.setPresetId(preset.id); input.setBranchLookupVersion((version) => version + 1);
+    input.setBranchCandidates([]); clearResults(); input.setPickingBranchId(undefined); input.navigation.navigate("plan-categories-button");
   }
-  return { runEvents, result, clear, startRun };
+  function startBlank(): void {
+    const alreadyBlank = isEmptyProfile(input.profile) && input.brandsText === "" && !input.hasOutput;
+    if (!alreadyBlank && !window.confirm("Start blank? This clears your profile, branches, member brands and results in this browser.")) return;
+    input.updateProfile(emptyProfile()); input.setBrandsText(""); input.setPresetId(undefined); clearResults();
+    input.setPickingBranchId(undefined); input.setSelectedMerchantId(undefined); input.setIndependentsOnly(false); input.setBranchCandidates([]);
+    input.setBranchLookupVersion((version) => version + 1); input.navigation.navigate("institution-name");
+  }
+  return { editProfile, editBrands, selectPreset, startBlank };
 }
 
 export default function Home(): ReactElement {
@@ -150,17 +104,10 @@ export default function Home(): ReactElement {
   const changes = presetRequestChanges({ ...inputs, brandOverrides: planning.brandOverrides, plan, canonicalPlan: planning.canonicalPlan, confirmedCategories: planning.confirmedCategories });
   const busy = stage === "planning" || stage === "running";
   const center = getCities().find((city) => city.label === profile.city) ?? plan?.city ?? getCities()[0];
-  function editProfile(next: Profile): void {
-    updateProfile(next); setPresetId(undefined); planning.clear(); research.clear(); setStage("edit");
-    if (!next.branches.some((branch) => branch.id === pickingBranchId)) setPickingBranchId(undefined);
-  }
-  function editBrands(text: string): void { setBrandsText(text); setPresetId(undefined); planning.clear(); research.clear(); setStage("edit"); }
-  function selectPreset(preset: Preset): void {
-    const presetProfile = ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
-    updateProfile({ ...presetProfile, branchesByCity: rememberBranchesByCity(profile) });
-    setBrandsText(preset.brandsText); setPresetId(preset.id); setBranchLookupVersion((version) => version + 1); setBranchCandidates([]); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
-    navigation.navigate("plan-categories-button");
-  }
+  const { editProfile, editBrands, selectPreset, startBlank: resetBlank } = profileActions({ ...inputs, pickingBranchId,
+    clearPlanning: planning.clear, clearResearch: research.clear, hasOutput: Boolean(plan || research.result),
+    setBrandsText, setPresetId, setBranchLookupVersion, setBranchCandidates, setPickingBranchId, setSelectedMerchantId, setIndependentsOnly });
+  function startBlank(): void { if (ready && !busyRef.current) resetBlank(); }
   function pickLocation(point: { lat: number; lon: number }): void {
     if (busyRef.current || !pickingBranchId) return;
     editProfile({ ...profile, branches: profile.branches.map((branch) => branch.id === pickingBranchId ? { ...branch, ...point, locationSource: "map" } : branch) });
@@ -182,10 +129,10 @@ export default function Home(): ReactElement {
     <ProgramIntro />
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
-        <PresetPicker onSelect={selectPreset} disabled={busy || !ready} />
-        <ProfileForm profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
+        <PresetPicker onSelect={selectPreset} onStartBlank={startBlank} disabled={busy || !ready} />
+        <ProfileForm key={branchLookupVersion} profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
-        <TasteInput value={brandsText} onChange={editBrands} disabled={busy || !ready} />
+        <TasteInput key={branchLookupVersion} value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
         <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900"
           aria-describedby={profile.branches.every(branchHasLocation) ? undefined : "branch-location-hint"}>
