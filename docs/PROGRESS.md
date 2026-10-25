@@ -1804,26 +1804,3 @@ Verification: 1350 offline tests / 93 files, lint, TypeScript, production build,
 Decisions I made: the shared ProfileSchema rejects empty institution names, so a browser-only schema permits the exact blank profile while preserving every request schema and rejecting other incomplete profiles. Moved the unchanged planning/research hooks into src/lib/page-research.ts within the existing lib directory and grouped profile actions to keep the page/functions below the readability limits. This is the only source file-tree extension. Reused the lookup version for form remounts and the existing navigation helper for focus/scroll. No new storage key, dependency, folder, API shape, cache identity, preset data, rate limit, or protected check changed.
 
 Open issues: none for R43. No live provider call, push, deployment, or remote action occurred; the existing dev server remains running.
-
-## R44 — Make the logo scroll back to the top (2026-10-25)
-
-Status: DONE
-
-- Made ProgramIntro a client component and changed the Perk Desk eyebrow to a non-submit button with the exact accessible label, pointer cursor, and visible keyboard focus ring.
-- Preserve the eyebrow's typography, color, and spacing. Clicking only scrolls to top 0, smoothly by default and immediately when reduced motion is requested.
-- Added actual-page offline tests proving profile, member brands, and storage remain unchanged, with no reload, navigation, or network request.
-
-Files touched / staged list (before this log):
-```text
- src/components/ProgramIntro.tsx  | 11 ++++--
- tests/unit/program-intro.test.ts | 72 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 81 insertions(+), 2 deletions(-)
-```
-
-How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
-
-Verification: 1354 offline tests / 94 files, lint, TypeScript, production build, repository rules, and privacy scans passed. Independent review found no issues. The four added tests also cover browsers without matchMedia. The existing dev server on port 3000 still returns HTTP 200 from the local homepage and was left running.
-
-Decisions I made: use the same reduced-motion query and fallback as the existing page-navigation helper, while keeping the logo action limited to scrollTo. No state, storage, routing, request, dependency, preset, cache, rate-limit, or protected-check changes.
-
-Open issues: none for R42–R44. All three items are implemented in order and committed locally, with no live API calls, push, deployment, or remote resource action. Review at http://localhost:3000.
