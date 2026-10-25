@@ -35,6 +35,8 @@ function BranchLocation({ branch }: { branch: Branch }): ReactElement {
 
 function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, onPick, disabled }: BranchFieldsProps): ReactElement {
   const fieldPrefix = `branch-${branch.id}`;
+  const addressPlaceholder = branch.locationSource === "map" && branch.address === ""
+    ? "Location set on map. Address optional." : "Street address, city, state";
   return <fieldset disabled={disabled} className={`space-y-4 rounded-xl border p-4 ${picking ? "border-teal-400 bg-teal-50/50" : "border-slate-200 bg-slate-50/60"}`}>
     <legend className="px-1 text-sm font-semibold text-slate-700">Branch {index + 1}</legend>
     <div className="flex items-start justify-between gap-3">
@@ -48,7 +50,7 @@ function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, o
     </div>
     <div className="space-y-2">
       <Label htmlFor={`${fieldPrefix}-address`}>Street address</Label>
-      <Input id={`${fieldPrefix}-address`} value={branch.address} placeholder="Street address, city, state" autoComplete="street-address"
+      <Input id={`${fieldPrefix}-address`} value={branch.address} placeholder={addressPlaceholder} autoComplete="street-address"
         onChange={(event) => onChange({ ...branch, address: event.target.value, lat: undefined, lon: undefined, locationSource: undefined })} />
     </div>
     <div className="space-y-3">

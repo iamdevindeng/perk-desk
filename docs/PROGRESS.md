@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R8: review the local R36–R38 commits and decide when to push.
+
 - [ ] R7: review and push the R6 + R7 commits together when ready. Replace the public social preview with a real demo screenshot after the existing R27 demo re-warm.
 
 - [ ] R31: verify the public limit/retry flow after deployment and remove the retired access-code variable from Vercel settings.
@@ -1588,3 +1590,28 @@ Verification: all checks passed; 1186 offline tests / 81 files. Mocked Leaflet r
 Decisions I made: retain both components in MerchantMap.tsx and preserve all existing marker styles, popup content, controls, and selection callbacks. No preset data or cache changes.
 
 Open issues: none for R37. No push or remote action.
+
+
+## R38 — Clarify the address hint after a map pick (2026-10-25)
+
+Status: DONE
+
+- Show Location set on map. Address optional. only when locationSource is map and the address is empty.
+- Preserve the existing Street address, city, state placeholder in every other case.
+- Added six offline rendering cases for empty/nonempty map addresses and the other location sources.
+
+Files touched / staged list (before this log):
+```text
+ docs/PROGRESS.md                 |  2 ++
+ src/components/BranchEditor.tsx  |  4 +++-
+ tests/unit/branch-editor.test.ts | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1192 offline tests / 82 files. Production build used local worker permission with provider/store credentials cleared. Independent review found no issues. No live API calls.
+
+Decisions I made: empty means the empty string, exactly as requested; whitespace retains the default placeholder. No reverse geocoding, API, dependency, preset data, or cache changes.
+
+Open issues: none for R36–R38. All three items are complete in order with one local commit per item. No push or remote action occurred. Devin's review before any push is listed in Waiting for Devin.
