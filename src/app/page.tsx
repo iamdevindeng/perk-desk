@@ -11,14 +11,14 @@ import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
-import { DEFAULT_RADIUS_M, LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { dedupeMerchants } from "@/lib/merchants/dedupe";
-import { loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
+import { emptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences, presetRequestChanges } from "@/lib/request-builders";
 import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
-import { ProfileSchema, type Branch, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
+import { ProfileSchema, type Branch, type BranchLookupResponse, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
   ssr: false, loading: () => <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" aria-label="Loading map" />,
@@ -39,12 +39,6 @@ function useStage() {
   return { stage, setStage, busyRef };
 }
 
-function emptyProfile(): Profile {
-  return { institutionName: "", city: getCities()[0].label,
-    branches: [{ id: "branch-1", name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M }],
-    signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {}, branchesByCity: {} };
-}
-
 function branchHasLocation(branch: Branch): boolean { return (branch.lat !== undefined && branch.lon !== undefined) || branch.address.trim().length > 0; }
 
 function canPlan(profile: Profile, brandsText: string): boolean {
@@ -59,6 +53,7 @@ function requestError(error: unknown): string {
 
 function useSavedProfile() {
   const [profile, setProfile] = useState<Profile>(emptyProfile);
+  const [branchCandidates, setBranchCandidates] = useState<BranchLookupResponse["places"]>([]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let mounted = true;
@@ -66,8 +61,11 @@ function useSavedProfile() {
     queueMicrotask(() => { if (mounted) { setProfile(loadProfile() ?? emptyProfile()); setReady(true); } });
     return () => { mounted = false; };
   }, []);
-  function updateProfile(next: Profile): void { setProfile(next); saveProfile(next); }
-  return { profile, updateProfile, ready };
+  function updateProfile(next: Profile): void {
+    if (next.city !== profile.city) setBranchCandidates([]);
+    setProfile(next); saveProfile(next);
+  }
+  return { profile, updateProfile, ready, branchCandidates, setBranchCandidates };
 }
 
 type PlanInputs = { navigation: PageNavigation; profile: Profile; brandsText: string; presetId?: string; updateProfile: (profile: Profile) => void; setStage: (stage: Stage) => void };
@@ -135,7 +133,7 @@ function useResearch(input: ResearchInputs) {
 }
 
 export default function Home(): ReactElement {
-  const { profile, updateProfile, ready } = useSavedProfile();
+  const { profile, updateProfile, ready, branchCandidates, setBranchCandidates } = useSavedProfile();
   const [brandsText, setBrandsText] = useState("");
   const [presetId, setPresetId] = useState<string>();
   const [branchLookupVersion, setBranchLookupVersion] = useState(0);
@@ -160,7 +158,7 @@ export default function Home(): ReactElement {
   function selectPreset(preset: Preset): void {
     const presetProfile = ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
     updateProfile({ ...presetProfile, branchesByCity: rememberBranchesByCity(profile) });
-    setBrandsText(preset.brandsText); setPresetId(preset.id); setBranchLookupVersion((version) => version + 1); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
+    setBrandsText(preset.brandsText); setPresetId(preset.id); setBranchLookupVersion((version) => version + 1); setBranchCandidates([]); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
     navigation.navigate("plan-categories-button");
   }
   function pickLocation(point: { lat: number; lon: number }): void {
@@ -185,7 +183,7 @@ export default function Home(): ReactElement {
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <PresetPicker onSelect={selectPreset} disabled={busy || !ready} />
-        <ProfileForm profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion}
+        <ProfileForm profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
         <TasteInput value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
@@ -207,7 +205,7 @@ export default function Home(): ReactElement {
           onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}
       </div>
       <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 scroll-mt-6 lg:sticky lg:top-6">
-        <MerchantMap center={center} branches={profile.branches} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
+        <MerchantMap center={center} branches={profile.branches} candidates={branchCandidates} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={!busy && pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>
       </aside>

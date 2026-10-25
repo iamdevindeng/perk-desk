@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 
 type LookupProps = {
   institutionName: string; city: string; disabled: boolean; onUse: (branches: Branch[]) => void;
+  onPreviewChange?: (places: BranchLookupResponse["places"]) => void;
 };
 type SessionProps = Omit<LookupProps, "institutionName"> & { query: string; onQueryChange: (query: string) => void };
 type Panel = { query: string; cityLabel: string; response?: BranchLookupResponse; error?: string; added?: number };
@@ -33,6 +34,7 @@ function BranchChoices({ response, selected, disabled, onSelect, onUse }: Choice
         </span>
       </label>)}
     </div>
+    <p>Checked locations are previewed on the map.</p>
     <Button variant="outline" disabled={disabled || selected.length === 0} onClick={onUse}>Use selected branches</Button>
   </div>;
 }
@@ -67,7 +69,7 @@ function LookupResult({ panel, selected, disabled, onSelect, onUse, onSearch }: 
   </div>;
 }
 
-function BranchLookupSession({ query, city, disabled, onQueryChange, onUse }: SessionProps): ReactElement {
+function BranchLookupSession({ query, city, disabled, onQueryChange, onUse, onPreviewChange }: SessionProps): ReactElement {
   const [panel, setPanel] = useState<Panel | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,12 +78,19 @@ function BranchLookupSession({ query, city, disabled, onQueryChange, onUse }: Se
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   // City changes and preset selection remount this session, preventing late results from returning.
   useEffect(() => () => { controller.current?.abort(); }, []);
+  useEffect(() => {
+    const places = panel?.response?.status === "found" && panel.added === undefined
+      ? panel.response.places.filter((place) => selected.includes(place.entityId)) : [];
+    onPreviewChange?.(places);
+  }, [panel, selected, onPreviewChange]);
+  useEffect(() => () => { onPreviewChange?.([]); }, [onPreviewChange]);
   async function search(name: string): Promise<void> {
     if (disabledRef.current || controller.current || !name.trim() || !city.trim()) return;
     const request = { name: name.trim(), city: city.trim() };
     const activeController = new AbortController();
     controller.current = activeController;
     setLoading(true); setPanel(null); setSelected([]);
+    onPreviewChange?.([]);
     try {
       const result = await postBranchLookup(request, activeController.signal);
       if (activeController.signal.aborted) return;
@@ -106,7 +115,7 @@ function BranchLookupSession({ query, city, disabled, onQueryChange, onUse }: Se
       id: crypto.randomUUID(), name: `Branch ${index + 1}`, address: place.address, lat: place.lat, lon: place.lon,
       radiusMeters: DEFAULT_RADIUS_M, locationSource: "qloo_place",
     }));
-    onUse(branches); setPanel({ ...panel, added: branches.length });
+    onPreviewChange?.([]); onUse(branches); setPanel({ ...panel, added: branches.length });
   }
   return <section className="space-y-3" aria-label="Find your branches">
     <Label htmlFor="branch-search-name">Search Qloo by name</Label>

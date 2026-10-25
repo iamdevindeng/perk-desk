@@ -1739,3 +1739,36 @@ Decisions I made:
 - Keep a preset-selection version only in page state to clear results even for repeated same-city presets. A keyed city session cancels stale lookups while retaining a manually edited search name across city changes. Added a keyed offline component harness to verify the actual form tree and cleanup.
 
 Open issues: live Qloo coverage is deliberately unverified under this task's no-live-calls rule; Devin can test in the browser. Demo presets, plan/run request builders, cache keys, and provider data files are unchanged. No push, deployment, or remote resource action occurred. Start the local dev server with `npm run dev` after the commit and leave it running for Devin.
+
+## R42 — Preview checked branch candidates on the map (2026-10-25)
+
+Status: DONE
+
+- Report only checked, unapplied found locations from BranchLookup, with the requested map hint. New searches, non-found responses, errors, application, city/preset resets, and unmount clear the preview.
+- Keep candidates only in page state, separate from the saved profile, and clear them whenever the profile city changes or a preset is selected.
+- Draw dashed default-radius circles and hollow candidate markers with names, addresses, and the exact candidate popup text. Show the Candidate legend only during previews and retain the real-branch header count.
+- Use a lower Leaflet pane so dynamically added candidates cannot cover real branch markers. Fit changed candidate sets with the existing padding/zoom limits; clearing previews and ordinary rerenders do not refit.
+- Added offline regressions for selection, cleanup, storage isolation, marker styling/layers, counts, and stable bounds.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                           |  28 ++++----
+ src/components/BranchLookup.tsx            |  13 +++-
+ src/components/MerchantMap.tsx             |  61 +++++++++++++----
+ src/components/ProfileForm.tsx             |   7 +-
+ src/lib/config.ts                          |   2 +
+ src/lib/profile-storage.ts                 |   9 ++-
+ tests/unit/branch-lookup-ui.test.ts        |  37 ++++++++++-
+ tests/unit/merchant-map-candidates.test.ts | 103 +++++++++++++++++++++++++++++
+ tests/unit/merchant-map.test.ts            |   7 ++
+ tests/unit/page-plan-locations.test.ts     |  21 ++++++
+ 10 files changed, 250 insertions(+), 38 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1318 offline tests / 90 files, lint, TypeScript, production build, repository rules, and privacy scans passed. The first focused lint check caught the page's length limits; moved the unchanged blank-profile factory to profile-storage.ts and kept candidate state beside profile state before rerunning successfully. No live API calls occurred.
+
+Decisions I made: the candidate layer uses a dedicated pane below Leaflet's normal overlays because JSX ordering alone cannot keep newly mounted candidates below existing branch markers. Candidate signatures include sorted identities and coordinates, so reordered arrays do not move the view. The factory move preserves existing profile behavior and the readability limits. No API shapes, presets, cache keys, rate limits, dependencies, or protected checks changed.
+
+Open issues: none for R42. Start blank will clear this same temporary state in R43. The existing server on port 3000 was left running. No push or remote action occurred.

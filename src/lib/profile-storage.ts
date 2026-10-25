@@ -1,9 +1,16 @@
 // Maintains browser-only branch memory and persists a validated program profile.
 // Called by: the page, ProfileForm, and profile-storage unit tests
-import { PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
+import { DEFAULT_RADIUS_M, PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
+import { getCities } from "@/lib/data";
 import { ProfileSchema, type Profile } from "@/lib/types";
 
 const PROFILE_KEY = "perkdesk:v1:profile";
+
+export function emptyProfile(): Profile {
+  return { institutionName: "", city: getCities()[0].label,
+    branches: [{ id: "branch-1", name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M }],
+    signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {}, branchesByCity: {} };
+}
 
 export function rememberBranchesByCity(profile: Profile): Profile["branchesByCity"] {
   const city = profile.city.trim();

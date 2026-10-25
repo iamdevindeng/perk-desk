@@ -6,7 +6,7 @@ import { DEFAULT_RADIUS_M, UPLOAD_MAX_BYTES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { rememberBranchesByCity } from "@/lib/profile-storage";
 import { parseUploadedList } from "@/lib/request-builders";
-import type { Branch, Profile } from "@/lib/types";
+import type { Branch, BranchLookupResponse, Profile } from "@/lib/types";
 import BranchEditor from "@/components/BranchEditor";
 import BranchLookup from "@/components/BranchLookup";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ type ProfileFormProps = {
   profile: Profile; onChange: (profile: Profile) => void;
   pickingBranchId?: string; onPickBranch: (id: string) => void; disabled?: boolean;
   branchLookupVersion?: number;
+  onPreviewChange?: (places: BranchLookupResponse["places"]) => void;
 };
 type MerchantListField = "signedMerchantsText" | "businessMembersText";
 const MERCHANT_LIST_LABELS = {
@@ -124,7 +125,7 @@ function MerchantList({ profile, onChange, disabled, field }: {
   </div>;
 }
 
-export default function ProfileForm({ profile, onChange, pickingBranchId, onPickBranch, disabled = false, branchLookupVersion = 0 }: ProfileFormProps): ReactElement {
+export default function ProfileForm({ profile, onChange, pickingBranchId, onPickBranch, disabled = false, branchLookupVersion = 0, onPreviewChange }: ProfileFormProps): ReactElement {
   return <Card>
     <CardHeader>
       <CardTitle id="program-profile-heading">Your perks program</CardTitle>
@@ -141,7 +142,7 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
           <CityField profile={profile} onChange={onChange} />
         </div>
         <BranchLookup key={branchLookupVersion} institutionName={profile.institutionName} city={profile.city} disabled={disabled}
-          onUse={(branches) => onChange({ ...profile, branches })} />
+          onUse={(branches) => onChange({ ...profile, branches })} onPreviewChange={onPreviewChange} />
         <BranchEditor branches={profile.branches} onChange={(branches) => onChange({ ...profile, branches })}
           pickingBranchId={pickingBranchId} onPickBranch={onPickBranch} disabled={disabled} />
         <MerchantList profile={profile} onChange={onChange} disabled={disabled} field="signedMerchantsText" />

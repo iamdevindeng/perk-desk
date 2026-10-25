@@ -42,6 +42,7 @@ vi.mock("react-leaflet", () => ({
     return createElement("div", null, props.children);
   },
   Popup: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
+  Pane: ({ children }: { children?: ReactNode }) => createElement("div", null, children),
   TileLayer: () => null,
   useMap: () => ({ fitBounds: mapState.fitBounds }),
   useMapEvents: (handlers: { click: (event: MapClick) => void }) => {
@@ -154,4 +155,10 @@ it.each(["preset", "map", "qloo_locality"] as const)("preserves the initial map 
 it("does not try to fit an empty set of listed coordinates", () => {
   renderBranchBounds([{ ...FAKE_BRANCH, locationSource: "qloo_place", lat: undefined, lon: undefined }]);
   expect(mapState.fitBounds).not.toHaveBeenCalled();
+});
+
+it("fits a listed branch even when its coordinates match an earlier ordinary branch", () => {
+  renderBranchBounds([{ ...FAKE_BRANCH, locationSource: "map" }]);
+  renderBranchBounds([{ ...FAKE_BRANCH, locationSource: "qloo_place" }]);
+  expect(mapState.fitBounds).toHaveBeenCalledExactlyOnceWith([[FAKE_BRANCH.lat, FAKE_BRANCH.lon]], expect.any(Object));
 });

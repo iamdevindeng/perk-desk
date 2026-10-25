@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import Home from "@/app/page";
 import { getPresets } from "@/lib/data";
+import { saveProfile } from "@/lib/profile-storage";
 import type { Branch, Profile } from "@/lib/types";
 import { FAKE_BRANCH, FAKE_BRAND, FAKE_PLAN_RESPONSE, FAKE_PROFILE } from "../fixtures/fake-plan";
 import { elementProps, flushPage, invoke, pageHarness, renderPage, resetPage, unmountPage } from "../fixtures/page-harness";
@@ -133,4 +134,24 @@ it("resets branch lookup for every preset selection, including repeated same-cit
   expect(first).not.toBe(original);
   invoke(props("PresetPicker").onSelect, preset);
   expect(props("ProfileForm").branchLookupVersion).not.toBe(first);
+});
+
+it("passes branch previews to the map without saving or changing the real branches", () => {
+  const profile = props("ProfileForm").profile;
+  vi.mocked(saveProfile).mockClear();
+  const candidates = [{ entityId: "00000000-0000-4000-8000-000000000001", name: "Fake CU", address: "1 Example Lane", lat: 39, lon: -104, distanceMeters: 100 }];
+  invoke(props("ProfileForm").onPreviewChange, candidates);
+  expect(props("MerchantMap").candidates).toEqual(candidates);
+  expect(props("ProfileForm").profile).toEqual(profile);
+  expect(props("MerchantMap").branches).toEqual(FAKE_PROFILE.branches);
+  expect(saveProfile).not.toHaveBeenCalled();
+  invoke(props("ProfileForm").onChange, { ...FAKE_PROFILE, institutionName: "Fake Edited CU" });
+  expect(saveProfile).toHaveBeenLastCalledWith({ ...FAKE_PROFILE, institutionName: "Fake Edited CU" });
+});
+
+it.each(["city", "preset"])("clears preview state on a %s change", (change) => {
+  invoke(props("ProfileForm").onPreviewChange, [{ entityId: "00000000-0000-4000-8000-000000000001", name: "Fake CU", address: "", lat: 39, lon: -104, distanceMeters: 100 }]);
+  if (change === "city") invoke(props("ProfileForm").onChange, { ...FAKE_PROFILE, city: "Austin, TX" });
+  else invoke(props("PresetPicker").onSelect, getPresets()[0]);
+  expect(props("MerchantMap").candidates).toEqual([]);
 });
