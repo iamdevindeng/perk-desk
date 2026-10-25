@@ -1958,3 +1958,25 @@ Verification: 1380 offline tests / 96 files, lint, TypeScript, production build,
 Decisions I made: use the existing Plan button teal classes for the main action and a separate responsive demo grid below it. Preserve all reset and preset callback logic and props.
 
 Open issues: none. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes. The original port 3000 server is still running.
+
+## R48 — Explain the source of member brand names (2026-10-26)
+
+Status: DONE
+
+- Applied the exact requested member-brands helper, including the card-spend example.
+- Preserved the existing brand-count constant, validation/error text, and all surrounding copy.
+- Confirmed the helper fits one line on desktop and wraps naturally on mobile without overflow. No existing test asserted the replaced text.
+
+Files touched / staged list (before this log):
+```text
+ src/components/TasteInput.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: final `npm test` passed 1380 offline tests / 96 files. Lint, TypeScript, production build, rules, full-tree privacy, and whitespace checks passed. Independent final review found no actionable issue. Browser checks passed for all R45–R48 at 1440×1000 and 390×844: the main button matches Plan's teal, demos load the original profiles, cancel/accept/already-blank flows work, reset focuses below the bar, and no horizontal overflow occurs. R48 helper occupies one line in the 654px desktop content area and three lines in the 300px mobile content area. No app JavaScript errors were found; deliberately blocked map tiles account for browser network errors. All app API routes and external requests were blocked throughout browser checks.
+
+Decisions I made: retain natural text wrapping instead of forcing a mobile overflow. No other copy or layout change was needed for R48.
+
+Open issues: none for FIXES-R12. Step 0 and R45–R48 are complete in order. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes occurred. The isolated verification browser is closed; the original dev server (PID 36027) remains running on port 3000.

@@ -66,7 +66,7 @@ export default function TasteInput({ value, onChange, disabled = false }: TasteI
         <Textarea ref={brandsInput} id="member-brands" rows={6} value={value} disabled={disabled} placeholder={"REI\nPatagonia\nLululemon"}
           aria-invalid={tooMany} aria-describedby="member-brands-help" onChange={(event) => editBrands(event.target.value)} />
         <p id="member-brands-help" className={`text-xs leading-relaxed ${tooMany ? "text-red-700" : "text-slate-500"}`}>
-          {tooMany ? `Use at most ${TASTE_MAX_BRANDS} unique brand names.` : `Aggregated brand names only. Enter 1–${TASTE_MAX_BRANDS} brands, one per line.`}
+          {tooMany ? `Use at most ${TASTE_MAX_BRANDS} unique brand names.` : `Aggregated brand names only, e.g. your members' top brands from card spend data. Enter 1–${TASTE_MAX_BRANDS} brands, one per line.`}
         </p>
         <Label htmlFor="member-brands-file" className="text-xs text-slate-600">Upload a brand list</Label>
         <Input id="member-brands-file" type="file" accept=".csv,.txt" disabled={disabled}
