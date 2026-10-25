@@ -1,7 +1,7 @@
 "use client";
 // Edits branch names, addresses, trade-area radii, and map-pick selection.
 // Called by: ProfileForm; the main page applies selected map coordinates.
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import {
   BRANCH_RADIUS_MAX_KM, BRANCH_RADIUS_MIN_KM, COORDINATE_DECIMALS,
   DEFAULT_RADIUS_M, METERS_PER_KILOMETER, PROFILE_MAX_BRANCHES,
@@ -20,6 +20,12 @@ type BranchFieldsProps = {
   branch: Branch; index: number; onChange: (branch: Branch) => void;
   onRemove: () => void; canRemove: boolean; picking: boolean; onPick: () => void; disabled: boolean;
 };
+
+function isBlankPlaceholder(branches: Branch[]): boolean {
+  if (branches.length !== 1) return false;
+  const branch = branches[0];
+  return branch.address.trim() === "" && branch.lat === undefined && branch.lon === undefined && branch.locationSource === undefined;
+}
 
 function BranchLocation({ branch }: { branch: Branch }): ReactElement {
   if (branch.lat === undefined || branch.lon === undefined) {
@@ -75,6 +81,12 @@ function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, o
 }
 
 export default function BranchEditor({ branches, onChange, pickingBranchId, onPickBranch, disabled = false }: BranchEditorProps): ReactElement {
+  const [manualBranchId, setManualBranchId] = useState<string>();
+  const showEmpty = isBlankPlaceholder(branches) && manualBranchId !== branches[0].id;
+  useEffect(() => {
+    // Focus after the hidden placeholder form mounts; later edits must not steal focus.
+    if (manualBranchId) document.getElementById(`branch-${manualBranchId}-name`)?.focus();
+  }, [manualBranchId]);
   function addBranch(): void {
     if (branches.length >= PROFILE_MAX_BRANCHES) return;
     onChange([...branches, { id: crypto.randomUUID(), name: `Branch ${branches.length + 1}`, address: "", radiusMeters: DEFAULT_RADIUS_M }]);
@@ -82,12 +94,15 @@ export default function BranchEditor({ branches, onChange, pickingBranchId, onPi
   return <section aria-labelledby="branches-heading" className="space-y-4">
     <div className="flex items-center justify-between gap-3">
       <h3 id="branches-heading" className="font-semibold text-slate-900">Your branches</h3>
-      <Badge variant="outline">{branches.length} / {PROFILE_MAX_BRANCHES}</Badge>
+      <Badge variant="outline">{showEmpty ? 0 : branches.length} / {PROFILE_MAX_BRANCHES}</Badge>
     </div>
-    {branches.map((branch, index) => <BranchFields key={branch.id} branch={branch} index={index} disabled={disabled}
+    {showEmpty ? <div className="space-y-3">
+      <p className="text-sm text-slate-500">No branches yet. Use Find branches above, or add one manually.</p>
+      <Button variant="outline" disabled={disabled} onClick={() => { if (!disabled) setManualBranchId(branches[0].id); }}>Add manually</Button>
+    </div> : <>{branches.map((branch, index) => <BranchFields key={branch.id} branch={branch} index={index} disabled={disabled}
       onChange={(updated) => onChange(branches.map((existing) => existing.id === branch.id ? updated : existing))}
       canRemove={branches.length > 1} onRemove={() => onChange(branches.filter((existing) => existing.id !== branch.id))}
       picking={pickingBranchId === branch.id} onPick={() => onPickBranch(branch.id)} />)}
-    <Button variant="outline" disabled={disabled || branches.length >= PROFILE_MAX_BRANCHES} onClick={addBranch}>+ Add branch</Button>
+    <Button variant="outline" disabled={disabled || branches.length >= PROFILE_MAX_BRANCHES} onClick={addBranch}>+ Add branch</Button></>}
   </section>;
 }

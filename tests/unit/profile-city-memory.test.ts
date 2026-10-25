@@ -63,7 +63,10 @@ function render(): void {
     pageTree = Home() as TestElement;
     formTree = formModule.default(elementProps(pageTree, "ProfileForm") as Parameters<typeof formModule.default>[0]) as TestElement;
     cityTree = expand(formTree, "CityField");
-    branchTree = expand(expand(formTree, "BranchEditor"), "BranchFields");
+    branchTree = expand(formTree, "BranchEditor");
+    if (find(branchTree, (child) => typeof child.type === "function" && child.type.name === "BranchFields")) {
+      branchTree = expand(branchTree, "BranchFields");
+    }
     return pageTree;
   });
 }

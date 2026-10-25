@@ -1906,3 +1906,29 @@ Verification: 1365 offline tests / 95 files, lint, TypeScript, production build,
 Decisions I made: use document-level scroll padding so every current/future navigation target, including the R43 input and merchant cards, shares the same offset. Added one single-purpose ProgramHeader.tsx inside the existing components directory to keep the intro and sticky bar responsibilities separate. No dependency, folder, schema, preset, cache key, rate limit, or protected check changed.
 
 Open issues: none. No live API calls or push. The existing server remains on port 3000.
+
+## R46 — Show an empty state for the blank placeholder branch (2026-10-26)
+
+Status: DONE
+
+- Replace a single unlocated placeholder form with the exact empty message and Add manually action.
+- Reveal the same branch using local UI state and focus its name after mounting, without changing or saving profile data.
+- Show normal forms for any address, coordinate (including zero), location source, or multiple branches; a different placeholder starts closed.
+- Preserve the disabled Plan button/location hint and automatic replacement by selected lookup branches. Adapted earlier city tests to explicitly open manual entry.
+
+Files touched / staged list (before this log):
+```text
+ src/components/BranchEditor.tsx        |  23 +++++-
+ tests/unit/branch-editor-empty.test.ts | 129 +++++++++++++++++++++++++++++++++
+ tests/unit/profile-city-memory.test.ts |   5 +-
+ tests/unit/profile-city.test.ts        |  26 ++++---
+ 4 files changed, 168 insertions(+), 15 deletions(-)
+```
+
+How to verify: `npm run lint && npm test -- --maxWorkers=2 && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1377 offline tests / 96 files, lint, TypeScript, production build, rules, and full-tree privacy passed. Focused tests also passed; the first focused lint caught an overlong city test file, resolved by reusing the existing text helper. Browser checks confirmed R45 desktop: bar 48px at top 0, z-index 1100, map at 72px, and reset name input at 72px with no horizontal overflow. All app API and external requests were blocked in the isolated browser.
+
+Decisions I made: whitespace-only addresses count as blank, matching R40. Tie manual expansion to the branch ID so city changes cannot reveal the next placeholder accidentally. Show 0 in the display badge while the placeholder is hidden and offer only Add manually there; the underlying one-branch profile is unchanged.
+
+Open issues: none. No live API calls, push, dependency, folder, schema, preset, cache key, rate-limit, or protected-check changes. Port 3000 remains running.

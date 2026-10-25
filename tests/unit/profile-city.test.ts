@@ -7,6 +7,7 @@ import { DEFAULT_RADIUS_M } from "@/lib/config";
 import { getPresets } from "@/lib/data";
 import type { Profile } from "@/lib/types";
 import { elementProps, flushPage, invoke, pageHarness, renderPage, resetPage, unmountPage } from "../fixtures/page-harness";
+import { componentText } from "../fixtures/component-harness";
 
 vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
@@ -65,7 +66,10 @@ function render(): void {
     pageTree = Home() as TestElement;
     formTree = formModule.default(elementProps(pageTree, "ProfileForm") as Parameters<typeof formModule.default>[0]) as TestElement;
     cityTree = expand(formTree, "CityField");
-    branchTree = expand(expand(formTree, "BranchEditor"), "BranchFields");
+    branchTree = expand(formTree, "BranchEditor");
+    if (find(branchTree, (child) => typeof child.type === "function" && child.type.name === "BranchFields")) {
+      branchTree = expand(branchTree, "BranchFields");
+    }
     return pageTree;
   });
 }
@@ -78,24 +82,24 @@ function changeField(id: string, value: string): void {
   invoke(field.props.onChange, { target: { value } });
   render();
 }
-function textContent(root: unknown): string {
-  if (typeof root === "string") return root;
-  if (Array.isArray(root)) return root.map(textContent).join("");
-  if (!root || typeof root !== "object" || !("props" in root)) return "";
-  return textContent((root as TestElement).props.children);
-}
 function notice(): string | undefined {
   render();
   const status = find(cityTree, (element) => element.props.role === "status");
-  return status ? textContent(status) : undefined;
+  return status ? componentText(status) : undefined;
+}
+function addManually(): void {
+  const button = find(branchTree, (element) => element.props.children === "Add manually");
+  if (!button) throw new Error("Expected Add manually");
+  invoke(button.props.onClick); render();
 }
 
 beforeEach(async () => {
   resetPage(); vi.clearAllMocks();
+  vi.stubGlobal("document", { getElementById: vi.fn(() => null) });
   formModule = await vi.importActual<typeof import("@/components/ProfileForm")>("@/components/ProfileForm");
   render(); await flushPage(); render();
 });
-afterEach(unmountPage);
+afterEach(() => { unmountPage(); vi.unstubAllGlobals(); });
 
 it.each(["Denver, CO", "Austin, TX", "other"])("remembers current branches and resets unsaved %s", (selected) => {
   const previous = profile();
@@ -135,6 +139,7 @@ it.each([["name", "Fake New Branch"], ["address", "3 Example Lane"], ["radius", 
   "hides the reset notice after editing the branch %s", (field, value) => {
     changeField("profile-city", "Austin, TX");
     expect(notice()).toBeDefined();
+    addManually();
     changeField(`branch-${profile().branches[0].id}-${field}`, value);
     expect(notice()).toBeUndefined();
   },
@@ -142,6 +147,7 @@ it.each([["name", "Fake New Branch"], ["address", "3 Example Lane"], ["radius", 
 
 it("hides the reset notice after the real page map-pick callback", () => {
   changeField("profile-city", "Austin, TX");
+  addManually();
   invoke(elementProps(pageTree, "ProfileForm").onPickBranch, profile().branches[0].id);
   render();
   expect(notice()).toBeDefined();
@@ -203,7 +209,7 @@ it("keeps the reset notice and disables planning for the untouched blank branch"
   invoke(elementProps(pageTree, "TasteInput").onChange, "Fake Coffee Co");
   render();
   expect(elementProps(pageTree, "Button").disabled).toBe(true);
-  expect(textContent(pageTree)).toContain("Add an address or pick a map location for every branch.");
+  expect(componentText(pageTree)).toContain("Add an address or pick a map location for every branch.");
   expect(pageHarness.plans).toHaveLength(0);
   expect(profile().branches).toBe(branches);
   expect(notice()).toBe(message);
