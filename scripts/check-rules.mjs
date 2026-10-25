@@ -7,10 +7,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectSecretValues, scanPrivacyFile } from "./privacy-rules.mjs";
 
-// WHY: the tree in docs/ARCHITECTURE.md §2 is fixed; Codex must not invent folders.
+// WHY: only the documented tree and FIXES-R10's explicit branch lookup endpoint are allowed.
 const ALLOWED_DIRECTORIES = [
   "docs", "scripts", "public", "public/samples", "tests", "tests/unit", "tests/eval", "tests/fixtures",
-  "src", "src/app", "src/app/api", "src/app/api/plan", "src/app/api/run",
+  "src", "src/app", "src/app/api", "src/app/api/plan", "src/app/api/run", "src/app/api/branches",
   "src/lib", "src/lib/qloo", "src/lib/agent", "src/lib/agent/tools", "src/lib/merchants",
   "src/lib/fallback", "src/lib/store", "src/components", "src/components/ui",
   "src/data", "src/data/presets",

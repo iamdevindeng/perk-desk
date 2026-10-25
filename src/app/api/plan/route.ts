@@ -5,6 +5,7 @@ import { LIVE_LIMIT_MESSAGE, PLAN_DEADLINE_MS, RESULT_TTL_S } from "@/lib/config
 import { hasQlooKey } from "@/lib/env";
 import { cacheKey } from "@/lib/hash";
 import { createQlooError, isQlooError } from "@/lib/qloo/client";
+import { qlooErrorResponse } from "@/lib/qloo-error-response";
 import { getJson, setJson } from "@/lib/store/cache";
 import { checkLimit, getClientIp } from "@/lib/store/rate-limit";
 import { isQlooBudgetReached, withRunUsage } from "@/lib/store/usage";
@@ -36,19 +37,6 @@ async function validatedRequest(request: Request): Promise<PlanRequest | Respons
   }
 }
 
-function errorResponse(error: unknown): Response {
-  if (!isQlooError(error)) return Response.json({ error: "internal", message: "Something went wrong." }, { status: 500 });
-  if (error.code === "config") {
-    return Response.json({ error: "config", message: "Server is missing its Qloo key." }, { status: 503 });
-  }
-  if (error.code === "auth") {
-    return Response.json({ error: "auth", message: "Qloo refused our key. Demo presets may still work from cache." }, { status: 502 });
-  }
-  if (error.code === "quota") {
-    return Response.json({ error: "quota", message: "Live research is paused (Qloo quota). Demo presets may still work from cache." }, { status: 503 });
-  }
-  return Response.json({ error: "upstream", message: "Qloo is having trouble; try again in a minute." }, { status: 502 });
-}
 
 async function limitedResponse(request: Request): Promise<Response | null> {
   const limit = await checkLimit("plan", getClientIp(request));
@@ -83,6 +71,6 @@ export async function POST(request: Request): Promise<Response> {
     }, "plan");
   } catch (error) {
     if (request.signal.aborted) return new Response(null, { status: 204 });
-    return errorResponse(error);
+    return qlooErrorResponse(error);
   }
 }

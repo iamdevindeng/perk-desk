@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R41: review the local branch-lookup commit and test Find branches in the local browser; live API checks were intentionally left to Devin. No push is authorized.
+
 - [ ] R9: review the local R39–R40 commits before deciding on any push.
 
 - [ ] R8: review the local R36–R38 commits and decide when to push.
@@ -1679,3 +1681,61 @@ Verification: all checks passed; 1218 offline tests / 84 files. The 13 new locat
 Decisions I made: use one plain location predicate for canPlan, hint visibility, and the button's accessible description. Zero coordinates are valid; either coordinate alone requires a non-empty address. Keep the changes in page.tsx and preserve the existing function/file length limits. No server, schema, dependency, preset data, request shape, canonical hash, cache key, or protection changes.
 
 Open issues: none for R39–R40. Both items are complete with one local commit each. No push or remote action occurred; wait for Devin's review before any push.
+
+## R41 — Find branches by institution name (2026-10-25)
+
+Status: DONE
+
+- Added the validated `/api/branches` endpoint with a separate 30-per-IP / 300-global daily limit, production shared-store protection, private usage counts, and a two-call Qloo budget covering city resolution and place search.
+- Reused the existing place parser and cached transport with latitude-first search coordinates. Filtered closed, distant, and non-branch places; matched normalized institution names and suffixes; deduplicated and sorted results; grouped nearby alternative names.
+- Added the exact search explanations, suggestion searches, nearest-five checklist, branch replacement, and confirmation. Lookup state stays out of profiles and browser storage; city changes and every preset selection abort pending requests and clear results.
+- Marked selected branches as `qloo_place`, retained their exact coordinates/address, and showed the requested location labels without an approximate hint. Fit the map to all selected branches before merchant research, including Other city searches and subsequent city-center resolution.
+- Added offline coverage for transport parameters, schemas, filtering/statuses, limits/budgets, private errors/logs, selection/races, map fitting, R40 planning, and unchanged preset requests/cache keys.
+
+Files touched / staged list (before this log):
+```text
+ scripts/check-rules.mjs                 |   4 +-
+ src/app/api/branches/route.ts           |  53 +++++++++++
+ src/app/api/plan/route.ts               |  16 +---
+ src/app/page.tsx                        |   8 +-
+ src/components/BranchEditor.tsx         |   1 +
+ src/components/BranchLookup.tsx         | 128 +++++++++++++++++++++++++++
+ src/components/MerchantMap.tsx          |  14 +--
+ src/components/ProfileForm.tsx          |   6 +-
+ src/lib/branch-lookup-client.ts         |  25 ++++++
+ src/lib/branch-lookup.ts                |  71 +++++++++++++++
+ src/lib/config.ts                       |   9 ++
+ src/lib/qloo-error-response.ts          |  17 ++++
+ src/lib/qloo/search.ts                  |  23 ++++-
+ src/lib/store/rate-limit.ts             |   5 +-
+ src/lib/store/usage.ts                  |   8 +-
+ src/lib/types.ts                        |  18 +++-
+ tests/fixtures/component-harness.ts     |  82 +++++++++++++++++
+ tests/unit/branch-editor.test.ts        |  10 +++
+ tests/unit/branch-lookup-client.test.ts |  47 ++++++++++
+ tests/unit/branch-lookup-ui.test.ts     | 151 ++++++++++++++++++++++++++++++++
+ tests/unit/branch-lookup.test.ts        | 122 ++++++++++++++++++++++++++
+ tests/unit/branches-route.test.ts       | 138 +++++++++++++++++++++++++++++
+ tests/unit/merchant-map.test.ts         |  65 +++++++++++++-
+ tests/unit/page-plan-locations.test.ts  |  22 +++++
+ tests/unit/plan-locations.test.ts       |   8 ++
+ tests/unit/qloo-budget.test.ts          |   7 +-
+ tests/unit/qloo-place-search.test.ts    |  54 ++++++++++++
+ tests/unit/rate-limit.test.ts           |  32 ++++++-
+ tests/unit/request-builders.test.ts     |  11 +++
+ tests/unit/types.test.ts                |  17 ++++
+ 30 files changed, 1128 insertions(+), 44 deletions(-)
+```
+
+How to verify: `npm test -- --maxWorkers=2 && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1308 offline tests / 89 files, lint, TypeScript, and production build passed. Repository rules and privacy scans passed. The build used local worker permission with provider/store credentials cleared and telemetry disabled. Independent review caught the initial map visibility gap; branch-only fitting and a center-change regression fixed it. Final review found no remaining issues. No live API calls were made.
+
+Decisions I made:
+
+- R41 explicitly requires the new branch endpoint, so added only `src/app/api/branches` to the rule checker's exact directory list. Every existing check and hook remains enabled; no privacy exception was added.
+- Added small task-specific files in existing directories for branch filtering, client transport, the lookup component, and shared Qloo error mapping. This keeps each responsibility readable and within the file/function limits. The shared error mapping preserves the plan route's behavior. No new dependency.
+- Reused the plan deadline and request-cancellation plumbing for lookups. The existing `slimPlace` already supplies missing `external`/`query` defaults, so no second parser was added.
+- Keep a preset-selection version only in page state to clear results even for repeated same-city presets. A keyed city session cancels stale lookups while retaining a manually edited search name across city changes. Added a keyed offline component harness to verify the actual form tree and cleanup.
+
+Open issues: live Qloo coverage is deliberately unverified under this task's no-live-calls rule; Devin can test in the browser. Demo presets, plan/run request builders, cache keys, and provider data files are unchanged. No push, deployment, or remote resource action occurred. Start the local dev server with `npm run dev` after the commit and leave it running for Devin.

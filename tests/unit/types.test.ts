@@ -11,12 +11,24 @@ import {
 
 const STATUS_ENTRY = { name: "Fake Corner Cafe", status: "to_contact", updatedAt: "2026-10-23" };
 const CATEGORY_TAG = { tagId: FAKE_CATEGORY_ID, label: "Coffee shop" };
+const BRANCH_LOOKUP_REQUEST = { name: "Fake Credit Union", city: "Fake City, CO" };
+const BRANCH_LOOKUP_RESPONSE = { status: "found", query: BRANCH_LOOKUP_REQUEST.name, cityLabel: BRANCH_LOOKUP_REQUEST.city,
+  places: [{ entityId: FAKE_PLACE.entityId, name: "Fake Credit Union", address: "3 Example Lane", lat: 39.75, lon: -104.99, distanceMeters: 20 }],
+  suggestions: [],
+};
 const CASES: { name: string; schema: z.ZodType; valid: unknown; invalid: unknown[] }[] = [
   { name: "CategoryTagId", schema: schemas.CategoryTagIdSchema, valid: FAKE_CATEGORY_ID,
     invalid: ["urn:tag:genre:place:coffee_shop", "urn:tag:category:place:Coffee Shop"] },
   { name: "EntityId", schema: schemas.EntityIdSchema, valid: FAKE_BRAND_ID, invalid: ["short", "x".repeat(65)] },
   { name: "Branch", schema: schemas.BranchSchema, valid: FAKE_BRANCH,
     invalid: [{ ...FAKE_BRANCH, radiusMeters: 500 }, { ...FAKE_BRANCH, lat: 91 }] },
+  { name: "BranchLookupRequest", schema: schemas.BranchLookupRequestSchema, valid: BRANCH_LOOKUP_REQUEST,
+    invalid: [{ ...BRANCH_LOOKUP_REQUEST, name: " " }, { ...BRANCH_LOOKUP_REQUEST, name: "x".repeat(101) },
+      { ...BRANCH_LOOKUP_REQUEST, city: "x" }, { ...BRANCH_LOOKUP_REQUEST, city: "x".repeat(81) }] },
+  { name: "BranchLookupResponse", schema: schemas.BranchLookupResponseSchema, valid: BRANCH_LOOKUP_RESPONSE,
+    invalid: [{ ...BRANCH_LOOKUP_RESPONSE, status: "unknown" },
+      { ...BRANCH_LOOKUP_RESPONSE, places: Array(21).fill(BRANCH_LOOKUP_RESPONSE.places[0]) },
+      { ...BRANCH_LOOKUP_RESPONSE, suggestions: Array(9).fill({ name: "Fake Bank", locations: 1 }) }] },
   { name: "CategoryPreferences", schema: schemas.CategoryPreferencesSchema, valid: { removed: [], added: [FAKE_CATEGORY_ID] },
     invalid: [{ removed: ["invalid"], added: [] }, { removed: [], added: Array(51).fill(FAKE_CATEGORY_ID) }] },
   { name: "MerchantStatus", schema: schemas.MerchantStatusSchema, valid: "to_contact", invalid: ["pending", 1] },
@@ -98,6 +110,11 @@ describe("shared schemas", () => {
 
 it.each([{ lat: -90, lon: -180 }, { lat: 90, lon: 180 }])("accepts coordinate boundaries for research", (point) => {
   expect(schemas.RunRequestSchema.safeParse({ ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_BRANCH, ...point }] }).success).toBe(true);
+});
+it("trims lookup inputs and accepts Qloo places in saved profiles", () => {
+  expect(schemas.BranchLookupRequestSchema.parse({ name: "  Fake Credit Union  ", city: "  Fake City, CO  " })).toEqual(BRANCH_LOOKUP_REQUEST);
+  const branch = { ...FAKE_BRANCH, locationSource: "qloo_place" };
+  expect(schemas.ProfileSchema.parse({ ...FAKE_PROFILE, branches: [branch] }).branches).toEqual([branch]);
 });
 it.each([{ lat: -91 }, { lat: 91 }, { lon: -181 }, { lon: 181 }, { lat: undefined }, { lon: undefined }])("rejects out-of-range or missing research coordinates", (point) => {
   expect(schemas.RunRequestSchema.safeParse({ ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_BRANCH, ...point }] }).success).toBe(false);

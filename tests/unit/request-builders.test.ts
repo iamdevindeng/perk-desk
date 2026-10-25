@@ -9,6 +9,17 @@ import { FAKE_BRAND, FAKE_BRAND_ID, FAKE_CATEGORY_ID, FAKE_PLAN_RESPONSE, FAKE_P
 
 const CATEGORIES = [{ tagId: FAKE_CATEGORY_ID, label: "Coffee shop" }];
 
+it("preserves Qloo branch addresses and coordinates in the existing plan and run shapes", () => {
+  const branch = { ...FAKE_PROFILE.branches[0], address: "9 Example Lane", lat: 39.8, lon: -105.1, locationSource: "qloo_place" as const };
+  const profile = { ...FAKE_PROFILE, branches: [branch] };
+  const originalPlan = buildPlanRequest(FAKE_PROFILE, FAKE_BRAND.name);
+  const originalRun = buildRunRequest(FAKE_PROFILE, FAKE_PLAN_RESPONSE, CATEGORIES);
+  const plan = buildPlanRequest(profile, FAKE_BRAND.name);
+  const run = buildRunRequest(profile, { ...FAKE_PLAN_RESPONSE, branches: [branch] }, CATEGORIES);
+  expect(plan).toEqual({ ...originalPlan, branches: [branch] });
+  expect(run).toEqual({ ...originalRun, branches: [branch] });
+});
+
 describe("pasted lists", () => {
   it("splits all line endings, preserves commas, and keeps the first case-insensitive spelling", () => {
     expect(parseListText("  Fake Coffee  \r\n\r\nFAKE COFFEE\nFake, LLC\rFake Tea\n ")).toEqual(["Fake Coffee", "Fake, LLC", "Fake Tea"]);

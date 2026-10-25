@@ -40,6 +40,14 @@ describe("branch distance from the selected city", () => {
     expect(resolveLocality).not.toHaveBeenCalled();
   });
 
+  it("uses Qloo-listed branch coordinates directly without resolving their street address", async () => {
+    const branch = { ...FAKE_BRANCH, address: "9 Example Lane", locationSource: "qloo_place" as const };
+    const result = await runPlan({ ...FAKE_PLAN_REQUEST, branches: [branch] });
+    expect(result.branches).toEqual([branch]);
+    expect(resolveLocality).not.toHaveBeenCalled();
+    expect(result.warnings).not.toContain("No branch locations were resolved; pick a location on the map.");
+  });
+
   it("checks a branch after its address has been located", async () => {
     vi.mocked(resolveLocality).mockResolvedValue({ name: "Fake Far District", lat: FAR_BRANCH.lat, lon: FAR_BRANCH.lon });
     const addressBranch = { ...FAR_BRANCH, lat: undefined, lon: undefined, locationSource: undefined };

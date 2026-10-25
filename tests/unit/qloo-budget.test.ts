@@ -1,7 +1,7 @@
 // Verifies Qloo transport caps and isolated plan/run accounting without live provider requests.
 // Called by: npm test; all credentials and HTTP responses are fictional
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLAN_QLOO_CALL_CAP, RUN_QLOO_CALL_CAP } from "@/lib/config";
+import { BRANCH_LOOKUP_QLOO_CALL_CAP, PLAN_QLOO_CALL_CAP, RUN_QLOO_CALL_CAP } from "@/lib/config";
 
 vi.mock("@/lib/env", () => ({ getEnv: () => ({
   QLOO_API_KEY: "fake-test-placeholder", QLOO_BASE_URL: "https://hackathon.api.qloo.com",
@@ -24,14 +24,15 @@ beforeEach(async () => {
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-function expectUsage(scope: "run" | "plan", count: number): void {
+function expectUsage(scope: "run" | "plan" | "branches", count: number): void {
   expect(console.info).toHaveBeenCalledWith(expect.stringMatching(
     new RegExp(`^\\[usage\\] scope=${scope} ip_hash=[a-f0-9]{12} qloo_calls=${count} llm_calls=0$`),
   ));
 }
 
 describe("per-request Qloo budget", () => {
-  it.each([{ scope: "run" as const, cap: RUN_QLOO_CALL_CAP }, { scope: "plan" as const, cap: PLAN_QLOO_CALL_CAP }])(
+  it.each([{ scope: "run" as const, cap: RUN_QLOO_CALL_CAP }, { scope: "plan" as const, cap: PLAN_QLOO_CALL_CAP },
+    { scope: "branches" as const, cap: BRANCH_LOOKUP_QLOO_CALL_CAP }])(
     "rejects the first excess $scope attempt before fetching",
     async ({ scope, cap }) => {
       const work = usage.withRunUsage("192.0.2.1", async () => {

@@ -112,3 +112,25 @@ it.each(["institution", "brands"])("omits the location hint when only the %s is 
   expect(props("Button").disabled).toBe(true);
   expect(textContent(render())).not.toContain(HINT);
 });
+
+it("allows planning after exact branch search locations replace the blank branch", async () => {
+  editBranches([BLANK_BRANCH]); expect(props("Button").disabled).toBe(true);
+  const branches: Branch[] = [{ ...FAKE_BRANCH, address: "", locationSource: "qloo_place" }];
+  editBranches(branches);
+  expect(props("Button").disabled).toBe(false);
+  expect(textContent(render())).not.toContain(HINT);
+  expect(props("MerchantMap").branches).toEqual(branches);
+  invoke(props("Button").onClick);
+  expect(pageHarness.plans).toHaveLength(1);
+  pageHarness.plans[0].resolve({ ...FAKE_PLAN_RESPONSE, branches }); await flushPage();
+});
+
+it("resets branch lookup for every preset selection, including repeated same-city presets", () => {
+  const preset = getPresets()[0];
+  const original = props("ProfileForm").branchLookupVersion;
+  invoke(props("PresetPicker").onSelect, preset);
+  const first = props("ProfileForm").branchLookupVersion;
+  expect(first).not.toBe(original);
+  invoke(props("PresetPicker").onSelect, preset);
+  expect(props("ProfileForm").branchLookupVersion).not.toBe(first);
+});

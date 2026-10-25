@@ -14,6 +14,12 @@ export const TAG_SEARCH_TAKE = 15;
 export const INSIGHTS_TAKE = 30;
 export const DEFAULT_RADIUS_M = 6000;
 export const BRANCH_MAX_CITY_DISTANCE_M = 50000;
+export const BRANCH_LOOKUP_SEARCH_TAKE = 50;
+export const BRANCH_LOOKUP_MAX_PLACES = 20;
+export const BRANCH_LOOKUP_MAX_SUGGESTIONS = 8;
+export const BRANCH_LOOKUP_GENRES = [
+  "urn:tag:genre:place:credit_union", "urn:tag:genre:place:federal_credit_union", "urn:tag:genre:place:bank",
+];
 export const MIN_INDEPENDENTS = 6;
 export const PLAN_MIN_CATEGORIES = 2;
 export const PLAN_MAX_CATEGORIES = 6;
@@ -38,6 +44,9 @@ export const SCORE_WEIGHTS = {
   distance: 0.2,
   rating: 0.15,
 } as const;
+export const BRANCH_LOOKUP_LIMIT_PER_IP = 30;
+export const BRANCH_LOOKUP_LIMIT_GLOBAL = 300;
+export const BRANCH_LOOKUP_QLOO_CALL_CAP = 2;
 export const PLAN_LIMIT_PER_IP = 30;
 export const PLAN_LIMIT_GLOBAL = 300;
 export const RUN_LIMIT_PER_IP = 10;

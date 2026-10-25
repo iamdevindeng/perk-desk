@@ -1,12 +1,13 @@
-// Converts Qloo brand searches into slim candidates with only permitted, prioritized tags.
+// Converts Qloo brand and place searches into validated slim results.
 // Called by: brand-resolution tools, merchant chain checks, and qloo-search unit tests.
 import { z } from "zod";
-import { BRAND_SEARCH_TAKE, BRAND_TAGS_MAX } from "@/lib/config";
+import { BRANCH_LOOKUP_SEARCH_TAKE, BRAND_SEARCH_TAKE, BRAND_TAGS_MAX } from "@/lib/config";
 import { getBlacklist } from "@/lib/data";
-import { BrandCandidateSchema, EntityIdSchema } from "@/lib/types";
-import type { BrandCandidate, TagRef } from "@/lib/types";
+import { BrandCandidateSchema, EntityIdSchema, PlaceSchema } from "@/lib/types";
+import type { BrandCandidate, Place, TagRef } from "@/lib/types";
 import { cachedQlooCall } from "@/lib/qloo/client";
 import type { QlooCallOptions } from "@/lib/qloo/client";
+import { slimPlace } from "@/lib/qloo/insights";
 
 const TAG_TYPE_PRIORITY = [
   "urn:tag:genre:brand", "urn:tag:keyword:qloo", "urn:tag:lifestyle:qloo",
@@ -80,4 +81,18 @@ export async function searchBrandExact(name: string, options: QlooCallOptions = 
   // Name equality belongs to the chain check; search itself is fuzzy (ARCHITECTURE §6.3).
   const candidates = await searchWithTake(name, 1, options);
   return candidates[0] ?? null;
+}
+
+function slimSearchPlaces(raw: unknown): Place[] {
+  const response = RawSearchSchema.parse(raw);
+  return response.results.map(slimPlace).filter((place) => place !== null);
+}
+
+export async function searchPlacesByName(query: string, lat: number, lon: number, options: QlooCallOptions = {}): Promise<Place[]> {
+  const name = query.trim();
+  if (!name) return [];
+  // Search uses lat,lon, unlike the POINT(lon lat) insights endpoint (FIXES-R10 R41).
+  return cachedQlooCall("/search", {
+    query: name, types: "urn:entity:place", take: BRANCH_LOOKUP_SEARCH_TAKE, "filter.location": `${lat},${lon}`,
+  }, slimSearchPlaces, z.array(PlaceSchema), options);
 }

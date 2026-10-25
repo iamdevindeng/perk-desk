@@ -2,10 +2,10 @@
 // Called by: plan/run routes and rate-limit unit tests
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
+import { BRANCH_LOOKUP_LIMIT_GLOBAL, BRANCH_LOOKUP_LIMIT_PER_IP, PLAN_LIMIT_GLOBAL, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE } from "@/lib/config";
 import { getEnv, hasUpstash, isVercelProduction } from "@/lib/env";
 
-type Scope = "plan" | "run";
+type Scope = "plan" | "run" | "branches";
 type LimitResult = { ok: boolean; reason?: "ip" | "global" | "store"; message?: string };
 const memory = new Map<string, { count: number; windowStart: number }>();
 const redisExhaustedUntil = new Map<string, number>();
@@ -14,6 +14,7 @@ let redis: Redis | undefined;
 let warned = false;
 
 function limits(scope: Scope): { ip: number; global: number } {
+  if (scope === "branches") return { ip: BRANCH_LOOKUP_LIMIT_PER_IP, global: BRANCH_LOOKUP_LIMIT_GLOBAL };
   return scope === "plan" ? { ip: PLAN_LIMIT_PER_IP, global: PLAN_LIMIT_GLOBAL } : { ip: RUN_LIMIT_PER_IP, global: RUN_LIMIT_GLOBAL };
 }
 

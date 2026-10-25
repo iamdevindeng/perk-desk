@@ -52,20 +52,22 @@ function BranchMarker({ branch }: { branch: Branch }): ReactElement | null {
   </CircleMarker>;
 }
 
-function ResultBounds({ branches, merchants }: { branches: Branch[]; merchants: MerchantResult[] }): null {
+function ResultBounds({ center, branches, merchants }: { center: MapCenter; branches: Branch[]; merchants: MerchantResult[] }): null {
   const map = useMap();
   const lastBounds = useRef("");
   useEffect(() => {
-    if (!merchants.length) { lastBounds.current = ""; return; }
+    // Listed branches can be far from the initial city view, before any merchant research (R41).
+    if (!merchants.length && !branches.some((branch) => branch.locationSource === "qloo_place")) { lastBounds.current = ""; return; }
     const positions: LatLngTuple[] = branches.flatMap((branch) =>
       branch.lat === undefined || branch.lon === undefined ? [] : [[branch.lat, branch.lon]]);
     positions.push(...merchants.map((merchant): LatLngTuple => [merchant.place.lat, merchant.place.lon]));
-    const signature = JSON.stringify(positions);
-    // Cards can update selection on every hover; refit only when actual locations change.
+    if (!positions.length) { lastBounds.current = ""; return; }
+    const signature = JSON.stringify([center.lat, center.lon, center.zoom, positions]);
+    // A resolved city resets the view too; ordinary card hovers must not refit unchanged locations.
     if (lastBounds.current === signature) return;
     lastBounds.current = signature;
     map.fitBounds(positions, { padding: [MAP_BOUNDS_PADDING, MAP_BOUNDS_PADDING], maxZoom: MAP_RESULTS_MAX_ZOOM });
-  }, [map, branches, merchants]);
+  }, [map, branches, merchants, center.lat, center.lon, center.zoom]);
   return null;
 }
 
@@ -121,7 +123,7 @@ export default function MerchantMap({ center, branches, merchants, selectedMerch
       <TileLayer url={OSM_TILE_URL} maxZoom={MAP_MAX_ZOOM}
         attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'} />
       <MapBehavior center={center} onPickLocation={onPickLocation} />
-      <ResultBounds branches={branches} merchants={merchants} />
+      <ResultBounds center={center} branches={branches} merchants={merchants} />
       {/* Keep every branch marker above every trade area so overlapping circles cannot cover it. */}
       {branches.map((branch) => <BranchTradeArea key={branch.id} branch={branch} />)}
       {branches.map((branch) => <BranchMarker key={branch.id} branch={branch} />)}

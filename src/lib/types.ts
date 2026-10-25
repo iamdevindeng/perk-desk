@@ -1,7 +1,7 @@
 // Defines validated shared shapes for profiles, Qloo data, plans, runs, and trace events.
 // Called by: server boundaries, client state, data loaders, and schema tests
 import { z } from "zod";
-import { CATEGORY_EVIDENCE_MAX, DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
+import { BRANCH_LOOKUP_MAX_PLACES, BRANCH_LOOKUP_MAX_SUGGESTIONS, CATEGORY_EVIDENCE_MAX, DEFAULT_RADIUS_M, RUN_MAX_CATEGORIES } from "@/lib/config";
 
 export const CategoryTagIdSchema = z.string().regex(/^urn:tag:category:place:[a-z0-9_]+$/);
 export const EntityIdSchema = z.string().min(8).max(64);
@@ -9,7 +9,19 @@ export const BranchSchema = z.object({
   id: z.string().min(1).max(40), name: z.string().min(1).max(80), address: z.string().max(200).default(""),
   lat: z.number().min(-90).max(90).optional(), lon: z.number().min(-180).max(180).optional(),
   radiusMeters: z.number().int().min(1000).max(20000).default(DEFAULT_RADIUS_M),
-  locationSource: z.enum(["preset", "map", "qloo_locality"]).optional(),
+  locationSource: z.enum(["preset", "map", "qloo_locality", "qloo_place"]).optional(),
+});
+export const BranchLookupRequestSchema = z.object({
+  name: z.string().trim().min(1).max(100), city: z.string().trim().min(2).max(80),
+});
+export const BranchLookupResponseSchema = z.object({
+  status: z.enum(["found", "other_names", "none", "city_not_found", "limited"]),
+  query: z.string(), cityLabel: z.string(), message: z.string().optional(),
+  places: z.array(z.object({
+    entityId: EntityIdSchema, name: z.string(), address: BranchSchema.shape.address,
+    lat: BranchSchema.shape.lat.unwrap(), lon: BranchSchema.shape.lon.unwrap(), distanceMeters: z.number().nonnegative(),
+  })).max(BRANCH_LOOKUP_MAX_PLACES),
+  suggestions: z.array(z.object({ name: z.string(), locations: z.number().int().positive() })).max(BRANCH_LOOKUP_MAX_SUGGESTIONS),
 });
 export const CategoryPreferencesSchema = z.object({
   removed: z.array(CategoryTagIdSchema).max(50), added: z.array(CategoryTagIdSchema).max(50),
@@ -127,6 +139,8 @@ export const CityListSchema = z.object({ cities: z.array(z.object({ label: z.str
 export type CategoryTagId = z.infer<typeof CategoryTagIdSchema>;
 export type EntityId = z.infer<typeof EntityIdSchema>;
 export type Branch = z.infer<typeof BranchSchema>;
+export type BranchLookupRequest = z.infer<typeof BranchLookupRequestSchema>;
+export type BranchLookupResponse = z.infer<typeof BranchLookupResponseSchema>;
 export type CategoryPreferences = z.infer<typeof CategoryPreferencesSchema>;
 export type MerchantStatus = z.infer<typeof MerchantStatusSchema>;
 export type MerchantStatusEntry = z.infer<typeof MerchantStatusEntrySchema>;

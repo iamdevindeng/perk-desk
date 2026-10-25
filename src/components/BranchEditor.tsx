@@ -26,6 +26,7 @@ function BranchLocation({ branch }: { branch: Branch }): ReactElement {
     return <p className="text-xs leading-relaxed text-slate-500">Enter an address or pick the branch on the map.</p>;
   }
   const source = branch.locationSource === "qloo_locality" ? "Approximate address location"
+    : branch.locationSource === "qloo_place" ? "Qloo listed location"
     : branch.locationSource === "map" ? "Picked on map" : branch.locationSource === "preset" ? "Demo location" : "Saved location";
   return <div className="space-y-1 text-xs text-slate-500">
     <p><span className="font-medium text-slate-600">{source}</span> · {branch.lat.toFixed(COORDINATE_DECIMALS)}, {branch.lon.toFixed(COORDINATE_DECIMALS)}</p>

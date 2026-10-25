@@ -138,6 +138,7 @@ export default function Home(): ReactElement {
   const { profile, updateProfile, ready } = useSavedProfile();
   const [brandsText, setBrandsText] = useState("");
   const [presetId, setPresetId] = useState<string>();
+  const [branchLookupVersion, setBranchLookupVersion] = useState(0);
   const { stage, setStage, busyRef } = useStage();
   const [pickingBranchId, setPickingBranchId] = useState<string>();
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>();
@@ -159,7 +160,7 @@ export default function Home(): ReactElement {
   function selectPreset(preset: Preset): void {
     const presetProfile = ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
     updateProfile({ ...presetProfile, branchesByCity: rememberBranchesByCity(profile) });
-    setBrandsText(preset.brandsText); setPresetId(preset.id); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
+    setBrandsText(preset.brandsText); setPresetId(preset.id); setBranchLookupVersion((version) => version + 1); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
     navigation.navigate("plan-categories-button");
   }
   function pickLocation(point: { lat: number; lon: number }): void {
@@ -184,7 +185,7 @@ export default function Home(): ReactElement {
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-6">
         <PresetPicker onSelect={selectPreset} disabled={busy || !ready} />
-        <ProfileForm profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId}
+        <ProfileForm profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion}
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
         <TasteInput value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
@@ -200,8 +201,7 @@ export default function Home(): ReactElement {
           brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy} liveResearchChanges={changes.run}
           onBrandOverride={(name, entityId) => { planning.setBrandOverrides({ ...planning.brandOverrides, [name]: entityId }); research.clear(); }}
           onReplan={startPlan} onConfirm={startRun} />}
-        {(stage === "running" || visibleTrace.length > 0) && <AgentTrace events={visibleTrace} disabled={busy}
-          onRetry={research.runEvents.length ? startRun : startPlan} />}
+        {(stage === "running" || visibleTrace.length > 0) && <AgentTrace events={visibleTrace} disabled={busy} onRetry={research.runEvents.length ? startRun : startPlan} />}
         {research.result && <MerchantResults result={research.result} profile={profile} brands={plan?.brands} selectedMerchantId={selectedMerchantId}
           independentsOnly={independentsOnly} onIndependentsOnlyChange={setIndependentsOnly}
           onSelectMerchant={setSelectedMerchantId} onStatusChange={changeStatus} />}

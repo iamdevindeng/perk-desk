@@ -1,7 +1,7 @@
 // Tests exact local budgets, mocked Upstash behavior, and forwarded IP selection without network calls.
 // Called by: npm test
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP } from "@/lib/config";
+import { BRANCH_LOOKUP_LIMIT_GLOBAL, BRANCH_LOOKUP_LIMIT_PER_IP, SHARED_LIMIT_CONFIG_MESSAGE, SHARED_LIMIT_UNAVAILABLE_MESSAGE, PLAN_LIMIT_PER_IP, RATE_WINDOW_MS, RUN_LIMIT_GLOBAL, RUN_LIMIT_PER_IP } from "@/lib/config";
 import { resetEnvForTests } from "@/lib/env";
 import { checkLimit, getClientIp, resetMemoryLimitsForTests } from "@/lib/store/rate-limit";
 
@@ -113,4 +113,34 @@ describe("request metadata", () => {
     expect(getClientIp(new Request("http://localhost"))).toBe("unknown");
   });
 
+});
+
+
+describe("branch lookup budgets", () => {
+  it("allows exactly 30 branch lookups per IP with a separate plan budget", async () => {
+    for (let index = 0; index < BRANCH_LOOKUP_LIMIT_PER_IP; index++) expect(await checkLimit("branches", "fake-ip")).toEqual({ ok: true });
+    expect(await checkLimit("branches", "fake-ip")).toEqual({ ok: false, reason: "ip" });
+    expect(await checkLimit("plan", "fake-ip")).toEqual({ ok: true });
+  });
+
+  it("allows exactly 300 branch lookups across distinct IPs", async () => {
+    for (let index = 0; index < BRANCH_LOOKUP_LIMIT_GLOBAL; index++) expect(await checkLimit("branches", `fake-ip-${index}`)).toEqual({ ok: true });
+    expect(await checkLimit("branches", "new-ip")).toEqual({ ok: false, reason: "global" });
+  });
+
+  it("uses its own Upstash prefixes and limits", async () => {
+    enableRedis(); await checkLimit("branches", "fake-ip");
+    expect(UPSTASH.fixedWindow).toHaveBeenCalledWith(30, "1 d");
+    expect(UPSTASH.fixedWindow).toHaveBeenCalledWith(300, "1 d");
+    expect(UPSTASH.limit.mock.calls).toEqual([["pd:v1:rl:branches:ip", "fake-ip"], ["pd:v1:rl:branches:global", "all"]]);
+  });
+
+  it("fails closed in production for missing or unavailable shared stores", async () => {
+    vi.stubEnv("VERCEL_ENV", "production"); resetEnvForTests();
+    expect(await checkLimit("branches", "fake-ip")).toEqual({ ok: false, reason: "store", message: SHARED_LIMIT_CONFIG_MESSAGE });
+    enableRedis(); UPSTASH.limit.mockRejectedValue(new Error("fake unavailable store"));
+    expect(await checkLimit("branches", "fake-ip")).toEqual({ ok: false, reason: "store", message: SHARED_LIMIT_UNAVAILABLE_MESSAGE });
+    UPSTASH.limit.mockResolvedValue({ success: true, reason: "timeout" });
+    expect(await checkLimit("branches", "fake-ip")).toEqual({ ok: false, reason: "store", message: SHARED_LIMIT_UNAVAILABLE_MESSAGE });
+  });
 });

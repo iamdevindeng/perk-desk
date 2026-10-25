@@ -8,6 +8,7 @@ import { rememberBranchesByCity } from "@/lib/profile-storage";
 import { parseUploadedList } from "@/lib/request-builders";
 import type { Branch, Profile } from "@/lib/types";
 import BranchEditor from "@/components/BranchEditor";
+import BranchLookup from "@/components/BranchLookup";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 type ProfileFormProps = {
   profile: Profile; onChange: (profile: Profile) => void;
   pickingBranchId?: string; onPickBranch: (id: string) => void; disabled?: boolean;
+  branchLookupVersion?: number;
 };
 type MerchantListField = "signedMerchantsText" | "businessMembersText";
 const MERCHANT_LIST_LABELS = {
@@ -122,7 +124,7 @@ function MerchantList({ profile, onChange, disabled, field }: {
   </div>;
 }
 
-export default function ProfileForm({ profile, onChange, pickingBranchId, onPickBranch, disabled = false }: ProfileFormProps): ReactElement {
+export default function ProfileForm({ profile, onChange, pickingBranchId, onPickBranch, disabled = false, branchLookupVersion = 0 }: ProfileFormProps): ReactElement {
   return <Card>
     <CardHeader>
       <CardTitle id="program-profile-heading">Your perks program</CardTitle>
@@ -138,6 +140,8 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
           </div>
           <CityField profile={profile} onChange={onChange} />
         </div>
+        <BranchLookup key={branchLookupVersion} institutionName={profile.institutionName} city={profile.city} disabled={disabled}
+          onUse={(branches) => onChange({ ...profile, branches })} />
         <BranchEditor branches={profile.branches} onChange={(branches) => onChange({ ...profile, branches })}
           pickingBranchId={pickingBranchId} onPickBranch={onPickBranch} disabled={disabled} />
         <MerchantList profile={profile} onChange={onChange} disabled={disabled} field="signedMerchantsText" />

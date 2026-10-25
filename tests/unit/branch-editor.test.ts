@@ -15,6 +15,7 @@ const ADDRESS_CASES: AddressCase[] = [
   { source: "map", address: " ", placeholder: DEFAULT_PLACEHOLDER },
   { source: "preset", address: "", placeholder: DEFAULT_PLACEHOLDER },
   { source: "qloo_locality", address: "", placeholder: DEFAULT_PLACEHOLDER },
+  { source: "qloo_place", address: "3 Example Lane", placeholder: DEFAULT_PLACEHOLDER },
   { source: undefined, address: "", placeholder: DEFAULT_PLACEHOLDER },
 ];
 
@@ -26,4 +27,13 @@ it.each(ADDRESS_CASES)("uses the correct address placeholder for source=$source 
   const addressInput = markup.match(new RegExp(`<input[^>]*id="branch-${branch.id}-address"[^>]*>`))?.[0];
   expect(addressInput).toBeDefined();
   expect(addressInput).toContain(`placeholder="${placeholder}"`);
+});
+
+it("labels a Qloo branch as a listed location without an approximate hint", () => {
+  const markup = renderToStaticMarkup(createElement(BranchEditor, {
+    branches: [{ ...FAKE_BRANCH, locationSource: "qloo_place" }], onChange: () => {}, onPickBranch: () => {},
+  }));
+  expect(markup).toContain("Qloo listed location");
+  expect(markup).not.toContain("approximate");
+  expect(markup).not.toContain("text-amber-800");
 });
