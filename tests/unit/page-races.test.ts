@@ -21,9 +21,10 @@ vi.mock("@/components/CategoryConfirm", () => ({ default: "CategoryConfirm" }));
 vi.mock("@/components/AgentTrace", () => ({ default: "AgentTrace" }));
 vi.mock("@/components/MerchantCard", () => ({ MerchantResults: "MerchantResults" }));
 vi.mock("@/components/ui/button", () => ({ Button: "Button" }));
-vi.mock("@/lib/profile-storage", async () => {
+vi.mock("@/lib/profile-storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profile-storage")>();
   const { FAKE_PROFILE } = await import("../fixtures/fake-plan");
-  return { loadProfile: () => structuredClone(FAKE_PROFILE), saveProfile: vi.fn() };
+  return { ...actual, loadProfile: () => structuredClone(FAKE_PROFILE), saveProfile: vi.fn() };
 });
 vi.mock("@/lib/run-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/run-client")>();

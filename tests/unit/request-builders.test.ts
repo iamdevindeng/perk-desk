@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPlanRequest, buildRunRequest, parseListText } from "@/lib/request-builders";
 import { getPresets } from "@/lib/data";
-import { cacheKey } from "@/lib/hash";
+import { cacheKey, canonicalJson, sha256Hex } from "@/lib/hash";
 import { ProfileSchema, RunRequestSchema } from "@/lib/types";
 import { FAKE_BRAND, FAKE_BRAND_ID, FAKE_CATEGORY_ID, FAKE_PLAN_RESPONSE, FAKE_PROFILE } from "../fixtures/fake-plan";
 
@@ -106,6 +106,7 @@ it("preserves both preset run cache keys with the same fictional plan", () => {
     // Match preset selection's profile defaults; resolved brands/categories remain hand-written fakes.
     const profile = ProfileSchema.parse({ ...preset.profile,
       branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })),
+      branchesByCity: { "Fake City, CO": FAKE_PROFILE.branches },
     });
     const planRequest = buildPlanRequest(profile, preset.brandsText, preset.id);
     const plan = { ...FAKE_PLAN_RESPONSE, branches: planRequest.branches };
@@ -118,4 +119,23 @@ it("preserves both preset run cache keys with the same fictional plan", () => {
     "denver-demo": "pd:v1:run:ddc5a61c3fb964f15b27946a8ed59da4aef8de1fe6346e41816802a022c1d867",
     "austin-demo": "pd:v1:run:df0a7f795471a180f4028894c99525643bd135bf12db137ed386743b8cc21b92",
   });
+});
+
+it.each(getPresets())("keeps $label request payloads, canonical hashes, and cache keys unchanged with branch memory", (preset) => {
+  const profile = ProfileSchema.parse({ ...preset.profile,
+    branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })),
+  });
+  const withMemory = { ...profile, branchesByCity: { "Fake City, CO": FAKE_PROFILE.branches } };
+  const plan = { ...FAKE_PLAN_RESPONSE, branches: profile.branches };
+  const requests = [
+    [buildPlanRequest(profile, preset.brandsText, preset.id), buildPlanRequest(withMemory, preset.brandsText, preset.id)],
+    [buildRunRequest(profile, plan, plan.categories, {}, preset.id), buildRunRequest(withMemory, plan, plan.categories, {}, preset.id)],
+  ];
+  for (const [original, remembered] of requests) {
+    const kind = "brandNames" in original ? "plan" : "run";
+    expect(remembered).not.toHaveProperty("branchesByCity");
+    expect(remembered).toEqual(original);
+    expect(sha256Hex(canonicalJson(remembered))).toBe(sha256Hex(canonicalJson(original)));
+    expect(cacheKey(kind, remembered)).toBe(cacheKey(kind, original));
+  }
 });

@@ -1,7 +1,7 @@
 // Checks profile persistence under normal, corrupt, and unavailable storage.
 // Called by: npm test with a small in-memory browser-storage substitute
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadProfile, saveProfile } from "@/lib/profile-storage";
+import { loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { FAKE_PROFILE } from "../fixtures/fake-plan";
 
 const values = new Map<string, string>();
@@ -17,6 +17,22 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("browser profile storage", () => {
+  it("loads an old saved profile with an empty branch memory", () => {
+    const oldProfile = Object.fromEntries(Object.entries(FAKE_PROFILE).filter(([key]) => key !== "branchesByCity"));
+    values.set("perkdesk:v1:profile", JSON.stringify(oldProfile));
+    expect(loadProfile()).toEqual({ ...FAKE_PROFILE, branchesByCity: {} });
+  });
+
+  it("round-trips saved branches and their city order", () => {
+    const profile = { ...FAKE_PROFILE, branchesByCity: {
+      "Austin, TX": [{ ...FAKE_PROFILE.branches[0], id: "fake-austin", name: "Fake Austin Branch" }],
+      "Denver, CO": FAKE_PROFILE.branches,
+    } };
+    saveProfile(profile);
+    expect(loadProfile()).toEqual(profile);
+    expect(Object.keys(loadProfile()!.branchesByCity)).toEqual(["Austin, TX", "Denver, CO"]);
+  });
+
   it("round-trips a validated profile under the documented storage key", () => {
     saveProfile(FAKE_PROFILE);
     expect(values.has("perkdesk:v1:profile")).toBe(true);
@@ -46,5 +62,43 @@ describe("browser profile storage", () => {
     expect(() => saveProfile(FAKE_PROFILE)).not.toThrow();
     vi.stubGlobal("window", { localStorage: { setItem: () => { throw new Error("Full"); } } });
     expect(() => saveProfile(FAKE_PROFILE)).not.toThrow();
+  });
+});
+
+describe("branch memory", () => {
+  it("saves current branches under the trimmed city without mutating previous memory", () => {
+    const previous = { "Austin, TX": [{ ...FAKE_PROFILE.branches[0], name: "Fake Austin Branch" }] };
+    const profile = { ...FAKE_PROFILE, city: " Denver, CO ", branchesByCity: previous };
+    const memory = rememberBranchesByCity(profile);
+    expect(memory).toEqual({ ...previous, "Denver, CO": profile.branches });
+    expect(profile.branchesByCity).toEqual(previous);
+    expect(Object.keys(previous)).toEqual(["Austin, TX"]);
+  });
+
+  it.each(["", "   "])("does not save an empty current city %j", (city) => {
+    const branchesByCity = { "Denver, CO": FAKE_PROFILE.branches };
+    expect(rememberBranchesByCity({ ...FAKE_PROFILE, city, branchesByCity })).toEqual(branchesByCity);
+  });
+
+  it("drops only the oldest saved city when adding an eleventh", () => {
+    const branchesByCity = Object.fromEntries(Array.from({ length: 10 }, (_, index) =>
+      [`Fake City ${index}, CO`, FAKE_PROFILE.branches]));
+    const memory = rememberBranchesByCity({ ...FAKE_PROFILE, branchesByCity });
+    expect(Object.keys(memory)).toEqual([...Object.keys(branchesByCity).slice(1), "Denver, CO"]);
+    expect(memory["Denver, CO"]).toEqual(FAKE_PROFILE.branches);
+    expect(Object.keys(branchesByCity)).toHaveLength(10);
+    expect(branchesByCity["Fake City 0, CO"]).toEqual(FAKE_PROFILE.branches);
+  });
+
+  it("updates a saved city as the newest entry before applying the cap", () => {
+    const branchesByCity = Object.fromEntries(Array.from({ length: 10 }, (_, index) =>
+      [`Fake City ${index}, CO`, FAKE_PROFILE.branches]));
+    const branches = [{ ...FAKE_PROFILE.branches[0], name: "Fake Updated Branch" }];
+    const refreshed = rememberBranchesByCity({ ...FAKE_PROFILE, city: "Fake City 0, CO", branches, branchesByCity });
+    expect(Object.keys(refreshed)).toEqual([...Object.keys(branchesByCity).slice(1), "Fake City 0, CO"]);
+    const memory = rememberBranchesByCity({ ...FAKE_PROFILE, branchesByCity: refreshed });
+    expect(Object.keys(memory)).toHaveLength(10);
+    expect(memory).not.toHaveProperty("Fake City 1, CO");
+    expect(memory["Fake City 0, CO"]).toEqual(branches);
   });
 });

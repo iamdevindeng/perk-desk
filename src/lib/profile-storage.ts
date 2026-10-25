@@ -1,8 +1,18 @@
-// Persists a validated program profile in browser storage.
-// Called by: the page and profile-storage unit tests
+// Maintains browser-only branch memory and persists a validated program profile.
+// Called by: the page, ProfileForm, and profile-storage unit tests
+import { PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
 import { ProfileSchema, type Profile } from "@/lib/types";
 
 const PROFILE_KEY = "perkdesk:v1:profile";
+
+export function rememberBranchesByCity(profile: Profile): Profile["branchesByCity"] {
+  const city = profile.city.trim();
+  if (!city) return profile.branchesByCity;
+  // Re-saving moves this city to the end, so the oldest saved city expires first.
+  const savedCities = Object.entries(profile.branchesByCity).filter(([label]) => label !== city);
+  savedCities.push([city, profile.branches]);
+  return Object.fromEntries(savedCities.slice(-PROFILE_MAX_SAVED_CITIES));
+}
 
 function readStored(key: string): string | null {
   if (typeof window === "undefined") return null;

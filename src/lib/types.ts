@@ -19,6 +19,7 @@ export const MerchantStatusEntrySchema = z.object({ name: z.string(), status: Me
 export const ProfileSchema = z.object({
   institutionName: z.string().min(1).max(100), city: z.string().min(2).max(80),
   branches: z.array(BranchSchema).min(1).max(5),
+  branchesByCity: z.record(z.string().min(1).max(80), z.array(BranchSchema).min(1).max(5)).default({}),
   signedMerchantsText: z.string().max(20000).default(""), businessMembersText: z.string().max(20000).default(""),
   categoryPreferences: CategoryPreferencesSchema.default({ removed: [], added: [] }),
   merchantStatus: z.record(z.string(), MerchantStatusEntrySchema).default({}),

@@ -73,6 +73,7 @@ export const SHARED_LIMIT_CONFIG_MESSAGE = "Live research is disabled: shared ra
 export const SHARED_LIMIT_UNAVAILABLE_MESSAGE = "Live research is disabled: shared rate-limit store unavailable.";
 export const LIST_MAX_ITEMS = 500;
 export const PROFILE_MAX_BRANCHES = 5;
+export const PROFILE_MAX_SAVED_CITIES = 10;
 export const BRANCH_RADIUS_MIN_KM = 1;
 export const BRANCH_RADIUS_MAX_KM = 20;
 export const METERS_PER_KILOMETER = 1000;

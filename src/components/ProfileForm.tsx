@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { DEFAULT_RADIUS_M, UPLOAD_MAX_BYTES } from "@/lib/config";
 import { getCities } from "@/lib/data";
+import { rememberBranchesByCity } from "@/lib/profile-storage";
 import { parseUploadedList } from "@/lib/request-builders";
 import type { Branch, Profile } from "@/lib/types";
 import BranchEditor from "@/components/BranchEditor";
@@ -34,14 +35,20 @@ const MERCHANT_LIST_LABELS = {
 function CityField({ profile, onChange }: { profile: Profile; onChange: (profile: Profile) => void }): ReactElement {
   const cities = getCities();
   const knownCity = cities.some((city) => city.label === profile.city);
-  const [reset, setReset] = useState<{ branch: Branch; cityLabel: string } | null>(null);
+  const [notice, setNotice] = useState<{ branches: Branch[]; message: string } | null>(null);
   function selectCity(value: string): void {
-    const branch = { id: crypto.randomUUID(), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M };
-    setReset({ branch, cityLabel: value === "other" ? "the new city" : value });
-    onChange({ ...profile, city: value === "other" ? "" : value, branches: [branch] });
+    // Restore before the next save can evict this destination at the city cap.
+    const saved = cities.some((city) => city.label === value) ? profile.branchesByCity[value] : undefined;
+    const branchesByCity = rememberBranchesByCity(profile);
+    const branches = saved ?? [{ id: crypto.randomUUID(), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M }];
+    const message = saved ? `Restored your saved branches for ${value}.`
+      : `City changed, so branches were reset. Add your branches in ${value === "other" ? "the new city" : value}.`;
+    setNotice({ branches, message });
+    onChange({ ...profile, city: value === "other" ? "" : value, branches, branchesByCity });
   }
-  // Edits and presets replace the branch; an empty plan may only recreate its array.
-  const showReset = profile.branches.length === 1 && reset?.branch === profile.branches[0];
+  // Edits and presets replace branch objects; an empty plan may only recreate their array.
+  const showNotice = notice?.branches.length === profile.branches.length
+    && notice.branches.every((branch, index) => branch === profile.branches[index]);
   return <div className="space-y-2">
     <Label htmlFor="profile-city">City</Label>
     <Select id="profile-city" value={knownCity ? profile.city : "other"}
@@ -54,7 +61,7 @@ function CityField({ profile, onChange }: { profile: Profile; onChange: (profile
       <Input id="profile-other-city" value={profile.city} placeholder="Portland, OR" required autoComplete="address-level2"
         onChange={(event) => onChange({ ...profile, city: event.target.value })} />
     </div>}
-    {showReset && <p role="status" className="text-sm text-slate-500">City changed, so branches were reset. Add your branches in {reset.cityLabel}.</p>}
+    {showNotice && <p role="status" className="text-sm text-slate-500">{notice.message}</p>}
   </div>;
 }
 

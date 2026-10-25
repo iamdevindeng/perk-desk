@@ -1,4 +1,4 @@
-// Exercises city changes and branch reset notices through real form and page callbacks.
+// Exercises saved city branches and change notices through real form and page callbacks.
 // Called by: npm test; fake hooks and transports keep every interaction offline
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
@@ -22,9 +22,10 @@ vi.mock("@/components/CategoryConfirm", () => ({ default: "CategoryConfirm" }));
 vi.mock("@/components/AgentTrace", () => ({ default: "AgentTrace" }));
 vi.mock("@/components/MerchantCard", () => ({ MerchantResults: "MerchantResults" }));
 vi.mock("@/components/ui/button", () => ({ Button: "Button" }));
-vi.mock("@/lib/profile-storage", async () => {
+vi.mock("@/lib/profile-storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/profile-storage")>();
   const { FAKE_PROFILE, FAKE_BRANCH, FAKE_PLACE_ID, FAKE_CATEGORY_ID } = await import("../fixtures/fake-plan");
-  return { saveProfile: vi.fn(), loadProfile: () => structuredClone({ ...FAKE_PROFILE, city: "Portland, OR",
+  return { ...actual, saveProfile: vi.fn(), loadProfile: () => structuredClone({ ...FAKE_PROFILE, city: "Portland, OR",
     branches: [FAKE_BRANCH, { ...FAKE_BRANCH, id: "fake-second", name: "Fake Second Branch" }],
     signedMerchantsText: "Fake Signed Shop", businessMembersText: "Fake Business Shop",
     categoryPreferences: { removed: [FAKE_CATEGORY_ID], added: [] },
@@ -97,14 +98,15 @@ beforeEach(async () => {
 });
 afterEach(unmountPage);
 
-it.each(["Denver, CO", "Austin, TX", "other"])("resets only branches and city when selecting %s", (selected) => {
+it.each(["Denver, CO", "Austin, TX", "other"])("remembers current branches and resets unsaved %s", (selected) => {
   const previous = profile();
   expect(notice()).toBeUndefined();
   changeField("profile-city", selected);
   const updated = profile();
   expect(updated.branches).toEqual([{ id: expect.stringMatching(/^[0-9a-f-]{36}$/), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M }]);
   expect(previous.branches.some((branch) => branch.id === updated.branches[0].id)).toBe(false);
-  expect(updated).toEqual({ ...previous, city: selected === "other" ? "" : selected, branches: updated.branches });
+  expect(updated).toEqual({ ...previous, city: selected === "other" ? "" : selected, branches: updated.branches,
+    branchesByCity: { "Portland, OR": previous.branches } });
   expect(notice()).toBe(`City changed, so branches were reset. Add your branches in ${selected === "other" ? "the new city" : selected}.`);
 });
 
@@ -122,6 +124,12 @@ it("keeps branches while typing Other city, both before and after a select reset
     expect(profile().city).toBe(city);
     expect(notice()).toBe("City changed, so branches were reset. Add your branches in the new city.");
   }
+  changeField("profile-city", "Denver, CO");
+  changeField("profile-city", "other");
+  expect(profile().branches).not.toBe(resetBranches);
+  expect(profile().branches[0]).toEqual({ id: expect.any(String), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M });
+  changeField("profile-other-city", "Portland, OR");
+  expect(profile().branches).not.toBe(profile().branchesByCity["Portland, OR"]);
 });
 
 it.each([["name", "Fake New Branch"], ["address", "3 Example Lane"], ["radius", "8"]])(
@@ -144,12 +152,38 @@ it("hides the reset notice after the real page map-pick callback", () => {
 });
 
 it.each(getPresets())("hides the reset notice when selecting $label through the page", (preset) => {
+  const original = profile();
   changeField("profile-city", "other");
   expect(notice()).toBeDefined();
   invoke(elementProps(pageTree, "PresetPicker").onSelect, preset);
   expect(profile()).toEqual({ ...preset.profile, categoryPreferences: { removed: [], added: [] }, merchantStatus: {},
+    branchesByCity: { "Portland, OR": original.branches },
     branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
   expect(elementProps(pageTree, "TasteInput").value).toBe(preset.brandsText);
+  expect(notice()).toBeUndefined();
+});
+
+it("restores edited Denver branches after Austin and hides the restored notice on edits or presets", () => {
+  const original = profile();
+  invoke(elementProps(pageTree, "PresetPicker").onSelect, getPresets()[0]);
+  expect(profile().branchesByCity["Portland, OR"]).toEqual(original.branches);
+  changeField(`branch-${profile().branches[0].id}-address`, "3 Example Lane");
+  const denverBranches = profile().branches;
+  changeField("profile-city", "Austin, TX");
+  expect(profile().branches).toHaveLength(1);
+  changeField("profile-city", "Denver, CO");
+  expect(profile().branches).toEqual(denverBranches);
+  expect(notice()).toBe("Restored your saved branches for Denver, CO.");
+  const restored = profile();
+  invoke(elementProps(pageTree, "ProfileForm").onChange, { ...restored,
+    branches: restored.branches.map((branch, index) => index === 1 ? { ...branch, name: "Fake Edited Branch" } : branch) });
+  expect(notice()).toBeUndefined();
+  changeField("profile-city", "Austin, TX");
+  changeField("profile-city", "Denver, CO");
+  expect(notice()).toBe("Restored your saved branches for Denver, CO.");
+  const current = profile();
+  invoke(elementProps(pageTree, "PresetPicker").onSelect, getPresets()[1]);
+  expect(profile().branchesByCity).toEqual({ ...current.branchesByCity, "Denver, CO": current.branches });
   expect(notice()).toBeUndefined();
 });
 

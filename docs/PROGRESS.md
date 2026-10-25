@@ -33,6 +33,8 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] R9: review the local R39–R40 commits before deciding on any push.
+
 - [ ] R8: review the local R36–R38 commits and decide when to push.
 
 - [ ] R7: review and push the R6 + R7 commits together when ready. Replace the public social preview with a real demo screenshot after the existing R27 demo re-warm.
@@ -1615,3 +1617,40 @@ Verification: all checks passed; 1192 offline tests / 82 files. Production build
 Decisions I made: empty means the empty string, exactly as requested; whitespace retains the default placeholder. No reverse geocoding, API, dependency, preset data, or cache changes.
 
 Open issues: none for R36–R38. All three items are complete in order with one local commit per item. No push or remote action occurred. Devin's review before any push is listed in Waiting for Devin.
+
+## R39 — Remember branches per city (2026-10-25)
+
+Status: DONE
+
+- Added browser-only branch memory with the requested schema default, preserving old saved profiles and both API request shapes.
+- Save current branches before city changes and preset selection; restore known saved cities and always start Other city with one blank branch.
+- Retain the ten most recently saved cities, including restoration when saving the current city evicts the destination's older memory entry.
+- Show the requested restored/reset status and dismiss it after branch edits, map picks, or preset selection.
+- Added offline storage, form/page, preset, request-payload, canonical-hash, and cache-key regressions.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                       |   7 ++-
+ src/components/ProfileForm.tsx         |  21 ++++---
+ src/lib/config.ts                      |   1 +
+ src/lib/profile-storage.ts             |  14 ++++-
+ src/lib/types.ts                       |   1 +
+ tests/fixtures/fake-plan.ts            |   1 +
+ tests/unit/page-errors.test.ts         |   5 +-
+ tests/unit/page-live-warning.test.ts   |   5 +-
+ tests/unit/page-navigation.test.ts     |   5 +-
+ tests/unit/page-races.test.ts          |   5 +-
+ tests/unit/profile-city-memory.test.ts | 112 +++++++++++++++++++++++++++++++++
+ tests/unit/profile-city.test.ts        |  44 +++++++++++--
+ tests/unit/profile-storage.test.ts     |  56 ++++++++++++++++-
+ tests/unit/request-builders.test.ts    |  22 ++++++-
+ 14 files changed, 273 insertions(+), 26 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1205 offline tests / 83 files. Independent review found and fixed destination eviction before restoration and preset selection failing on an incomplete remembered draft. Corrected an initial missing-coordinate test assertion and kept Home within its 80-line limit. The sandbox blocked the first build's local CSS worker port; moved only generated .next output aside and rebuilt successfully with local worker permission and provider/store credentials cleared. No live API calls.
+
+Decisions I made: re-saving a city makes it the newest entry. Keep the shared browser-memory helper in profile-storage.ts and the cap in config.ts. Read the destination before eviction. Parse the preset before attaching remembered drafts so an unfinished branch name cannot prevent preset selection; as before, incomplete profiles remain in session state and do not overwrite valid browser storage until their schema is valid. No dependency, preset data, canonical hashing, cache key, request shape, or protection changes.
+
+Open issues: none for R39. No push or remote action. Devin's review before any push is listed above.

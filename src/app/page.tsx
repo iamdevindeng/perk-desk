@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { DEFAULT_RADIUS_M, LIVE_LIMIT_MESSAGE, RUN_MAX_CATEGORIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
 import { dedupeMerchants } from "@/lib/merchants/dedupe";
-import { loadProfile, saveProfile } from "@/lib/profile-storage";
+import { loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences, presetRequestChanges } from "@/lib/request-builders";
 import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
@@ -42,7 +42,7 @@ function useStage() {
 function emptyProfile(): Profile {
   return { institutionName: "", city: getCities()[0].label,
     branches: [{ id: "branch-1", name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M }],
-    signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {} };
+    signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {}, branchesByCity: {} };
 }
 
 function canPlan(profile: Profile, brandsText: string): boolean {
@@ -157,7 +157,8 @@ export default function Home(): ReactElement {
   }
   function editBrands(text: string): void { setBrandsText(text); setPresetId(undefined); planning.clear(); research.clear(); setStage("edit"); }
   function selectPreset(preset: Preset): void {
-    updateProfile(ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) }));
+    const presetProfile = ProfileSchema.parse({ ...preset.profile, branches: preset.profile.branches.map((branch) => ({ ...branch, locationSource: "preset" })) });
+    updateProfile({ ...presetProfile, branchesByCity: rememberBranchesByCity(profile) });
     setBrandsText(preset.brandsText); setPresetId(preset.id); planning.clear(); research.clear(); setStage("edit"); setPickingBranchId(undefined);
     navigation.navigate("plan-categories-button");
   }

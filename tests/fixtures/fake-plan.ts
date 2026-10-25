@@ -15,6 +15,7 @@ export const FAKE_BRANCH = {
 } satisfies Branch;
 export const FAKE_PROFILE = {
   institutionName: "Fake Community CU", city: "Denver, CO", branches: [FAKE_BRANCH],
+  branchesByCity: {},
   signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {},
 } satisfies Profile;
 export const FAKE_TAG = {
