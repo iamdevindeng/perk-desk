@@ -18,7 +18,7 @@ import { loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, buildRunRequest, mergePreferences, presetRequestChanges } from "@/lib/request-builders";
 import { isRunRequestError, postPlan, streamRun } from "@/lib/run-client";
-import { ProfileSchema, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
+import { ProfileSchema, type Branch, type CategoryTag, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type RunResult, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
   ssr: false, loading: () => <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" aria-label="Loading map" />,
@@ -45,8 +45,10 @@ function emptyProfile(): Profile {
     signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {}, branchesByCity: {} };
 }
 
+function branchHasLocation(branch: Branch): boolean { return (branch.lat !== undefined && branch.lon !== undefined) || branch.address.trim().length > 0; }
+
 function canPlan(profile: Profile, brandsText: string): boolean {
-  try { buildPlanRequest(profile, brandsText); return true; }
+  try { buildPlanRequest(profile, brandsText); return profile.branches.every(branchHasLocation); }
   catch { return false; }
 }
 
@@ -143,12 +145,10 @@ export default function Home(): ReactElement {
   const navigation = usePageNavigation();
   const inputs = { profile, brandsText, presetId, updateProfile, setStage, navigation };
   const planning = usePlanning(inputs);
-  const research = useResearch({ ...inputs, plan: planning.plan, categories: planning.confirmedCategories,
-    overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
+  const research = useResearch({ ...inputs, plan: planning.plan, categories: planning.confirmedCategories, overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
   const visibleMerchants = useMemo(() => (research.result?.merchants ?? []).filter((merchant) => !independentsOnly || !merchant.multiLocation), [research.result, independentsOnly]);
   const { plan, errorMessage } = planning;
-  const changes = presetRequestChanges({ ...inputs, brandOverrides: planning.brandOverrides, plan,
-    canonicalPlan: planning.canonicalPlan, confirmedCategories: planning.confirmedCategories });
+  const changes = presetRequestChanges({ ...inputs, brandOverrides: planning.brandOverrides, plan, canonicalPlan: planning.canonicalPlan, confirmedCategories: planning.confirmedCategories });
   const busy = stage === "planning" || stage === "running";
   const center = getCities().find((city) => city.label === profile.city) ?? plan?.city ?? getCities()[0];
   function editProfile(next: Profile): void {
@@ -188,9 +188,11 @@ export default function Home(): ReactElement {
           onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
         <TasteInput value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
-        <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900">
+        <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900"
+          aria-describedby={profile.branches.every(branchHasLocation) ? undefined : "branch-location-hint"}>
           {stage === "planning" ? "Planning…" : "Plan merchant categories"}
         </Button>
+        {!profile.branches.every(branchHasLocation) && <p id="branch-location-hint" className="text-sm text-slate-500">Add an address or pick a map location for every branch.</p>}
         {changes.plan && <p className="text-xs text-slate-500">Changes run live research and count toward today&apos;s limit.</p>}
         {stage === "planning" && <p role="status" className="text-sm text-slate-500">Resolving brands and finding supported categories…</p>}
         {plan && <CategoryConfirm plan={plan} confirmedCategories={planning.confirmedCategories}

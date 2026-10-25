@@ -1654,3 +1654,28 @@ Verification: all checks passed; 1205 offline tests / 83 files. Independent revi
 Decisions I made: re-saving a city makes it the newest entry. Keep the shared browser-memory helper in profile-storage.ts and the cap in config.ts. Read the destination before eviction. Parse the preset before attaching remembered drafts so an unfinished branch name cannot prevent preset selection; as before, incomplete profiles remain in session state and do not overwrite valid browser storage until their schema is valid. No dependency, preset data, canonical hashing, cache key, request shape, or protection changes.
 
 Open issues: none for R39. No push or remote action. Devin's review before any push is listed above.
+
+## R40 — Require a location for every branch before planning (2026-10-25)
+
+Status: DONE
+
+- Require every branch to have both coordinates or a non-empty trimmed address before enabling Plan merchant categories.
+- Show the exact requested location hint next to the disabled button and associate it through aria-describedby.
+- Preserve the existing profile/taste validation and enable both unchanged presets, address-only branches, and map-picked branches.
+- Added offline page regressions for blank/whitespace addresses, partial/zero coordinates, multiple branches, map callbacks, and both presets; updated the earlier city-reset test for the new disabled state.
+
+Files touched / staged list (before this log):
+```text
+ src/app/page.tsx                       |  16 +++--
+ tests/unit/page-plan-locations.test.ts | 114 +++++++++++++++++++++++++++++++++
+ tests/unit/profile-city.test.ts        |  14 ++--
+ 3 files changed, 128 insertions(+), 16 deletions(-)
+```
+
+How to verify: `PD_AGENT_DISABLED=1 npm run lint && PD_AGENT_DISABLED=1 npm run typecheck && PD_AGENT_DISABLED=1 npm test -- --maxWorkers=2 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all`.
+
+Verification: all checks passed; 1218 offline tests / 84 files. The 13 new location-gating cases and existing city-reset interactions passed. Independent review found no issues. Production build used local worker permission with provider/store credentials cleared. No live API calls.
+
+Decisions I made: use one plain location predicate for canPlan, hint visibility, and the button's accessible description. Zero coordinates are valid; either coordinate alone requires a non-empty address. Keep the changes in page.tsx and preserve the existing function/file length limits. No server, schema, dependency, preset data, request shape, canonical hash, cache key, or protection changes.
+
+Open issues: none for R39–R40. Both items are complete with one local commit each. No push or remote action occurred; wait for Devin's review before any push.

@@ -6,7 +6,6 @@ import Home from "@/app/page";
 import { DEFAULT_RADIUS_M } from "@/lib/config";
 import { getPresets } from "@/lib/data";
 import type { Profile } from "@/lib/types";
-import { FAKE_PLAN_RESPONSE } from "../fixtures/fake-plan";
 import { elementProps, flushPage, invoke, pageHarness, renderPage, resetPage, unmountPage } from "../fixtures/page-harness";
 
 vi.mock("react", async (importOriginal) => {
@@ -197,18 +196,15 @@ it("keeps the reset notice when another profile field changes", () => {
   expect(notice()).toBe(message);
 });
 
-it("keeps the reset notice after planning cannot locate the untouched blank branch", async () => {
+it("keeps the reset notice and disables planning for the untouched blank branch", () => {
   changeField("profile-city", "Austin, TX");
   const branches = profile().branches;
   const message = notice();
   invoke(elementProps(pageTree, "TasteInput").onChange, "Fake Coffee Co");
   render();
-  expect(elementProps(pageTree, "Button").disabled).toBe(false);
-  invoke(elementProps(pageTree, "Button").onClick);
-  expect(pageHarness.plans).toHaveLength(1);
-  pageHarness.plans[0].resolve({ ...FAKE_PLAN_RESPONSE, branches: [], categories: [], candidateCategories: [] });
-  await flushPage();
-  expect(profile().branches).not.toBe(branches);
-  expect(profile().branches[0]).toBe(branches[0]);
+  expect(elementProps(pageTree, "Button").disabled).toBe(true);
+  expect(textContent(pageTree)).toContain("Add an address or pick a map location for every branch.");
+  expect(pageHarness.plans).toHaveLength(0);
+  expect(profile().branches).toBe(branches);
   expect(notice()).toBe(message);
 });
