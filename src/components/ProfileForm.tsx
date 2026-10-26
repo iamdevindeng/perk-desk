@@ -22,6 +22,10 @@ type ProfileFormProps = {
   onPreviewChange?: (places: BranchLookupResponse["places"]) => void;
 };
 type MerchantListField = "signedMerchantsText" | "businessMembersText";
+const INSTITUTION_NAME_PLACEHOLDERS = new Map([
+  ["Denver, CO", "e.g. Bellco Credit Union"],
+  ["Austin, TX", "e.g. University Federal Credit Union"],
+]);
 const MERCHANT_LIST_LABELS = {
   signedMerchantsText: {
     id: "signed-merchants", label: "Already-signed merchants", upload: "Import signed merchants from CSV or text",
@@ -136,7 +140,8 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="institution-name">Credit union name</Label>
-            <Input id="institution-name" value={profile.institutionName} placeholder="e.g. Bellco Credit Union" autoComplete="organization" required
+            <Input id="institution-name" value={profile.institutionName} autoComplete="organization" required
+              placeholder={INSTITUTION_NAME_PLACEHOLDERS.get(profile.city) ?? "e.g. Your credit union's full name"}
               onChange={(event) => onChange({ ...profile, institutionName: event.target.value })} />
           </div>
           <CityField profile={profile} onChange={onChange} />

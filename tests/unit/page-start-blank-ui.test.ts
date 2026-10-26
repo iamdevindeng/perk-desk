@@ -98,6 +98,7 @@ it("clears lookup, city notice, upload errors, and candidates from the primary s
   invoke(field("signed-merchants-upload").props.onChange, { target: { value: "", files: [{ name: "fake.bad", size: 1 }] } });
   render(); expect(componentText(tree).match(/Choose a CSV or text file\./g)).toHaveLength(2);
   invoke(button(START_LABEL).props.onClick); render(); render();
+  expect(field("profile-city").props.value).toBe("Denver, CO");
   expect(field("institution-name").props.placeholder).toBe("e.g. Bellco Credit Union");
   expect(field("institution-name").props.value).toBe(""); expect(field("member-brands").props.value).toBe("");
   expect(field("profile-city").props.value).toBe(emptyProfile().city);
@@ -105,6 +106,22 @@ it("clears lookup, city notice, upload errors, and candidates from the primary s
   expect(componentText(tree)).not.toContain("Searched Qloo"); expect(componentText(tree)).not.toContain("City changed, so branches were reset.");
   expect(componentText(tree)).not.toContain("Choose a CSV or text file.");
   expect(findComponents(tree, (element) => element.type === "MerchantMap")[0].props.candidates).toEqual([]);
+});
+
+it("updates the empty institution example when switching cities without prefilling a name", () => {
+  invoke(button(START_LABEL).props.onClick); render(); render();
+  expect(field("institution-name").props.placeholder).toBe("e.g. Bellco Credit Union");
+  expect(field("institution-name").props.value).toBe("");
+  edit("profile-city", "Austin, TX");
+  expect(field("institution-name").props.placeholder).toBe("e.g. University Federal Credit Union");
+  expect(field("institution-name").props.value).toBe("");
+  edit("profile-city", "other");
+  expect(field("profile-other-city").props.value).toBe("");
+  expect(field("institution-name").props.placeholder).toBe("e.g. Your credit union's full name");
+  expect(field("institution-name").props.value).toBe("");
+  edit("profile-other-city", "Fake City, ZZ");
+  expect(field("institution-name").props.placeholder).toBe("e.g. Your credit union's full name");
+  expect(field("institution-name").props.value).toBe("");
 });
 
 it("aborts a pending lookup and ignores its late response after starting with my credit union", async () => {

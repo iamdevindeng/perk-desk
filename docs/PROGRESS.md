@@ -2058,3 +2058,28 @@ Verification: 1391 offline tests / 97 files, lint, TypeScript, production build,
 Decisions I made: extend the existing reset test rather than add a duplicate; the total test count stays at 1391. Run the production build with provider credentials cleared and approved local execution permissions for its worker port.
 
 Open issues: none for R51. No live API calls, push, preset changes, dependency changes, new folders in the project, request/response or saved profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes.
+
+## R52 — Match the institution example to the selected city (2026-10-26)
+
+Status: DONE
+
+- Added one named city-label mapping beside ProfileForm for the exact Denver and Austin examples.
+- Used the exact generic example for Other city, empty city, and unknown labels without prefilling the name.
+- Updated the R51 reset assertion and added an offline city-switch regression that checks the empty value at every step.
+
+Files touched: `src/components/ProfileForm.tsx`, `tests/unit/page-start-blank-ui.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/components/ProfileForm.tsx         |  7 ++++++-
+ tests/unit/page-start-blank-ui.test.ts | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+```
+
+How to verify: `npm run lint && npm test && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1392 offline tests / 97 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed.
+
+Decisions I made: use a small Map keyed by the city label so every unknown label receives the generic fallback. Run builds with provider credentials cleared and local worker-port permission. Keep the existing dev server on port 3000.
+
+Open issues: none for R52. No live Qloo or DeepSeek calls, push, dependencies, folders, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.
