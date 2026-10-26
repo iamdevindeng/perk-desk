@@ -69,6 +69,7 @@ perk-desk/
 │  │  └─ ui/                              (shadcn generated; exempt from header/length rules)
 │  └─ data/
 │     ├─ presets/   denver-demo.json  austin-demo.json  cities.json      (hand-written, fictional)
+│     ├─ us-city-centers.json   (generated from U.S. Census Bureau public-domain data; map centering for typed Other city only)
 │     └─ national-chains.json  category-defaults.json  category-blacklist.json   (hand-written)
 └─ tests/
    ├─ unit/      *.test.ts   (more files allowed)
@@ -405,6 +406,7 @@ A single failed Qloo call inside `findMerchants` (one branch) is **not fatal**: 
 - CategoryConfirm: chips (label + evidence lines `Brand → tag → category: reason`), remove (×), add (picker from `plan.candidateCategories` ∪ `category-defaults.json` quick-pick categories, max 5 total), Confirm. On confirm: `removed = planned − confirmed`, `added = confirmed − planned`; merge into `profile.categoryPreferences` (dedupe, keep last 50).
 - MerchantCard: fields per PRD §4; status select writes `profile.merchantStatus[entityId]`. Entity IDs with status `signed` or `not_a_fit` go into the next run's `excludeEntityIds`. The signed-merchants text box is not modified (it stays as the user typed it).
 - MerchantMap props: `center`, `branches`, `merchants`, `selectedMerchantId`, `onSelectMerchant`, `onPickLocation?` (when set, a map click returns `{lat, lon}`; used by BranchEditor's "Pick on map").
+- Typed Other city: centered from `src/data/us-city-centers.json` (Census 2024 Gazetteer + Vintage 2024 population estimates, places >= 50,000); empty or unknown city shows the whole US.
 - Footer (layout.tsx): "Merchant-selection tool. Not used for any credit decision or consumer ad targeting. Data: Qloo Taste AI · Map © OpenStreetMap contributors."
 
 ## 13. Security checklist

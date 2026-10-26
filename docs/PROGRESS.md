@@ -2194,3 +2194,35 @@ Verification: 1409 offline tests / 100 files, lint, TypeScript, production build
 Decisions I made: remove the planning prop because the page now owns mounting; keep the timer and spinner implementation unchanged. Production build used cleared provider credentials and local worker-port permission. Git staging needed local write permission for the index.
 
 Open issues: none for R56. No live Qloo/DeepSeek calls, push, dependency changes, new folders, preset/data changes, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes.
+
+## R57 — Center typed Other cities from bundled Census data (2026-10-26)
+
+Status: DONE
+
+- Added the city-center tuple schema and inferred type; statically parse the existing Census table once and index normalized labels in a Map.
+- Added named whole-US center/zoom constants and moved center resolution into data.ts, preserving preset, bundled-table, plan, whole-US, and preset-safety-fallback precedence.
+- Added exact empty/unknown-city guidance above the map only when no preset, table match, plan center, located branch, or candidate preview supplies a location; retained the pick hint first and kept map picking available.
+- Added 33 offline lookup, schema, precedence, and real-page regressions, including whitespace normalization, zero coordinates, candidate removal, and the unchanged three-option city dropdown.
+- Added the requested Census attribution in the Architecture tree and frontend section. The committed city-center data, preset JSON, README, server lookup, and MerchantMap bounds behavior remain unchanged.
+
+Files touched: `docs/ARCHITECTURE.md`, `src/app/page.tsx`, `src/lib/config.ts`, `src/lib/data.ts`, `src/lib/types.ts`, `tests/unit/data.test.ts`, `tests/unit/page-city-map.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ docs/ARCHITECTURE.md             |   2 +
+ src/app/page.tsx                 |  19 ++++-
+ src/lib/config.ts                |   4 ++
+ src/lib/data.ts                  |  28 +++++++-
+ src/lib/types.ts                 |   2 +
+ tests/unit/data.test.ts          |  65 ++++++++++++++++-
+ tests/unit/page-city-map.test.ts | 150 +++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 261 insertions(+), 9 deletions(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1442 offline tests / 101 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. Existing MerchantMap bounds tests passed without source changes. Independent spec and production review found no actionable issue. The diff confirms both city JSON files are identical to the already-committed versions.
+
+Decisions I made: keep the small presentation-only hint in page.tsx and the shared center lookup/resolution in data.ts, within file/function limits. Keep the first-preset safety fallback explicitly as specified, although current matching preset labels already return at the first step. Address text alone does not hide the hint; both coordinates are required. Update Architecture only in the two places explicitly authorized by R57. New tests stay in the existing allowed unit-test directory.
+
+Open issues: none for R57. No live Qloo/DeepSeek calls, push, dependencies, new folders, data edits, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes. The existing dev server stays running on port 3000.

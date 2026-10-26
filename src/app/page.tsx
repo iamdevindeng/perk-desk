@@ -15,12 +15,12 @@ import PlanningStatus, { PlanningSpinner } from "@/components/PlanningStatus";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
 import { LIVE_LIMIT_MESSAGE, PAGE_SCROLL_OFFSET_PX } from "@/lib/config";
-import { getCities } from "@/lib/data";
+import { findUsCityCenter, getCities, resolveMapCenter } from "@/lib/data";
 import { emptyProfile, isEmptyProfile, loadProfile, rememberBranchesByCity, saveProfile } from "@/lib/profile-storage";
 import { usePageNavigation, type PageNavigation } from "@/lib/page-navigation";
 import { buildPlanRequest, presetRequestChanges } from "@/lib/request-builders";
 import { usePlanning, useResearch, type Stage } from "@/lib/page-research";
-import { ProfileSchema, type Branch, type BranchLookupResponse, type MerchantResult, type MerchantStatus, type Preset, type Profile, type TraceEvent } from "@/lib/types";
+import { ProfileSchema, type Branch, type BranchLookupResponse, type MerchantResult, type MerchantStatus, type PlanResponse, type Preset, type Profile, type TraceEvent } from "@/lib/types";
 
 const MerchantMap = dynamic(() => import("@/components/MerchantMap"), {
   ssr: false, loading: () => <div className="h-96 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" aria-label="Loading map" />,
@@ -106,6 +106,18 @@ function useBranchPicking(navigation: PageNavigation, busyRef: RefObject<boolean
   return { pickingBranchId, setPickingBranchId, finishPick, togglePick };
 }
 
+function MapCityHint({ profile, planCity, candidates }: {
+  profile: Profile; planCity?: PlanResponse["city"]; candidates: BranchLookupResponse["places"];
+}): ReactElement | null {
+  const presetCity = getCities().some((city) => city.label === profile.city);
+  const locatedBranch = profile.branches.some((branch) => branch.lat !== undefined && branch.lon !== undefined);
+  if (presetCity || findUsCityCenter(profile.city) || planCity || locatedBranch || candidates.length) return null;
+  const city = profile.city.trim();
+  return <p role="status" className="mb-3 rounded-lg bg-teal-50 p-3 text-sm text-teal-800">
+    {city ? `Map can’t find ${city} yet. Use Find branches or enter an address to move it.` : "Enter your city to move the map."}
+  </p>;
+}
+
 export default function Home(): ReactElement {
   const { profile, updateProfile, ready, branchCandidates, setBranchCandidates } = useSavedProfile();
   const [brandsText, setBrandsText] = useState("");
@@ -123,7 +135,7 @@ export default function Home(): ReactElement {
   const { plan, errorMessage } = planning;
   const changes = presetRequestChanges({ ...inputs, brandOverrides: planning.brandOverrides, plan, canonicalPlan: planning.canonicalPlan, confirmedCategories: planning.confirmedCategories });
   const busy = stage === "planning" || stage === "running";
-  const center = getCities().find((city) => city.label === profile.city) ?? plan?.city ?? getCities()[0];
+  const center = resolveMapCenter(profile.city, plan?.city);
   const { editProfile, editBrands, selectPreset, startBlank: resetBlank } = profileActions({ ...inputs, pickingBranchId,
     clearPlanning: planning.clear, clearResearch: research.clear, hasOutput: Boolean(plan || research.result),
     setBrandsText, setPresetId, setBranchLookupVersion, setBranchCandidates, setPickingBranchId, setSelectedMerchantId, setIndependentsOnly });
@@ -174,6 +186,7 @@ export default function Home(): ReactElement {
       <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 lg:sticky lg:top-[var(--page-scroll-offset)]"
         style={{ "--page-scroll-offset": `${PAGE_SCROLL_OFFSET_PX}px` } as CSSProperties}>
         <BranchPickBanner branches={profile.branches} pickingBranchId={pickingBranchId} onCancel={finishPick} />
+        <MapCityHint profile={profile} planCity={plan?.city} candidates={branchCandidates} />
         <MerchantMap center={center} branches={profile.branches} candidates={branchCandidates} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={!busy && pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>

@@ -135,6 +135,7 @@ export const PresetSchema = z.object({
   profile: ProfileSchema.pick({ institutionName: true, city: true, branches: true, signedMerchantsText: true, businessMembersText: true }),
 });
 export const CityListSchema = z.object({ cities: z.array(z.object({ label: z.string(), lat: z.number(), lon: z.number(), zoom: z.number().int() })) });
+export const UsCityCentersSchema = z.object({ cities: z.array(z.tuple([z.string(), z.number(), z.number()])) });
 
 export type CategoryTagId = z.infer<typeof CategoryTagIdSchema>;
 export type EntityId = z.infer<typeof EntityIdSchema>;
@@ -164,3 +165,4 @@ export type TraceEvent = z.infer<typeof TraceEventSchema>;
 export type PlanResponse = z.infer<typeof PlanResponseSchema>;
 export type Preset = z.infer<typeof PresetSchema>;
 export type CityList = z.infer<typeof CityListSchema>;
+export type UsCityCenters = z.infer<typeof UsCityCentersSchema>;

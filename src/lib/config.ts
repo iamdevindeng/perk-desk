@@ -89,6 +89,10 @@ export const METERS_PER_KILOMETER = 1000;
 export const COORDINATE_DECIMALS = 5;
 export const TASTE_MAX_BRANDS = 10;
 export const MAP_DEFAULT_ZOOM = 12;
+// Center unknown typed cities on the contiguous US so map picking does not start in Denver.
+export const MAP_US_CENTER = { lat: 39.5, lon: -98.35 };
+// Show the whole US until a typed city or a located result supplies a closer view.
+export const MAP_US_ZOOM = 4;
 export const TOP_BAR_HEIGHT_PX = 48;
 export const PAGE_SCROLL_GAP_PX = 24;
 export const PAGE_SCROLL_OFFSET_PX = TOP_BAR_HEIGHT_PX + PAGE_SCROLL_GAP_PX;

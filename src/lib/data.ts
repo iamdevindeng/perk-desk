@@ -1,4 +1,4 @@
-// Validates hand-written category, chain, preset, and city data once for shared access.
+// Validates bundled category, chain, preset, and city data once for shared access.
 // Called by: planning, merchant filtering, frontend pickers, and tests/unit/data.test.ts.
 import { z } from "zod";
 import categoryDefaultsData from "@/data/category-defaults.json";
@@ -7,8 +7,10 @@ import nationalChainsData from "@/data/national-chains.json";
 import denverPresetData from "@/data/presets/denver-demo.json";
 import austinPresetData from "@/data/presets/austin-demo.json";
 import citiesData from "@/data/presets/cities.json";
-import { CategoryTagIdSchema, CityListSchema, PresetSchema } from "@/lib/types";
-import type { CityList, Preset } from "@/lib/types";
+import usCityCentersData from "@/data/us-city-centers.json";
+import { MAP_DEFAULT_ZOOM, MAP_US_CENTER, MAP_US_ZOOM } from "@/lib/config";
+import { CategoryTagIdSchema, CityListSchema, PresetSchema, UsCityCentersSchema } from "@/lib/types";
+import type { CityList, PlanResponse, Preset } from "@/lib/types";
 
 export const CategoryDefaultsSchema = z.object({
   verifiedOn: z.iso.date(),
@@ -48,6 +50,13 @@ const BLACKLIST = BlacklistSchema.parse(blacklistData);
 const NATIONAL_CHAINS = NationalChainsSchema.parse(nationalChainsData);
 const PRESETS = [PresetSchema.parse(denverPresetData), PresetSchema.parse(austinPresetData)];
 const CITY_LIST = CityListSchema.parse(citiesData);
+const US_CITY_CENTERS = UsCityCentersSchema.parse(usCityCentersData);
+const US_CITY_CENTERS_BY_LABEL = new Map(US_CITY_CENTERS.cities.map(([label, lat, lon]) =>
+  [normalizeCityLabel(label), { label, lat, lon, zoom: MAP_DEFAULT_ZOOM }]));
+
+function normalizeCityLabel(city: string): string {
+  return city.trim().replace(/\s+/g, " ").replace(/\s*,\s*/g, ", ").toLowerCase();
+}
 
 export function getCategoryDefaults(): CategoryDefaults {
   return CATEGORY_DEFAULTS;
@@ -83,4 +92,17 @@ export function findPreset(id: string): Preset | null {
 
 export function getCities(): CityList["cities"] {
   return CITY_LIST.cities;
+}
+
+export function findUsCityCenter(city: string): { label: string; lat: number; lon: number; zoom: number } | undefined {
+  return US_CITY_CENTERS_BY_LABEL.get(normalizeCityLabel(city));
+}
+
+export function resolveMapCenter(city: string, planCity?: PlanResponse["city"]): { lat: number; lon: number; zoom?: number } {
+  const presetCity = getCities().find((entry) => entry.label === city);
+  const center = presetCity ?? findUsCityCenter(city) ?? planCity;
+  if (center) return center;
+  // Keep the preset safety fallback; empty and unknown Other city inputs start nationwide.
+  const otherCity = !getCities().some((entry) => entry.label === city);
+  return otherCity ? { ...MAP_US_CENTER, zoom: MAP_US_ZOOM } : getCities()[0];
 }
