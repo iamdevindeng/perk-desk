@@ -160,7 +160,7 @@ export default function Home(): ReactElement {
         </Button>
         {!profile.branches.every(branchHasLocation) && <p id="branch-location-hint" className="text-sm text-slate-500">Add an address or pick a map location for every branch.</p>}
         {changes.plan && <p className="text-xs text-slate-500">Changes run live research and count toward today&apos;s limit.</p>}
-        <PlanningStatus planning={stage === "planning"} />
+        {stage === "planning" && <PlanningStatus />}
         {plan && <CategoryConfirm plan={plan} confirmedCategories={planning.confirmedCategories}
           onChange={(categories) => { planning.setConfirmedCategories(categories); research.clear(); planning.setErrorMessage(""); setStage("confirm"); }}
           brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy} liveResearchChanges={changes.run}

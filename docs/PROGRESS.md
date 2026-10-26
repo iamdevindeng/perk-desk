@@ -2168,3 +2168,29 @@ Verification: 1409 offline tests / 100 files, lint, TypeScript, production build
 Decisions I made: split planning feedback into `PlanningStatus.tsx` within the existing components directory to keep each file focused and remain within the page's readability limits (AGENTS.md §5.1). Mount the timer only during planning, so success/failure/cancellation/unmount all share cleanup without a reset effect. Keep the full invisible status text while idle to reserve its actual mobile wrapping height. The one-second conversion lives in config.
 
 Open issues: none for R52–R55. All four items are complete in order with one local commit each. No live Qloo/DeepSeek calls, push, dependency changes, new folders, preset/data changes, request/response or saved-profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes. The isolated verification browser is closed; the original dev server (PID 64760) remains running on port 3000.
+
+## R56 — Remove the idle planning-status gap (2026-10-26)
+
+Status: DONE
+
+- Render PlanningStatus only during the planning stage, leaving no element or reserved space while idle.
+- Removed the invisible idle branch and placeholder; preserved both spinners, teal status text, status role, and silent elapsed-seconds span.
+- Updated the seven offline timer regressions to check absence while idle and after success, failure, cancellation, and immediate replay; retained 0s/3s, restart, and unmount coverage.
+
+Files touched: `src/app/page.tsx`, `src/components/PlanningStatus.tsx`, `tests/unit/planning-status.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/app/page.tsx                   |  2 +-
+ src/components/PlanningStatus.tsx  |  7 +++----
+ tests/unit/planning-status.test.ts | 16 +++++++---------
+ 3 files changed, 11 insertions(+), 14 deletions(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1409 offline tests / 100 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. Timer cleanup remains tied to component unmount. The existing dev server (PID 522) remains listening on port 3000.
+
+Decisions I made: remove the planning prop because the page now owns mounting; keep the timer and spinner implementation unchanged. Production build used cleared provider credentials and local worker-port permission. Git staging needed local write permission for the index.
+
+Open issues: none for R56. No live Qloo/DeepSeek calls, push, dependency changes, new folders, preset/data changes, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes.

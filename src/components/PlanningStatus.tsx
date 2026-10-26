@@ -18,12 +18,11 @@ function PlanningSeconds(): ReactElement {
   return <span aria-hidden="true" className="inline-block min-w-[3ch] tabular-nums">{seconds}s</span>;
 }
 
-export default function PlanningStatus({ planning }: { planning: boolean }): ReactElement {
-  // Reserve the full wrapped height on phones; only mount the timer during a plan.
-  return <p role="status" aria-hidden={!planning} className={`flex items-center gap-2 text-sm text-teal-800 ${planning ? "" : "invisible"}`}>
+export default function PlanningStatus(): ReactElement {
+  return <p role="status" className="flex items-center gap-2 text-sm text-teal-800">
     <PlanningSpinner />
     <span>Resolving brands and finding supported categories…{" "}
-      {planning ? <PlanningSeconds /> : <span aria-hidden="true" className="inline-block min-w-[3ch] tabular-nums">0s</span>}
+      <PlanningSeconds />
     </span>
   </p>;
 }

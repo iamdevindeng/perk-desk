@@ -49,7 +49,7 @@ afterEach(() => { resetComponents(); resetPage(); vi.useRealTimers(); });
 it("shows 0s then 3s with matching hidden spinners and a silent seconds span", () => {
   expect(vi.getTimerCount()).toBe(0); start();
   expect(componentText(status())).toBe("Resolving brands and finding supported categories… 0s");
-  expect(status().props["aria-hidden"]).toBe(false);
+  expect(status().props["aria-hidden"]).toBeUndefined();
   expect(status().props.className).toContain("text-sm text-teal-800");
   const spinner = findComponents(button(), (element) => String(element.props.className).includes("animate-spin"))[0];
   expect(spinner.props["aria-hidden"]).toBe("true"); expect(componentText(button())).toBe("Planning…");
@@ -68,25 +68,23 @@ it.each(["success", "failure", "cancel"])("clears and resets the timer after %s"
   else invoke(find((element) => element.type === "ProfileForm").props.onChange, { ...FAKE_PROFILE, institutionName: "Fake Changed CU" });
   await flushPage(); render();
   expect(vi.getTimerCount()).toBe(0);
-  expect(status().props["aria-hidden"]).toBe(true); expect(status().props.className).toContain("invisible");
-  expect(componentText(seconds())).toBe("0s");
+  expect(status()).toBeUndefined();
   expect(findComponents(button(), (element) => String(element.props.className).includes("animate-spin"))).toHaveLength(0);
   vi.advanceTimersByTime(5000); start();
   expect(componentText(seconds())).toBe("0s"); expect(vi.getTimerCount()).toBe(1);
 });
 
-it("reserves the wrapped status content while idle without a timer", () => {
-  expect(status().props.className).toContain("invisible");
-  expect(status().props["aria-hidden"]).toBe(true);
-  const reservedText = componentText(status());
-  start(); expect(componentText(status())).toBe(reservedText);
+it("renders no planning status or timer while idle", () => {
+  expect(status()).toBeUndefined();
+  expect(vi.getTimerCount()).toBe(0);
+  start(); expect(componentText(status())).toBe("Resolving brands and finding supported categories… 0s");
 });
 
 it("cleans up immediately after an instant replay before the first tick", async () => {
   start(); expect(componentText(seconds())).toBe("0s");
   pageHarness.plans[0].resolve(structuredClone(FAKE_PLAN_RESPONSE)); await flushPage(); render();
   expect(vi.getTimerCount()).toBe(0); vi.advanceTimersByTime(3000); render();
-  expect(status().props["aria-hidden"]).toBe(true); expect(componentText(seconds())).toBe("0s");
+  expect(status()).toBeUndefined();
 });
 
 it("clears the timer when the page unmounts during planning", () => {
