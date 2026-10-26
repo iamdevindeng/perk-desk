@@ -22,9 +22,9 @@ type ProfileFormProps = {
   onPreviewChange?: (places: BranchLookupResponse["places"]) => void;
 };
 type MerchantListField = "signedMerchantsText" | "businessMembersText";
-const INSTITUTION_NAME_PLACEHOLDERS = new Map([
-  ["Denver, CO", "e.g. Bellco Credit Union"],
-  ["Austin, TX", "e.g. University Federal Credit Union"],
+const INSTITUTION_NAME_EXAMPLES = new Map([
+  ["Denver, CO", "Bellco Credit Union"],
+  ["Austin, TX", "University Federal Credit Union"],
 ]);
 const MERCHANT_LIST_LABELS = {
   signedMerchantsText: {
@@ -130,6 +130,7 @@ function MerchantList({ profile, onChange, disabled, field }: {
 }
 
 export default function ProfileForm({ profile, onChange, pickingBranchId, onPickBranch, disabled = false, branchLookupVersion = 0, onPreviewChange }: ProfileFormProps): ReactElement {
+  const exampleName = INSTITUTION_NAME_EXAMPLES.get(profile.city);
   return <Card>
     <CardHeader>
       <CardTitle id="program-profile-heading">Your perks program</CardTitle>
@@ -141,8 +142,13 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
           <div className="space-y-2">
             <Label htmlFor="institution-name">Credit union name</Label>
             <Input id="institution-name" value={profile.institutionName} autoComplete="organization" required
-              placeholder={INSTITUTION_NAME_PLACEHOLDERS.get(profile.city) ?? "e.g. Your credit union's full name"}
+              placeholder={exampleName ? `e.g. ${exampleName}` : "e.g. Your credit union's full name"}
               onChange={(event) => onChange({ ...profile, institutionName: event.target.value })} />
+            {exampleName && profile.institutionName.trim().toLowerCase() !== exampleName.toLowerCase() && <p className="text-xs text-slate-500">
+              Not sure? Try <button type="button" disabled={disabled} className="text-teal-700 underline hover:text-teal-900"
+                aria-label={`Use ${exampleName} as the credit union name`}
+                onClick={() => onChange({ ...profile, institutionName: exampleName })}>{exampleName}</button>
+            </p>}
           </div>
           <CityField profile={profile} onChange={onChange} />
         </div>

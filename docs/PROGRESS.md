@@ -2226,3 +2226,29 @@ Verification: 1442 offline tests / 101 files, lint, TypeScript, production build
 Decisions I made: keep the small presentation-only hint in page.tsx and the shared center lookup/resolution in data.ts, within file/function limits. Keep the first-preset safety fallback explicitly as specified, although current matching preset labels already return at the first step. Address text alone does not hide the hint; both coordinates are required. Update Architecture only in the two places explicitly authorized by R57. New tests stay in the existing allowed unit-test directory.
 
 Open issues: none for R57. No live Qloo/DeepSeek calls, push, dependencies, new folders, data edits, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes. The existing dev server stays running on port 3000.
+
+## R58 — Fill the credit union name from a tappable example (2026-10-26)
+
+Status: DONE
+
+- Store bare example names in the existing city mapping and build the unchanged R52 placeholders from them.
+- Show the exact selectable "Not sure? Try" line directly below the name input for Denver and Austin, with a teal underlined button and the specified accessible name.
+- Fill the name through the same onChange path as typing, without fetching; keep the initial name empty and hide the line for Other city or a trimmed, case-insensitive match.
+- Respect the form's disabled state and add 13 offline regressions for values, placement, accessibility, visibility, city changes, disabled buttons, and absence of requests.
+
+Files touched: `src/components/ProfileForm.tsx`, `tests/unit/profile-example.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/components/ProfileForm.tsx     |  14 +++--
+ tests/unit/profile-example.test.ts | 114 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+), 4 deletions(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1455 offline tests / 102 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. The first full test run timed out in the existing privacy-files lockfile-scan test while other checks were running (1454 tests passed); the isolated full-suite retry passed without changing tests or timeouts. Independent R58 and React/accessibility review found no actionable issue. A local homepage GET returned HTTP 200 and confirmed server-rendered example text with no idle planning-status text.
+
+Decisions I made: keep the small example directly in ProfileForm and use a native type=button so it cannot submit a form. Use one city-to-name mapping for both displays. Preserve field contents on city changes and only fill when the user activates the example. No new production file is needed; the new tests use the existing allowed unit-test directory.
+
+Open issues: none for R56–R58. All three items are complete in the requested order with one local commit each. No live Qloo/DeepSeek calls, push, dependencies, new folders, city/preset data edits, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes. The existing dev server (PID 522) remains running on port 3000.
