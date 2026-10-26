@@ -54,7 +54,9 @@ function BrandShares({ merchant, brands }: { merchant: MerchantResult; brands: R
   </p>;
 }
 
-function MerchantFacts({ merchant, brands }: { merchant: MerchantResult; brands: ResolvedBrand[] }): ReactElement {
+function MerchantFacts({ merchant, brands, onSelect }: {
+  merchant: MerchantResult; brands: ResolvedBrand[]; onSelect: () => void;
+}): ReactElement {
   const place = merchant.place;
   const website = safeWebLink(place.website);
   const maps = safeWebLink(merchant.googleMapsUrl);
@@ -66,6 +68,8 @@ function MerchantFacts({ merchant, brands }: { merchant: MerchantResult; brands:
       <div className="flex flex-wrap gap-4 text-teal-800">
         {website && <a href={website} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Website ↗</a>}
         {maps && <a href={maps} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Google Maps ↗</a>}
+        <button type="button" className="underline underline-offset-2 lg:hidden" aria-label={`View ${place.name} on map`}
+          onClick={(event) => { event.stopPropagation(); onSelect(); scrollToElement("merchant-map-card"); }}>View on map</button>
       </div>
     </div>
     <div className="space-y-1 rounded-lg bg-slate-50 p-3">
@@ -120,7 +124,7 @@ export default function MerchantCard({ merchant, status, onStatusChange, selecte
       <p className="text-xs text-slate-500">{(merchant.distanceMeters / METERS_PER_KILOMETER).toFixed(DISTANCE_DECIMALS)} km from {merchant.branchName}</p>
     </CardHeader>
     <CardContent className="space-y-5">
-      <MerchantFacts merchant={merchant} brands={brands} />
+      <MerchantFacts merchant={merchant} brands={brands} onSelect={onSelect} />
       <MerchantPitch merchant={merchant} />
       <div className="space-y-2 border-t border-slate-100 pt-4">
         <Label htmlFor={`status-${merchant.place.entityId}`}>Follow-up status</Label>

@@ -2113,3 +2113,29 @@ Verification: 1400 offline tests / 98 files, lint, TypeScript, production build,
 Decisions I made: the specific all-screen banner requirement replaces the old generic map instruction to avoid duplicate messages and conflicting mobile wording. Preserve desktop map behavior and all non-picking layout. Keep branch navigation state in a small page hook to meet function-length limits; responsive spans follow lg without hydration or resize state. No new folders or production files.
 
 Open issues: none for R53. No live provider calls, push, dependencies, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.
+
+## R54 — Add a mobile map action to each merchant card (2026-10-26)
+
+Status: DONE
+
+- Added a View on map text button beside each merchant's existing links, hidden at lg and above.
+- Used the exact merchant-specific accessible name and the existing selection callback to highlight the matching pin.
+- Scrolled and focused the map card through scrollToElement, preserving reduced-motion handling and the shortlist header link.
+- Added two offline regressions for responsive placement, accessible labeling, selection ID, and navigation.
+
+Files touched: `src/components/MerchantCard.tsx`, `tests/unit/merchant-map-link.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/components/MerchantCard.tsx      |  8 ++++--
+ tests/unit/merchant-map-link.test.ts | 51 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm run lint && npm test && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1402 offline tests / 99 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. Independent review found no issue.
+
+Decisions I made: pass the card's existing selection callback into its facts/links section and stop click propagation to avoid a duplicate parent click selection. Keep the desktop card links and layout unchanged.
+
+Open issues: none for R54. No live provider calls, push, dependencies, folders, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.
