@@ -2,7 +2,7 @@
 // Called by: npm test without live services
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { lookupBranches } from "@/lib/branch-lookup";
-import { getCities } from "@/lib/data";
+import { findUsCityCenter, getCities } from "@/lib/data";
 import { resolveLocality } from "@/lib/qloo/insights";
 import { searchPlacesByName } from "@/lib/qloo/search";
 import type { Place } from "@/lib/types";
@@ -26,11 +26,22 @@ beforeEach(() => {
 });
 
 describe("branch lookup cities", () => {
-  it("uses the exact known-city center without a locality call", async () => {
+  it.each(getCities())("uses the exact preset coordinates for $label without a locality call", async (city) => {
     const signal = new AbortController().signal;
-    expect(await lookupBranches(INPUT, { signal })).toEqual({ status: "none", query: INPUT.name, cityLabel: CITY.label, places: [], suggestions: [] });
+    const result = await lookupBranches({ ...INPUT, city: city.label }, { signal });
+    expect(result).toEqual({ status: "none", query: INPUT.name, cityLabel: city.label, places: [], suggestions: [] });
     expect(resolveLocality).not.toHaveBeenCalled();
-    expect(searchPlacesByName).toHaveBeenCalledExactlyOnceWith(INPUT.name, CITY.lat, CITY.lon, { signal });
+    expect(searchPlacesByName).toHaveBeenCalledExactlyOnceWith(INPUT.name, city.lat, city.lon, { signal });
+  });
+
+  it("uses the bundled table center and label despite unusual spacing and case", async () => {
+    const center = findUsCityCenter("Portland, OR");
+    if (!center) throw new Error("Missing bundled Portland city center");
+    const signal = new AbortController().signal;
+    const result = await lookupBranches({ ...INPUT, city: "  pOrTlAnD \t,  oR  " }, { signal });
+    expect(resolveLocality).not.toHaveBeenCalled();
+    expect(searchPlacesByName).toHaveBeenCalledExactlyOnceWith(INPUT.name, center.lat, center.lon, { signal });
+    expect(result).toEqual({ status: "none", query: INPUT.name, cityLabel: "Portland, OR", places: [], suggestions: [] });
   });
 
   it("uses a resolved custom city's label and coordinates", async () => {
@@ -44,6 +55,7 @@ describe("branch lookup cities", () => {
   it("returns city_not_found without searching places when the locality is absent", async () => {
     const result = await lookupBranches({ ...INPUT, city: "Fake Missing City" });
     expect(result).toEqual({ status: "city_not_found", query: INPUT.name, cityLabel: "Fake Missing City", places: [], suggestions: [] });
+    expect(resolveLocality).toHaveBeenCalledExactlyOnceWith("Fake Missing City", {});
     expect(searchPlacesByName).not.toHaveBeenCalled();
   });
 });

@@ -2252,3 +2252,30 @@ Verification: 1455 offline tests / 102 files, lint, TypeScript, production build
 Decisions I made: keep the small example directly in ProfileForm and use a native type=button so it cannot submit a form. Use one city-to-name mapping for both displays. Preserve field contents on city changes and only fill when the user activates the example. No new production file is needed; the new tests use the existing allowed unit-test directory.
 
 Open issues: none for R56–R58. All three items are complete in the requested order with one local commit each. No live Qloo/DeepSeek calls, push, dependencies, new folders, city/preset data edits, API or saved-profile schema changes, cache-key changes, rate-limit changes, call-cap changes, or protected-check changes. The existing dev server (PID 522) remains running on port 3000.
+
+## R59 — Resolve branch lookup centers from the bundled city table first (2026-10-26)
+
+Status: DONE
+
+- Preserve exact preset-city precedence, then use the shared normalized findUsCityCenter lookup before the existing Qloo locality fallback.
+- Return the bundled canonical label and coordinates for table cities, skipping the locality call; add the requested Census internal-point comment.
+- Keep place search, the 50 km filter, genre/closed/non-branch filters, matching, suggestions, statuses, limits, and call caps unchanged.
+- Add mocked-Qloo coverage for Portland with unusual spacing/case, both preset cities, and the existing unknown-city fallback; document the center order in Architecture.
+
+Files touched: `src/lib/branch-lookup.ts`, `tests/unit/branch-lookup.test.ts`, `docs/ARCHITECTURE.md`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ docs/ARCHITECTURE.md             |  2 ++
+ src/lib/branch-lookup.ts         |  5 ++++-
+ tests/unit/branch-lookup.test.ts | 20 ++++++++++++++++----
+ 3 files changed, 22 insertions(+), 5 deletions(-)
+```
+
+How to verify: `npm test -- --maxWorkers=1 && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1457 offline tests / 102 files passed, including 47 targeted branch-lookup and branches-route tests. Lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. The first two `npm test` runs each passed 1456 tests but exceeded the existing five-second timeout in `privacy-files.test.ts` (root lockfile scan). The complete suite passed on the third attempt with one worker; no tests, timeouts, or protections were weakened. Independent review found no actionable issues. The existing dev server remains on port 3000 and its homepage returned HTTP 200.
+
+Decisions I made: limit test concurrency only for verification to avoid the existing privacy-test timeout under parallel load. QLOO_API.md describes generic planning/address locality resolution, not branch lookup's locality step, so its conditional documentation change is unnecessary. README remains unchanged. The requested Architecture line is the only documentation edit outside this log.
+
+Open issues: none for R59. No live Qloo/DeepSeek calls, push, dependencies, folders, preset/city data edits, API or saved-profile schema changes, rate-limit changes, call-cap changes, or protected-check changes. Table-city place-search cache keys naturally use the bundled coordinates, as authorized; cache construction is unchanged.

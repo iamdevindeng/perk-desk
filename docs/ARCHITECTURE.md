@@ -195,6 +195,8 @@ The listing is ordered for reading, not for compiling: in code, declare schemas 
 
 ## 4. Endpoints
 
+Branch lookup (`POST /api/branches`) resolves its center from an exact preset city label, then the normalized bundled city table (`findUsCityCenter`), then Qloo `resolveLocality`; the chosen center supplies `cityLabel` and the place-search coordinates.
+
 ### 4.1 `POST /api/plan`
 - Body: `PlanRequest` (if `presetId` is set, the server **ignores the body's profile fields and brands** and loads them from `src/data/presets/<presetId>.json`; `preferences` from the body are still used).
 - Flow: validate (400 JSON `{ error: "bad_request", issues }`) → cache lookup `plan:<hash>` (hit → serve without counting) → production shared-store gate and limit check (§7) → resolve locations (§5.1) → plan agent (§5) or fallback plan (§8) → cache store → 200 JSON `PlanResponse`.

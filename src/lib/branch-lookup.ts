@@ -3,7 +3,7 @@
 import {
   BRANCH_LOOKUP_GENRES, BRANCH_LOOKUP_MAX_PLACES, BRANCH_LOOKUP_MAX_SUGGESTIONS, BRANCH_MAX_CITY_DISTANCE_M,
 } from "@/lib/config";
-import { getCities } from "@/lib/data";
+import { findUsCityCenter, getCities } from "@/lib/data";
 import { haversineMeters } from "@/lib/merchants/distance";
 import { normalizeName } from "@/lib/merchants/name-match";
 import { resolveLocality } from "@/lib/qloo/insights";
@@ -18,6 +18,9 @@ const NON_BRANCH_NAME = /\b(atm|corporate|administrative|offices?|headquarters|n
 async function resolveCenter(city: string, options: QlooCallOptions): Promise<Center | null> {
   const knownCity = getCities().find((entry) => entry.label === city);
   if (knownCity) return knownCity;
+  // Census internal points can be a few km from downtown (~10 km for Denver), well inside the 50 km filter.
+  const tableCity = findUsCityCenter(city);
+  if (tableCity) return { label: tableCity.label, lat: tableCity.lat, lon: tableCity.lon };
   const locality = await resolveLocality(city, options);
   return locality ? { label: locality.name, lat: locality.lat, lon: locality.lon } : null;
 }
