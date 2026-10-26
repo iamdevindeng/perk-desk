@@ -2033,3 +2033,28 @@ Verification: 1391 offline tests / 97 files, lint, TypeScript, production build,
 Decisions I made: keep the change limited to the requested paragraph and existing regression test. The first build could not bind its worker port inside the sandbox; the second reused that cached failure. Moving only the production Turbopack cache to a temporary backup and retrying with approved local execution permissions passed. The dev server cache was untouched. The local homepage check also required approved local execution permissions after sandbox connection failures.
 
 Open issues: none for R50. No live API calls, push, preset changes, dependency changes, new folders in the project, request/response or profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes.
+
+## R51 — Show an example credit union in the name placeholder (2026-10-26)
+
+Status: DONE
+
+- Changed the institution name input placeholder to exactly "e.g. Bellco Credit Union".
+- Updated the existing primary setup reset test to assert the exact placeholder alongside the empty institution name value after "Start with my credit union".
+- Kept the input value, label, validation, autocomplete, and Find branches behavior unchanged.
+
+Files touched: `src/components/ProfileForm.tsx`, `tests/unit/page-start-blank-ui.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/components/ProfileForm.tsx         | 2 +-
+ tests/unit/page-start-blank-ui.test.ts | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+```
+
+How to verify: `npm run lint && npm test && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1391 offline tests / 97 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. The first test run timed out in an existing privacy-files test while the build was also running; the full suite passed on retry after the build finished, without changing tests or timeouts. Independent scope review confirmed the existing reset test covers the required behavior. The original dev server (PID 29622) remains running on port 3000.
+
+Decisions I made: extend the existing reset test rather than add a duplicate; the total test count stays at 1391. Run the production build with provider credentials cleared and approved local execution permissions for its worker port.
+
+Open issues: none for R51. No live API calls, push, preset changes, dependency changes, new folders in the project, request/response or saved profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes.

@@ -98,6 +98,7 @@ it("clears lookup, city notice, upload errors, and candidates from the primary s
   invoke(field("signed-merchants-upload").props.onChange, { target: { value: "", files: [{ name: "fake.bad", size: 1 }] } });
   render(); expect(componentText(tree).match(/Choose a CSV or text file\./g)).toHaveLength(2);
   invoke(button(START_LABEL).props.onClick); render(); render();
+  expect(field("institution-name").props.placeholder).toBe("e.g. Bellco Credit Union");
   expect(field("institution-name").props.value).toBe(""); expect(field("member-brands").props.value).toBe("");
   expect(field("profile-city").props.value).toBe(emptyProfile().city);
   expect(field("branch-search-name").props.value).toBe("");

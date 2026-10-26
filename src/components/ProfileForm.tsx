@@ -136,7 +136,7 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="institution-name">Credit union name</Label>
-            <Input id="institution-name" value={profile.institutionName} placeholder="Your credit union" autoComplete="organization" required
+            <Input id="institution-name" value={profile.institutionName} placeholder="e.g. Bellco Credit Union" autoComplete="organization" required
               onChange={(event) => onChange({ ...profile, institutionName: event.target.value })} />
           </div>
           <CityField profile={profile} onChange={onChange} />
