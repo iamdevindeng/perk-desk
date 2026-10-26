@@ -51,7 +51,9 @@ it("places full-width primary credit union setup before smaller, mobile-stacked 
   const text = componentText(tree);
   expect(text).toContain("Set up your credit union");
   expect(text).toContain("Find local merchants your members already love. Your profile stays in this browser.");
-  expect(text).toContain("Or explore a demo:"); expect(text).not.toContain("Clear this browser's profile and results.");
+  const demoDescription = findComponents(tree, (element) => element.type === "p" && componentText(element).startsWith("Or explore a demo"))[0];
+  expect(componentText(demoDescription)).toBe("Or explore a demo with a fictional credit union:");
+  expect(text).not.toContain("Clear this browser's profile and results.");
   expect(button("Start blank")).toBeUndefined();
   const buttons = findComponents(tree, (element) => element.type === "button");
   const main = button(START_LABEL);

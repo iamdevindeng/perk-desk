@@ -17,7 +17,7 @@ export default function PresetPicker({ onSelect, onStartBlank, disabled = false 
     </CardHeader>
     <CardContent className="space-y-3">
       <Button disabled={disabled} onClick={onStartBlank} className="w-full bg-teal-800 py-3 hover:bg-teal-900">Start with my credit union</Button>
-      <p className="text-xs text-slate-500">Or explore a demo:</p>
+      <p className="text-xs text-slate-500">Or explore a demo with a fictional credit union:</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {getPresets().map((preset) => <Button key={preset.id} variant="outline" disabled={disabled}
           onClick={() => onSelect(preset)} className="w-full justify-between border-teal-200 px-3 py-2 text-left text-xs hover:bg-teal-50">

@@ -2008,3 +2008,28 @@ Verification: 1391 offline tests / 97 files, lint, TypeScript, production build,
 Decisions I made: capture visibility on pointerdown so touch focus cannot open and immediately close the popup on the same tap. Keep the hidden tooltip mounted so aria-describedby always resolves, and attach dismissal listeners only while it is open. Center the popup under the icon; no ancestor overflow change was needed. All files stay within the existing directories specified by R49.
 
 Open issues: none for R49. No live provider calls, push, new dependencies, filtering changes, preset changes, cache changes, schema changes, rate-limit changes, or protected-check changes. The existing dev server (PID 83678) remains running on port 3000.
+
+## R50 — Label the demo credit unions as fictional (2026-10-26)
+
+Status: DONE
+
+- Changed the PresetPicker paragraph to exactly: "Or explore a demo with a fictional credit union:".
+- Updated the existing R47 test to compare the complete paragraph text exactly and kept its main-button-before-demo-buttons assertion.
+- Preserved both demo buttons, their order, callbacks, and all preset JSON. Existing offline tests still verify both preset loads without requests.
+
+Files touched: `src/components/PresetPicker.tsx`, `tests/unit/page-start-blank-ui.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/components/PresetPicker.tsx        | 2 +-
+ tests/unit/page-start-blank-ui.test.ts | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1391 offline tests / 97 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. Independent review found no issues. A local homepage GET verified the exact new text after the main setup button and before the demo buttons. The original dev server (PID 5496) stayed running on port 3000 throughout.
+
+Decisions I made: keep the change limited to the requested paragraph and existing regression test. The first build could not bind its worker port inside the sandbox; the second reused that cached failure. Moving only the production Turbopack cache to a temporary backup and retrying with approved local execution permissions passed. The dev server cache was untouched. The local homepage check also required approved local execution permissions after sandbox connection failures.
+
+Open issues: none for R50. No live API calls, push, preset changes, dependency changes, new folders in the project, request/response or profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes.
