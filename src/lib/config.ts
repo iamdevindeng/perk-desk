@@ -102,6 +102,7 @@ export const MAP_BRANCH_AREA_OPACITY = 0.1;
 export const MAP_CANDIDATE_PANE_Z_INDEX = 399;
 export const MAP_CANDIDATE_DASH_ARRAY = "6 6";
 export const TRACE_VISIBLE_EVENTS = 30;
+export const MILLISECONDS_PER_SECOND = 1000;
 export const PREFERENCE_MAX_ITEMS = 50;
 export const DISTANCE_DECIMALS = 1;
 export const RATING_DECIMALS = 1;

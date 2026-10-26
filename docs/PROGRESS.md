@@ -2139,3 +2139,32 @@ Verification: 1402 offline tests / 99 files, lint, TypeScript, production build,
 Decisions I made: pass the card's existing selection callback into its facts/links section and stop click propagation to avoid a duplicate parent click selection. Keep the desktop card links and layout unchanged.
 
 Open issues: none for R54. No live provider calls, push, dependencies, folders, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.
+
+## R55 — Show clear planning activity and elapsed time (2026-10-26)
+
+Status: DONE
+
+- Added the same small CSS spinner before Planning… and beside the teal planning status; both icons are hidden from screen readers and stop animating under reduced motion.
+- Added whole elapsed seconds, updated once per second in an aria-hidden span, with interval cleanup and fresh zero state for every plan.
+- Reserved the status line's complete wrapped height while idle so showing it does not shift mobile or desktop layout.
+- Added seven fake-timer regressions for 0s/3s, success, failure, cancellation, restart, immediate replay, unmount, and accessibility.
+- Kept AgentTrace and the research transport unchanged; completed offline browser checks for all four items.
+
+Files touched: `src/app/page.tsx`, `src/components/PlanningStatus.tsx`, `src/lib/config.ts`, `tests/unit/planning-status.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/app/page.tsx                   |  5 +-
+ src/components/PlanningStatus.tsx  | 29 ++++++++++++
+ src/lib/config.ts                  |  1 +
+ tests/unit/planning-status.test.ts | 95 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 128 insertions(+), 2 deletions(-)
+```
+
+How to verify: `npm test && npm run lint && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1409 offline tests / 100 files, lint, TypeScript, production build, repository rules, full-tree/staged privacy, and whitespace checks passed. Independent R55 and React hook/accessibility review found no issues. Browser checks at 390×844 and 1440×1000 confirmed 0s→3s, equal idle/active status heights, timer reset, hidden spinner semantics, and readable layout. R52 city placeholders kept the name empty. R53 mobile map picking and Cancel returned focus to the correct branch, the banner remained below the sticky header, and desktop Pick did not scroll. R54 selected the merchant pin and focused the map; the card link was visible at 1023px and hidden at 1024px, and the header link remained available. Screenshots were visually reviewed, with no mobile horizontal overflow. Browser plan/run responses were the existing hand-written fake fixtures; all other app API and external requests were blocked. Browser resource errors came only from deliberately blocked map tiles.
+
+Decisions I made: split planning feedback into `PlanningStatus.tsx` within the existing components directory to keep each file focused and remain within the page's readability limits (AGENTS.md §5.1). Mount the timer only during planning, so success/failure/cancellation/unmount all share cleanup without a reset effect. Keep the full invisible status text while idle to reserve its actual mobile wrapping height. The one-second conversion lives in config.
+
+Open issues: none for R52–R55. All four items are complete in order with one local commit each. No live Qloo/DeepSeek calls, push, dependency changes, new folders, preset/data changes, request/response or saved-profile schema changes, cache-key changes, rate-limit changes, Qloo call-cap changes, or protected-check changes. The isolated verification browser is closed; the original dev server (PID 64760) remains running on port 3000.

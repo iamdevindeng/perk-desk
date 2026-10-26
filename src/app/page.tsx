@@ -11,6 +11,7 @@ import { BranchPickBanner } from "@/components/BranchEditor";
 import TasteInput from "@/components/TasteInput";
 import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
+import PlanningStatus, { PlanningSpinner } from "@/components/PlanningStatus";
 import { MerchantResults } from "@/components/MerchantCard";
 import { Button } from "@/components/ui/button";
 import { LIVE_LIMIT_MESSAGE, PAGE_SCROLL_OFFSET_PX } from "@/lib/config";
@@ -155,11 +156,11 @@ export default function Home(): ReactElement {
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
         <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900"
           aria-describedby={profile.branches.every(branchHasLocation) ? undefined : "branch-location-hint"}>
-          {stage === "planning" ? "Planning…" : "Plan merchant categories"}
+          {stage === "planning" ? <><PlanningSpinner />Planning…</> : "Plan merchant categories"}
         </Button>
         {!profile.branches.every(branchHasLocation) && <p id="branch-location-hint" className="text-sm text-slate-500">Add an address or pick a map location for every branch.</p>}
         {changes.plan && <p className="text-xs text-slate-500">Changes run live research and count toward today&apos;s limit.</p>}
-        {stage === "planning" && <p role="status" className="text-sm text-slate-500">Resolving brands and finding supported categories…</p>}
+        <PlanningStatus planning={stage === "planning"} />
         {plan && <CategoryConfirm plan={plan} confirmedCategories={planning.confirmedCategories}
           onChange={(categories) => { planning.setConfirmedCategories(categories); research.clear(); planning.setErrorMessage(""); setStage("confirm"); }}
           brandOverrides={planning.brandOverrides} needsReplan={planning.needsReplan} disabled={busy} liveResearchChanges={changes.run}
