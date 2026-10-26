@@ -44,7 +44,7 @@ function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, o
   const fieldPrefix = `branch-${branch.id}`;
   const addressPlaceholder = branch.locationSource === "map" && branch.address === ""
     ? "Location set on map. Address optional." : "Street address, city, state";
-  return <fieldset disabled={disabled} className={`space-y-4 rounded-xl border p-4 ${picking ? "border-teal-400 bg-teal-50/50" : "border-slate-200 bg-slate-50/60"}`}>
+  return <fieldset id={fieldPrefix} tabIndex={-1} disabled={disabled} className={`space-y-4 rounded-xl border p-4 ${picking ? "border-teal-400 bg-teal-50/50" : "border-slate-200 bg-slate-50/60"}`}>
     <legend className="px-1 text-sm font-semibold text-slate-700">Branch {index + 1}</legend>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0 flex-1 space-y-2">
@@ -74,10 +74,25 @@ function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, o
       <Button variant="outline" aria-pressed={picking} onClick={onPick} className={picking ? "border-teal-500 text-teal-800" : ""}>
         {picking ? "Cancel map pick" : "Pick on map"}
       </Button>
-      {picking && <span role="status" className="text-sm text-teal-800">Click the branch location on the map.</span>}
+      {picking && <span role="status" className="text-sm text-teal-800">
+        <span className="lg:hidden">Tap the map to set this branch&apos;s location.</span>
+        <span className="hidden lg:inline">Click the branch location on the map.</span>
+      </span>}
     </div>
     <BranchLocation branch={branch} />
   </fieldset>;
+}
+
+export function BranchPickBanner({ branches, pickingBranchId, onCancel }: {
+  branches: Branch[]; pickingBranchId?: string; onCancel: () => void;
+}): ReactElement | null {
+  const index = branches.findIndex((branch) => branch.id === pickingBranchId);
+  if (index < 0) return null;
+  const name = branches[index].name.trim() || `Branch ${index + 1}`;
+  return <div role="status" className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-teal-50 p-3 text-sm text-teal-800">
+    <p><span className="lg:hidden">Tap</span><span className="hidden lg:inline">Click</span> the map to set the location for {name}.</p>
+    <Button variant="outline" onClick={onCancel}>Cancel</Button>
+  </div>;
 }
 
 export default function BranchEditor({ branches, onChange, pickingBranchId, onPickBranch, disabled = false }: BranchEditorProps): ReactElement {

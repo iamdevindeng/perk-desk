@@ -2083,3 +2083,33 @@ Verification: 1392 offline tests / 97 files, lint, TypeScript, production build,
 Decisions I made: use a small Map keyed by the city label so every unknown label receives the generic fallback. Run builds with provider credentials cleared and local worker-port permission. Keep the existing dev server on port 3000.
 
 Open issues: none for R52. No live Qloo or DeepSeek calls, push, dependencies, folders, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.
+
+## R53 — Guide mobile branch picking to the map and back (2026-10-26)
+
+Status: DONE
+
+- Added mobile-only navigation on Pick, map selection, and both Cancel controls using the existing scroll/focus helper after React commits.
+- Gave branch fieldsets stable IDs and programmatic focus; retained the global sticky-header scroll offset and reduced-motion behavior.
+- Added the named picking banner and Cancel button inside the map aside, with responsive Tap/Click wording and Branch N fallback.
+- Kept responsive instructions beside the in-form button and preserved desktop scroll/focus behavior.
+- Added eight offline interaction regressions and retained map-coordinate/cursor tests.
+
+Files touched: `src/app/page.tsx`, `src/components/BranchEditor.tsx`, `src/components/MerchantMap.tsx`, `tests/unit/merchant-map.test.ts`, `tests/unit/page-map-picking.test.ts`, `docs/PROGRESS.md`.
+
+Staged list (before this log):
+```text
+ src/app/page.tsx                    |  27 +++++++--
+ src/components/BranchEditor.tsx     |  19 ++++++-
+ src/components/MerchantMap.tsx      |   3 -
+ tests/unit/merchant-map.test.ts     |   6 +-
+ tests/unit/page-map-picking.test.ts | 106 ++++++++++++++++++++++++++++++++++++
+ 5 files changed, 150 insertions(+), 11 deletions(-)
+```
+
+How to verify: `npm run lint && npm test && npx tsc --noEmit && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && npm run check:privacy`.
+
+Verification: 1400 offline tests / 98 files, lint, TypeScript, production build, repository rules, full-tree privacy, and whitespace checks passed. Independent review found no remaining issue. The first test run caught two assertions for the replaced generic map status; these now verify active/inactive cursor behavior, with named-banner coverage in the new tests.
+
+Decisions I made: the specific all-screen banner requirement replaces the old generic map instruction to avoid duplicate messages and conflicting mobile wording. Preserve desktop map behavior and all non-picking layout. Keep branch navigation state in a small page hook to meet function-length limits; responsive spans follow lg without hydration or resize state. No new folders or production files.
+
+Open issues: none for R53. No live provider calls, push, dependencies, data, schema, cache-key, rate-limit, call-cap, or protected-check changes.

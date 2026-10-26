@@ -2,11 +2,12 @@
 // Coordinates the editable program profile, planning request, and branch map.
 // Called by: Next.js App Router as the single Perk Desk page
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type RefObject } from "react";
 import PresetPicker from "@/components/PresetPicker";
 import ProgramIntro from "@/components/ProgramIntro";
 import ProgramHeader from "@/components/ProgramHeader";
 import ProfileForm from "@/components/ProfileForm";
+import { BranchPickBanner } from "@/components/BranchEditor";
 import TasteInput from "@/components/TasteInput";
 import CategoryConfirm from "@/components/CategoryConfirm";
 import AgentTrace from "@/components/AgentTrace";
@@ -87,16 +88,33 @@ function profileActions(input: ProfileActionsInput) {
   return { editProfile, editBrands, selectPreset, startBlank };
 }
 
+function useBranchPicking(navigation: PageNavigation, busyRef: RefObject<boolean>) {
+  const [pickingBranchId, setPickingBranchId] = useState<string>();
+  function navigateOnMobile(id: string): void {
+    if (typeof window !== "undefined" && window.matchMedia?.("(min-width: 1024px)").matches === false) navigation.navigate(id);
+  }
+  function finishPick(): void {
+    if (busyRef.current || !pickingBranchId) return;
+    setPickingBranchId(undefined); navigateOnMobile(`branch-${pickingBranchId}`);
+  }
+  function togglePick(id: string): void {
+    if (busyRef.current) return;
+    if (id === pickingBranchId) { finishPick(); return; }
+    setPickingBranchId(id); navigateOnMobile("merchant-map-card");
+  }
+  return { pickingBranchId, setPickingBranchId, finishPick, togglePick };
+}
+
 export default function Home(): ReactElement {
   const { profile, updateProfile, ready, branchCandidates, setBranchCandidates } = useSavedProfile();
   const [brandsText, setBrandsText] = useState("");
   const [presetId, setPresetId] = useState<string>();
   const [branchLookupVersion, setBranchLookupVersion] = useState(0);
   const { stage, setStage, busyRef } = useStage();
-  const [pickingBranchId, setPickingBranchId] = useState<string>();
   const [selectedMerchantId, setSelectedMerchantId] = useState<string>();
   const [independentsOnly, setIndependentsOnly] = useState(false);
   const navigation = usePageNavigation();
+  const { pickingBranchId, setPickingBranchId, finishPick, togglePick } = useBranchPicking(navigation, busyRef);
   const inputs = { profile, brandsText, presetId, updateProfile, setStage, navigation };
   const planning = usePlanning(inputs);
   const research = useResearch({ ...inputs, plan: planning.plan, categories: planning.confirmedCategories, overrides: planning.brandOverrides, needsReplan: planning.needsReplan, setErrorMessage: planning.setErrorMessage });
@@ -112,7 +130,7 @@ export default function Home(): ReactElement {
   function pickLocation(point: { lat: number; lon: number }): void {
     if (busyRef.current || !pickingBranchId) return;
     editProfile({ ...profile, branches: profile.branches.map((branch) => branch.id === pickingBranchId ? { ...branch, ...point, locationSource: "map" } : branch) });
-    setPickingBranchId(undefined);
+    finishPick();
   }
   function changeStatus(merchant: MerchantResult, status: MerchantStatus): void {
     updateProfile({ ...profile, merchantStatus: { ...profile.merchantStatus,
@@ -132,7 +150,7 @@ export default function Home(): ReactElement {
       <div className="min-w-0 space-y-6">
         <PresetPicker onSelect={selectPreset} onStartBlank={startBlank} disabled={busy || !ready} />
         <ProfileForm key={`profile-${branchLookupVersion}`} profile={profile} onChange={editProfile} pickingBranchId={pickingBranchId} branchLookupVersion={branchLookupVersion} onPreviewChange={setBranchCandidates}
-          onPickBranch={(id) => setPickingBranchId(id === pickingBranchId ? undefined : id)} disabled={busy || !ready} />
+          onPickBranch={togglePick} disabled={busy || !ready} />
         <TasteInput key={`taste-${branchLookupVersion}`} value={brandsText} onChange={editBrands} disabled={busy || !ready} />
         {errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{errorMessage}</p>}
         <Button id="plan-categories-button" onClick={startPlan} disabled={!ready || busy || !canPlan(profile, brandsText)} className="w-full bg-teal-800 py-3 hover:bg-teal-900"
@@ -154,6 +172,7 @@ export default function Home(): ReactElement {
       </div>
       <aside id="merchant-map-card" tabIndex={-1} aria-label="Your local area map" className="min-w-0 lg:sticky lg:top-[var(--page-scroll-offset)]"
         style={{ "--page-scroll-offset": `${PAGE_SCROLL_OFFSET_PX}px` } as CSSProperties}>
+        <BranchPickBanner branches={profile.branches} pickingBranchId={pickingBranchId} onCancel={finishPick} />
         <MerchantMap center={center} branches={profile.branches} candidates={branchCandidates} merchants={visibleMerchants} selectedMerchantId={selectedMerchantId} onSelectMerchant={selectMapMerchant}
           onPickLocation={!busy && pickingBranchId ? pickLocation : undefined} />
         <p className="mt-3 text-xs leading-5 text-slate-500">Circles show each branch’s trade area. Address matches may be approximate; use “Pick on map” to refine a location.</p>

@@ -76,10 +76,12 @@ describe.each([false, true])("map controls with mobile=%s", (mobile) => {
   it("passes clicked coordinates only while branch location picking is enabled", () => {
     mapState.mobile = mobile;
     const onPickLocation = vi.fn();
-    expect(renderMap(onPickLocation)).toContain("Click the map to set the selected branch location.");
+    renderMap(onPickLocation);
+    expect(mapState.containers.at(-1)!.style).toMatchObject({ cursor: "crosshair" });
     mapState.click!({ latlng: { lat: 40.25, lng: -105.25 } });
     expect(onPickLocation).toHaveBeenCalledExactlyOnceWith({ lat: 40.25, lon: -105.25 });
-    expect(renderMap()).toContain("Map location picking is off.");
+    renderMap();
+    expect(mapState.containers.at(-1)!.style).toMatchObject({ cursor: undefined });
     expect(() => mapState.click!({ latlng: { lat: 40.5, lng: -105.5 } })).not.toThrow();
     expect(onPickLocation).toHaveBeenCalledTimes(1);
   });
