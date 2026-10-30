@@ -92,6 +92,39 @@ it("keeps the newly added blank survivor visible after removing the original and
   expect(loadProfile()!.branches).toHaveLength(1);
 });
 
+it("keeps the empty state after deleting all manual branches, reloading, and switching cities", async () => {
+  edit("institution-name", "Fake Community CU"); click("Add manually"); click("+ Add branch");
+  click("Remove", 0); click("Remove");
+  const clearedBranches = loadProfile()!.branches;
+  await reload();
+  expect(componentText(tree)).toContain(EMPTY_MESSAGE); expect(names()).toHaveLength(0);
+  expect(componentText(tree)).toContain("0 / 5");
+  edit("profile-city", "Austin, TX"); edit("profile-city", "Denver, CO"); await reload();
+  expect(componentText(tree)).toContain(EMPTY_MESSAGE); expect(names()).toHaveLength(0);
+  expect(loadProfile()!.branches).toEqual(clearedBranches);
+  expect(field("institution-name")!.props.value).toBe("Fake Community CU");
+  click("Add manually");
+  expectVisible(clearedBranches[0].id, "Main branch");
+});
+
+it("clears the last branch location and active map pick and blocks planning until a new location is entered", async () => {
+  saveProfile(FAKE_PROFILE); await reload(); edit("member-brands", "Fake Coffee Co");
+  expect(button("Plan merchant categories").props.disabled).toBe(false);
+  click("Pick on map"); click("Remove");
+  const map = findComponents(tree, (element) => element.type === "MerchantMap")[0];
+  expect(map.props.onPickLocation).toBeUndefined();
+  expect(componentText(tree)).not.toContain("set the location for");
+  expect(button("Plan merchant categories").props.disabled).toBe(true);
+  expect(loadProfile()!.branches[0]).toEqual({ id: expect.any(String), name: "Main branch", address: "", radiusMeters: 6000, isPlaceholder: true });
+  expect(loadProfile()!.branches[0].id).not.toBe(FAKE_BRANCH.id);
+  await reload(); edit("member-brands", "Fake Coffee Co");
+  expect(componentText(tree)).toContain(EMPTY_MESSAGE);
+  click("Add manually");
+  expect(button("Plan merchant categories").props.disabled).toBe(true);
+  edit(`branch-${loadProfile()!.branches[0].id}-address`, "2 Example Lane");
+  expect(button("Plan merchant categories").props.disabled).toBe(false);
+});
+
 it("keeps an existing branch visible after its address and coordinates are cleared and reloaded", async () => {
   saveProfile(FAKE_PROFILE); await reload();
   edit(`branch-${FAKE_BRANCH.id}-address`, "");
@@ -144,4 +177,10 @@ it("resets an opened draft to a real empty placeholder and preserves that state 
   expect(componentText(tree)).toContain(EMPTY_MESSAGE); expect(names()).toHaveLength(0);
   expect(componentText(tree)).toContain("0 / 5");
   expect(button("Add manually")).toBeDefined();
+});
+
+it("does not ask to discard an otherwise empty profile after its only draft was removed", () => {
+  click("Add manually"); click("Remove"); click("Start with my credit union");
+  expect(confirm).not.toHaveBeenCalled();
+  expect(componentText(tree)).toContain(EMPTY_MESSAGE);
 });

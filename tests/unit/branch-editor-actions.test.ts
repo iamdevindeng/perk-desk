@@ -99,11 +99,24 @@ it("skips default names already used with different case or surrounding spaces",
   expect(branches.map((branch) => branch.name)).toEqual([" branch 2 ", "Branch 3"]);
 });
 
-it("enforces both count limits without changing the remaining branch", () => {
+it("allows removing the last branch and repeatedly adding a fresh focused draft", () => {
+  for (let index = 0; index < 2; index += 1) {
+    const removedId = branches[0].id;
+    click("Remove");
+    expect(componentText(tree)).toContain(`0 / ${PROFILE_MAX_BRANCHES}`);
+    expect(componentText(tree)).toContain("No branches yet.");
+    expect(field(`branch-${removedId}-name`)).toBeUndefined();
+    expect(branches[0].id).not.toBe(removedId);
+    click("Add manually");
+    expect(field(`branch-${branches[0].id}-name`)!.props.value).toBe("Main branch");
+    expect(field(`branch-${branches[0].id}-address`)!.props.value).toBe("");
+    expect(componentText(tree)).toContain(`1 / ${PROFILE_MAX_BRANCHES}`);
+  }
+  expect(focus).toHaveBeenCalledTimes(2);
+});
+
+it("enforces the maximum count without changing existing branches", () => {
   const original = branches[0];
-  expect(button("Remove").props.disabled).toBe(true);
-  invoke(button("Remove").props.onClick); render();
-  expect(onChange).not.toHaveBeenCalled();
   for (let index = 1; index < PROFILE_MAX_BRANCHES; index += 1) click("+ Add branch");
   expect(button("+ Add branch").props.disabled).toBe(true);
   invoke(button("+ Add branch").props.onClick); render();
@@ -111,8 +124,10 @@ it("enforces both count limits without changing the remaining branch", () => {
   expect(branches[0]).toEqual(original);
 });
 
-it("ignores add, edit, and remove callbacks while the editor is disabled", () => {
-  click("+ Add branch"); disabled = true; render();
+it.each([1, 2])("ignores add, edit, and remove callbacks while the editor is disabled with %i branches", (count) => {
+  if (count === 2) click("+ Add branch");
+  disabled = true; render();
+  expect(button("Remove").props.disabled).toBe(true);
   const original = structuredClone(branches); onChange.mockClear();
   invoke(button("+ Add branch").props.onClick);
   invoke(button("Remove").props.onClick);

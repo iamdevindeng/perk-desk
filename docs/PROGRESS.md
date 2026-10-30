@@ -2362,3 +2362,33 @@ Staged list (before this log):
 ```
 
 Open issues: none for this repair. No remote actions, live service calls, dependency additions, or protected-check changes.
+
+## Allow removing the last branch (2026-10-30)
+
+Status: DONE
+
+- Enable Remove for the last visible branch, returning to the existing empty state with a 0 / 5 count and Add manually.
+- Replace the removed branch with a fresh, explicitly marked empty placeholder so browser storage and city memory retain the empty state without changing schemas.
+- Give the placeholder a new ID to clear an active map pick and allow each later manual addition to focus its name. Clear the old name, address, coordinates, source, and custom radius.
+- Preserve disabled editing, the five-branch maximum, and planning's location requirement. Add regressions for repeated removal/addition, reload, city round trips, map-pick cancellation, planning readiness, and empty-profile reset.
+
+Files touched: `src/components/BranchEditor.tsx`, `tests/unit/branch-editor-actions.test.ts`, `tests/unit/branch-refresh.test.ts`, `docs/PROGRESS.md`.
+
+How to verify: `npm run lint && npm test -- --maxWorkers=1 && npm run typecheck && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && git diff --check`.
+
+Decisions I made:
+- This request supersedes the earlier decision to keep the last visible branch. Editing may return to zero visible branches; generating a plan still needs a valid branch location.
+- Reuse the existing placeholder representation instead of saving an empty array, which the current storage and request schemas reject. Use Main branch and the default radius to match emptyProfile and isEmptyProfile.
+- Keep all production changes in BranchEditor and use the existing unit-test files. No storage key, API shape, dependency, or directory changes are needed.
+
+Verification: all 1624 offline tests across 108 files passed, including five added cases. Lint, typecheck, production build, repository rules, full-tree privacy, and whitespace checks passed. Independent review found no actionable issue. The first build was blocked by the sandbox's local-port restriction; after backing up the generated Turbopack cache, the same build passed with local-process permission. No live APIs or real browser session were used for this repair.
+
+Staged list (before this log):
+```text
+ src/components/BranchEditor.tsx          | 15 ++++++++----
+ tests/unit/branch-editor-actions.test.ts | 27 +++++++++++++++++-----
+ tests/unit/branch-refresh.test.ts        | 39 ++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 11 deletions(-)
+```
+
+Open issues: none for this repair. No remote actions, live service calls, dependency additions, or protected-check changes.

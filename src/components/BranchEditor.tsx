@@ -18,7 +18,7 @@ type BranchEditorProps = {
 };
 type BranchFieldsProps = {
   branch: ProfileBranch; index: number; onChange: (branch: ProfileBranch) => void;
-  onRemove: () => void; canRemove: boolean; picking: boolean; onPick: () => void; disabled: boolean;
+  onRemove: () => void; picking: boolean; onPick: () => void; disabled: boolean;
 };
 
 function isBlankPlaceholder(branches: ProfileBranch[]): boolean {
@@ -47,7 +47,7 @@ function BranchLocation({ branch }: { branch: Branch }): ReactElement {
   </div>;
 }
 
-function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, onPick, disabled }: BranchFieldsProps): ReactElement {
+function BranchFields({ branch, index, onChange, onRemove, picking, onPick, disabled }: BranchFieldsProps): ReactElement {
   const fieldPrefix = `branch-${branch.id}`;
   const addressPlaceholder = branch.locationSource === "map" && branch.address === ""
     ? "Location set on map. Address optional." : "Street address, city, state";
@@ -59,7 +59,7 @@ function BranchFields({ branch, index, onChange, onRemove, canRemove, picking, o
         <Input id={`${fieldPrefix}-name`} value={branch.name} placeholder="Downtown branch" required
           onChange={(event) => onChange({ ...branch, name: event.target.value })} />
       </div>
-      <Button variant="ghost" className="mt-7 px-2 text-xs text-slate-500" disabled={!canRemove}
+      <Button variant="ghost" className="mt-7 px-2 text-xs text-slate-500" disabled={disabled}
         aria-label={`Remove ${branch.name || `branch ${index + 1}`}`} onClick={onRemove}>Remove</Button>
     </div>
     <div className="space-y-2">
@@ -120,8 +120,13 @@ export default function BranchEditor({ branches, onChange, pickingBranchId, onPi
     onChange(branches.map((branch) => branch.id === updated.id ? { ...updated, isPlaceholder: false } : branch));
   }
   function removeBranch(id: string): void {
-    if (disabled || branches.length <= 1) return;
+    if (disabled) return;
     const remaining = branches.filter((branch) => branch.id !== id);
+    if (remaining.length === 0) {
+      // Use the existing empty-state marker; a new ID also cancels any active map pick.
+      onChange([{ id: crypto.randomUUID(), name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M, isPlaceholder: true }]);
+      return;
+    }
     // A visible blank branch is still a user's draft after its sibling is removed.
     onChange(remaining.map((branch) => branch.isPlaceholder ? { ...branch, isPlaceholder: false } : branch));
   }
@@ -140,7 +145,7 @@ export default function BranchEditor({ branches, onChange, pickingBranchId, onPi
       <Button variant="outline" disabled={disabled} onClick={addManually}>Add manually</Button>
     </div> : <>{branches.map((branch, index) => <BranchFields key={branch.id} branch={branch} index={index} disabled={disabled}
       onChange={editBranch}
-      canRemove={branches.length > 1} onRemove={() => removeBranch(branch.id)}
+      onRemove={() => removeBranch(branch.id)}
       picking={pickingBranchId === branch.id} onPick={() => onPickBranch(branch.id)} />)}
     <Button variant="outline" disabled={disabled || branches.length >= PROFILE_MAX_BRANCHES} onClick={addBranch}>+ Add branch</Button></>}
   </section>;
