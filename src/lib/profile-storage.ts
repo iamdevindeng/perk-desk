@@ -1,13 +1,17 @@
 // Maintains browser-only branch memory and persists a validated program profile.
 // Called by: the page, ProfileForm, and profile-storage unit tests
 import { z } from "zod";
-import { DEFAULT_RADIUS_M, PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
+import { DEFAULT_RADIUS_M, PROFILE_MAX_BRANCHES, PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
-import { ProfileSchema, type Profile } from "@/lib/types";
+import { BranchSchema, ProfileSchema, type Profile } from "@/lib/types";
 
 const PROFILE_KEY = "perkdesk:v1:profile";
+// City memory can hold unfinished names; these drafts never enter API requests (R39).
+const StoredBranchDraftSchema = BranchSchema.extend({ name: BranchSchema.shape.name.or(z.literal("")) });
+const StoredCityBranchesSchema = z.record(ProfileSchema.shape.branchesByCity.unwrap().keyType,
+  z.array(StoredBranchDraftSchema).min(1).max(PROFILE_MAX_BRANCHES)).default({});
 // Start blank must persist, while incomplete edits still retain the last valid profile (R43).
-const StoredProfileSchema = ProfileSchema.extend({ institutionName: z.string().max(100) })
+const StoredProfileSchema = ProfileSchema.extend({ institutionName: z.string().max(100), branchesByCity: StoredCityBranchesSchema })
   .refine((profile) => profile.institutionName.length > 0 || isEmptyProfile(profile));
 
 export function emptyProfile(): Profile {

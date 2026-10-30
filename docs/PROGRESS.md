@@ -2279,3 +2279,44 @@ Verification: 1457 offline tests / 102 files passed, including 47 targeted branc
 Decisions I made: limit test concurrency only for verification to avoid the existing privacy-test timeout under parallel load. QLOO_API.md describes generic planning/address locality resolution, not branch lookup's locality step, so its conditional documentation change is unnecessary. README remains unchanged. The requested Architecture line is the only documentation edit outside this log.
 
 Open issues: none for R59. No live Qloo/DeepSeek calls, push, dependencies, folders, preset/city data edits, API or saved-profile schema changes, rate-limit changes, call-cap changes, or protected-check changes. Table-city place-search cache keys naturally use the bundled coordinates, as authorized; cache construction is unchanged.
+
+## Branch add/remove repairs (2026-10-30)
+
+Status: DONE
+
+Repair plan:
+1. Preserve each visible branch draft through add, edit, and remove transitions, while a new city's placeholder starts closed.
+2. Separate historical browser drafts from current request validation so an empty historical name cannot prevent saving the valid current city.
+3. Choose an unused default branch name after removals.
+4. Replay the reported sequences through actual components and storage, then run the complete offline verification and independent review.
+
+What was done:
+- Track visible branch IDs for add/edit/remove operations so a remaining blank draft stays editable and the displayed count stays accurate.
+- Guard add, edit, and remove handlers while disabled and preserve the existing one-to-five-branch limit.
+- Skip occupied default names, including differences in case or surrounding spaces, without renaming existing branches.
+- Allow empty names only in historical browser city drafts; retain all other validation and keep current fields and API requests strict.
+- Add regressions for add/remove visibility, alternating edits, city changes, count limits, disabled controls, default names, actual save/load round trips, historical draft restoration, and preset persistence.
+
+Files touched: `src/components/BranchEditor.tsx`, `src/lib/profile-storage.ts`, `tests/unit/branch-editor-actions.test.ts`, `tests/unit/branch-persistence.test.ts`, `tests/unit/profile-storage.test.ts`, `docs/PROGRESS.md`.
+
+How to verify: `npm run lint && npm test -- --maxWorkers=1 && npm run typecheck && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && git diff --check`.
+
+Decisions I made:
+- Preserve R46's local-only expansion state; a fresh city placeholder and a remount still start with the existing empty-state behavior. Keep the last branch because the current product requires one to five branches.
+- Preserve R43's last-valid-snapshot policy when the current city's required fields are incomplete. Relax only the browser history name rule to retain the empty-name drafts already supported by R39; do not change the storage key, object shape, API schemas, or request contents.
+- Use existing dependencies and allowed unit-test files. Run the full suite with one worker to avoid the known privacy-scan timeout under parallel load.
+- The prior statechart analysis could not run TLC because the local runtime dependencies were missing. Verification here uses real component callbacks and real storage functions with invented data and offline browser substitutes, not a formal proof or a live browser run.
+
+Verification: all 1604 offline tests across 106 files passed, including 21 new regressions. Lint, typecheck, production build, repository rules, full-tree privacy, and whitespace checks passed. Independent review found no actionable issue in the editor changes, historical draft boundary, or request validation. The first build failed because the sandbox denied Turbopack's local port binding; an elevated retry reused the failed cache. Moving the generated Turbopack cache to a temporary backup and rerunning the same production build with local-process permission succeeded. No source configuration or protections were changed to make the build pass.
+
+Staged list (before this log):
+```text
+ src/components/BranchEditor.tsx          |  29 ++++++--
+ src/lib/profile-storage.ts               |  10 ++-
+ tests/unit/branch-editor-actions.test.ts | 121 +++++++++++++++++++++++++++++++
+ tests/unit/branch-persistence.test.ts    | 100 +++++++++++++++++++++++++
+ tests/unit/profile-storage.test.ts       |  36 +++++++++
+ 5 files changed, 287 insertions(+), 9 deletions(-)
+```
+
+Open issues: no additional action required from Devin for these repairs. No live service calls, remote actions, new dependencies, or protected-check changes.

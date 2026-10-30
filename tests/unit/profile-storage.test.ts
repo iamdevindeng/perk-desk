@@ -39,6 +39,42 @@ describe("browser profile storage", () => {
     expect(loadProfile()).toEqual(FAKE_PROFILE);
   });
 
+  it("saves valid current branches alongside an unfinished historical branch name", () => {
+    const profile = { ...FAKE_PROFILE, branchesByCity: {
+      "Austin, TX": [{ ...FAKE_PROFILE.branches[0], name: "" }],
+    } };
+    saveProfile(profile);
+    expect(loadProfile()).toEqual(profile);
+    const restored = { ...profile, city: "Austin, TX", branches: profile.branchesByCity["Austin, TX"] };
+    saveProfile(restored);
+    expect(loadProfile()).toEqual(profile);
+    const completed = { ...restored, branches: [{ ...restored.branches[0], name: "Fake Completed Branch" }] };
+    saveProfile(completed);
+    expect(loadProfile()).toEqual(completed);
+  });
+
+  it.each([
+    { name: "x".repeat(81) }, { address: "x".repeat(201) }, { lat: 91 }, { lon: 181 },
+    { radiusMeters: 999 }, { radiusMeters: 20001 }, { id: "" },
+  ])("still rejects malformed historical branch fields: %j", (invalidFields) => {
+    saveProfile(FAKE_PROFILE);
+    const profile = { ...FAKE_PROFILE, branchesByCity: {
+      "Austin, TX": [{ ...FAKE_PROFILE.branches[0], ...invalidFields }],
+    } };
+    saveProfile(profile);
+    expect(loadProfile()).toEqual(FAKE_PROFILE);
+    values.set("perkdesk:v1:profile", JSON.stringify(profile));
+    expect(loadProfile()).toBeNull();
+  });
+
+  it.each([0, 6])("still rejects a historical city with %i branches", (count) => {
+    saveProfile(FAKE_PROFILE);
+    saveProfile({ ...FAKE_PROFILE, branchesByCity: {
+      "Austin, TX": Array.from({ length: count }, () => ({ ...FAKE_PROFILE.branches[0], name: "" })),
+    } });
+    expect(loadProfile()).toEqual(FAKE_PROFILE);
+  });
+
   it.each(["{broken", JSON.stringify({ institutionName: "Incomplete" }), "null"])("ignores invalid stored profile %s", (stored) => {
     values.set("perkdesk:v1:profile", stored);
     expect(loadProfile()).toBeNull();
