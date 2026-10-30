@@ -43,6 +43,30 @@ describe("pitch guard", () => {
     expect(checkPitch(pitch, card)).toBe(true);
   });
 
+  it.each([
+    "has agreed to offer 10% off", "offers 10% off", "offers 10 percent off",
+    "offers a 10% discount", "offers a discount of 10 percent", "offers $10 off",
+    "has a confirmed partnership", "has an agreed partnership", "has already partnered with our credit union",
+    "is our partner", "has a partnership that is confirmed", "has agreed to join our program",
+    "has agreed to participate", "lets members save 10%", "offers a 10-percent discount", "offers 10 PERCENT OFF",
+  ])("rejects unsupported agreements and discounts: %s", (claim) => {
+    expect(checkPitch(`Fake Corner Cafe ${claim}.`, FAKE_MERCHANT)).toBe(false);
+  });
+
+  it.each([
+    "is a proven favorite of your members", "is a favourite among our members",
+    "is your members' favorite", "is a place your members love", "matches your members' tastes",
+    "has a proven taste link to your members", "is a preference match for members",
+    "is loved by our members", "is popular with your members", "is a place our members enjoy",
+  ])("rejects unsupported baseline taste claims: %s", (claim) => {
+    expect(checkPitch(`Fake Corner Cafe ${claim}.`, { ...FAKE_MERCHANT, tasteSignal: false })).toBe(false);
+  });
+
+  it("allows a partnership invitation without a claimed agreement or numeric offer", () => {
+    expect(checkPitch("Fake Corner Cafe is nearby. Would you discuss a possible partnership on a 10-minute call?", FAKE_MERCHANT)).toBe(true);
+    expect(checkPitch("Fake Corner Cafe is 20 km away.", FAKE_MERCHANT)).toBe(false);
+  });
+
   it("allows numbers in exact card identities without allowing unsupported numeric claims", () => {
     const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "Dr. 42 Bean!" }, branchName: "Branch 4" };
     expect(checkPitch("Dr. 42 Bean! is near Branch 4. Discuss a 10-minute call?", card)).toBe(true);
