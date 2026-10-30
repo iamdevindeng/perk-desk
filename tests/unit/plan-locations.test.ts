@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runPlan } from "@/lib/agent/plan-agent";
 import { BRANCH_MAX_CITY_DISTANCE_M } from "@/lib/config";
-import { getPresets } from "@/lib/data";
+import { findUsCityCenter, getCities, getPresets } from "@/lib/data";
 import { resolveLocality } from "@/lib/qloo/insights";
 import { searchBrands } from "@/lib/qloo/search";
 import { FAKE_BRANCH, FAKE_PLAN_REQUEST } from "../fixtures/fake-plan";
@@ -27,6 +27,24 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("Network access is forbidden in location tests."); }));
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe("plan city centers", () => {
+  it.each(["Portland, OR", "  portland  ,  or  "])("uses the bundled center and preserves the request label for %s", async (city) => {
+    const center = findUsCityCenter("Portland, OR")!;
+    const branch = { ...FAKE_BRANCH, lat: center.lat, lon: center.lon };
+    const result = await runPlan({ ...FAKE_PLAN_REQUEST, city, branches: [branch] });
+    expect(result.city).toEqual({ label: city, lat: center.lat, lon: center.lon });
+    expect(result.branches).toEqual([branch]);
+    expect(resolveLocality).not.toHaveBeenCalled();
+  });
+
+  it.each(["Denver, CO", "  denver, co  "])("prefers preset coordinates over the bundled table for %s", async (city) => {
+    const center = getCities().find((entry) => entry.label === "Denver, CO")!;
+    const result = await runPlan({ ...FAKE_PLAN_REQUEST, city });
+    expect(result.city).toEqual({ label: city, lat: center.lat, lon: center.lon });
+    expect(resolveLocality).not.toHaveBeenCalled();
+  });
+});
 
 describe("branch distance from the selected city", () => {
   it("uses the requested 50 km city limit", () => {
@@ -77,6 +95,8 @@ describe("branch distance from the selected city", () => {
   it("also checks branches against a city point resolved by lookup", async () => {
     vi.mocked(resolveLocality).mockResolvedValue({ name: "Fake City", lat: FAKE_BRANCH.lat, lon: FAKE_BRANCH.lon });
     const result = await runPlan({ ...FAKE_PLAN_REQUEST, city: "Fake City, CO", branches: [FAKE_BRANCH, FAR_BRANCH] });
+    expect(result.city).toEqual({ label: "Fake City, CO", lat: FAKE_BRANCH.lat, lon: FAKE_BRANCH.lon });
+    expect(resolveLocality).toHaveBeenCalledWith("Fake City, CO", expect.any(Object));
     expect(result.branches).toEqual([FAKE_BRANCH]);
     expect(result.warnings).toContain("Branch Fake Far Branch is more than 50 km from Fake City, CO; pick its location on the map.");
   });

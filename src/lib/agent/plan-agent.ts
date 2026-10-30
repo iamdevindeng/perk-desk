@@ -8,7 +8,7 @@ import { agentModel, AGENT_CALL_SETTINGS } from "@/lib/agent/model";
 import { buildPlanUserPrompt, PLAN_SYSTEM_PROMPT } from "@/lib/agent/prompts";
 import { buildResolveBrandsTool, resolveBrandNames } from "@/lib/agent/tools/resolve-brands";
 import { buildSearchCategoriesTool } from "@/lib/agent/tools/search-categories";
-import { findPreset, getCities } from "@/lib/data";
+import { findPreset, findUsCityCenter, getCities } from "@/lib/data";
 import { hasDeepSeekKey, isAgentDisabled } from "@/lib/env";
 import { buildFallbackPlan, chooseFallbackBrands } from "@/lib/fallback/fallback-plan";
 import { haversineMeters } from "@/lib/merchants/distance";
@@ -54,7 +54,8 @@ async function locateBranch(branch: Branch, context: PlanContext): Promise<Branc
 
 async function resolveLocations(context: PlanContext): Promise<PlanResponse["city"]> {
   const known = getCities().find((city) => city.label.toLowerCase() === context.request.city.trim().toLowerCase());
-  const point = known ?? await lookupLocality(context.request.city, context);
+  // Census internal points can be a few km from downtown, well inside the 50 km filter.
+  const point = known ?? findUsCityCenter(context.request.city) ?? await lookupLocality(context.request.city, context);
   const branches: Branch[] = [];
   for (const branch of context.request.branches) {
     const located = await locateBranch(branch, context);

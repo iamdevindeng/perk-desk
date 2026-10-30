@@ -216,7 +216,7 @@ Branch lookup (`POST /api/branches`) resolves its center from an exact preset ci
 ## 5. Plan agent (`src/lib/agent/plan-agent.ts`) — steps ① ②
 
 ### 5.1 Location resolution (code, before the agent)
-For each branch without `lat/lon`: Qloo locality lookup of `branch.address` (QLOO_API.md §5) → set coords, `locationSource: "qloo_locality"`, add warning "Branch X location is approximate; pick it on the map to refine". City center: from `src/data/presets/cities.json` if the label matches, else Qloo locality lookup of `city`. Branch still unresolved → drop it with a warning; if no branch remains → 200 with warning and empty categories.
+For each branch without `lat/lon`: Qloo locality lookup of `branch.address` (QLOO_API.md §5) → set coords, `locationSource: "qloo_locality"`, add warning "Branch X location is approximate; pick it on the map to refine". City center: from `src/data/presets/cities.json` if the label matches, then the normalized bundled city table (`findUsCityCenter`), else Qloo locality lookup of `city`; the response keeps the request's city label. Branch still unresolved → drop it with a warning; if no branch remains → 200 with warning and empty categories.
 
 ### 5.2 Loop
 ```ts
