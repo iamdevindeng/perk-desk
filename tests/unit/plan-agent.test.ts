@@ -60,7 +60,8 @@ describe("guarded planning agent", () => {
   it("keeps two valid categories, reports guard drops, and honors a keyless mock override", async () => {
     const model = planModel();
     const emit = vi.fn();
-    const result = await runPlan(FAKE_PLAN_REQUEST, { model, emit });
+    const onCacheable = vi.fn();
+    const result = await runPlan(FAKE_PLAN_REQUEST, { model, emit, onCacheable });
     expect(result.mode).toBe("agent");
     expect(result.categories.map((category) => category.tagId)).toEqual([FAKE_CATEGORY_ID, CAFE_ID]);
     expect(result.trace.some((event) => event.type === "guard")).toBe(true);
@@ -68,6 +69,17 @@ describe("guarded planning agent", () => {
     expect(PlanResponseSchema.safeParse(result).success).toBe(true);
     expect(model.doGenerateCalls).toHaveLength(3);
     expect(model.doGenerateCalls[0].providerOptions).toEqual({ deepseek: { thinking: { type: "disabled" } } });
+    expect(onCacheable).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("returns partial categories without caching after a single recoverable lookup failure", async () => {
+    vi.mocked(searchPlaceCategories).mockRejectedValueOnce(createQlooError("upstream", 500, "Temporary lookup failure"));
+    const onCacheable = vi.fn();
+    const result = await runPlan(FAKE_PLAN_REQUEST, { onCacheable });
+    expect(result.categories.map((category) => category.tagId)).toEqual([CAFE_ID]);
+    expect(searchPlaceCategories).toHaveBeenCalledTimes(2);
+    expect(result.warnings.join(" ")).not.toContain("Stopped early");
+    expect(onCacheable).toHaveBeenCalledExactlyOnceWith(false);
   });
 
   it("allows one correction after a partial plan", async () => {

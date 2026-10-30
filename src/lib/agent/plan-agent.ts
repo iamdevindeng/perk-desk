@@ -176,6 +176,6 @@ export async function runPlan(request: PlanRequest, options: PlanOptions = {}): 
   const mode = await completePlan(context, reason);
   context.emit({ type: "step", at: 0, step: "resolve_brands", status: "done", summary: `Checked ${context.brandsByInput.size} brand names` });
   context.emit({ type: "step", at: 0, step: "pick_categories", status: "done", summary: `Prepared ${context.plan?.length ?? 0} categories for confirmation` });
-  options.onCacheable?.(!researchStopped(context));
+  options.onCacheable?.(!researchStopped(context) && context.cacheable);
   return buildResponse(context, mode, city, trace);
 }

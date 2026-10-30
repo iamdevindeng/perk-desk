@@ -1,7 +1,7 @@
 // Verifies isolated request state, progress counts, and fatal service-error propagation.
 // Called by: npm test
 import { describe, expect, it } from "vitest";
-import { contextQlooOptions, createPlanContext, createRunContext, handleToolError } from "@/lib/agent/context";
+import { contextQlooOptions, createPlanContext, createRunContext, handleToolError, researchStopped } from "@/lib/agent/context";
 import { AGENT_CALL_SETTINGS } from "@/lib/agent/model";
 import { createQlooError } from "@/lib/qloo/client";
 import type { TraceEvent } from "@/lib/types";
@@ -22,6 +22,14 @@ describe("request context", () => {
     expect(context.candidateCategories.has("urn:tag:category:place:cafe")).toBe(true);
     expect(context.results.size).toBe(0);
     expect(context.replacements.size).toBe(0);
+  });
+  it("marks a plan uncacheable after one recoverable failure without stopping research", () => {
+    const context = createPlanContext(FAKE_PLAN_REQUEST);
+    expect(context.cacheable).toBe(true);
+    handleToolError(context, createQlooError("upstream", 500, "Temporary lookup failure"));
+    expect(context.qlooErrors).toBe(1);
+    expect(researchStopped(context)).toBe(false);
+    expect(context.cacheable).toBe(false);
   });
   it("emits every cache observation while counting only upstream lookups", () => {
     const events: TraceEvent[] = [];

@@ -24,7 +24,7 @@ export type PlanContext = ResearchControl & {
   request: PlanRequest; emit: (event: TraceEvent) => void;
   brandsByInput: Map<string, BrandResolution>; brandTags: Map<string, TagRef[]>;
   candidateCategories: Map<string, string>; knownDensities: Map<string, number>;
-  submitCount: number; plan: PlannedCategory[] | null; qlooCalls: number;
+  submitCount: number; plan: PlannedCategory[] | null; qlooCalls: number; cacheable: boolean;
   budgetReached: boolean; warnings: string[]; fatalError: QlooError | null;
 };
 export type RunContext = ResearchControl & {
@@ -44,7 +44,7 @@ export function createPlanContext(request: PlanRequest, emit: (event: TraceEvent
   return {
     ...researchControl(options, PLAN_DEADLINE_MS), request, emit: timedEmitter(emit), brandsByInput: new Map(), brandTags: new Map(),
     candidateCategories: new Map(), knownDensities: new Map(), submitCount: 0,
-    plan: null, qlooCalls: 0, budgetReached: false, warnings: [], fatalError: null,
+    plan: null, qlooCalls: 0, cacheable: true, budgetReached: false, warnings: [], fatalError: null,
   };
 }
 
