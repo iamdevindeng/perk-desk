@@ -106,7 +106,7 @@ it.each(["Denver, CO", "Austin, TX", "other"])("remembers current branches and r
   expect(notice()).toBeUndefined();
   changeField("profile-city", selected);
   const updated = profile();
-  expect(updated.branches).toEqual([{ id: expect.stringMatching(/^[0-9a-f-]{36}$/), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M }]);
+  expect(updated.branches).toEqual([{ id: expect.stringMatching(/^[0-9a-f-]{36}$/), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M, isPlaceholder: true }]);
   expect(previous.branches.some((branch) => branch.id === updated.branches[0].id)).toBe(false);
   expect(updated).toEqual({ ...previous, city: selected === "other" ? "" : selected, branches: updated.branches,
     branchesByCity: { "Portland, OR": previous.branches } });
@@ -130,7 +130,7 @@ it("keeps branches while typing Other city, both before and after a select reset
   changeField("profile-city", "Denver, CO");
   changeField("profile-city", "other");
   expect(profile().branches).not.toBe(resetBranches);
-  expect(profile().branches[0]).toEqual({ id: expect.any(String), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M });
+  expect(profile().branches[0]).toEqual({ id: expect.any(String), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M, isPlaceholder: true });
   changeField("profile-other-city", "Portland, OR");
   expect(profile().branches).not.toBe(profile().branchesByCity["Portland, OR"]);
 });
@@ -145,12 +145,13 @@ it.each([["name", "Fake New Branch"], ["address", "3 Example Lane"], ["radius", 
   },
 );
 
-it("hides the reset notice after the real page map-pick callback", () => {
+it("hides the reset notice on manual entry and retains the real page map-pick callback", () => {
   changeField("profile-city", "Austin, TX");
+  expect(notice()).toBeDefined();
   addManually();
   invoke(elementProps(pageTree, "ProfileForm").onPickBranch, profile().branches[0].id);
   render();
-  expect(notice()).toBeDefined();
+  expect(notice()).toBeUndefined();
   invoke(elementProps(pageTree, "MerchantMap").onPickLocation, { lat: 30.27, lon: -97.74 });
   expect(profile().branches[0]).toMatchObject({ lat: 30.27, lon: -97.74, locationSource: "map" });
   expect(notice()).toBeUndefined();

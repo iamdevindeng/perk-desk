@@ -47,7 +47,7 @@ function CityField({ profile, onChange }: { profile: Profile; onChange: (profile
     // Restore before the next save can evict this destination at the city cap.
     const saved = cities.some((city) => city.label === value) ? profile.branchesByCity[value] : undefined;
     const branchesByCity = rememberBranchesByCity(profile);
-    const branches = saved ?? [{ id: crypto.randomUUID(), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M }];
+    const branches = saved ?? [{ id: crypto.randomUUID(), name: "Branch 1", address: "", radiusMeters: DEFAULT_RADIUS_M, isPlaceholder: true }];
     const message = saved ? `Restored your saved branches for ${value}.`
       : `City changed, so branches were reset. Add your branches in ${value === "other" ? "the new city" : value}.`;
     setNotice({ branches, message });

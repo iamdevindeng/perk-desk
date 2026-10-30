@@ -6,25 +6,25 @@ import {
   BRANCH_RADIUS_MAX_KM, BRANCH_RADIUS_MIN_KM, COORDINATE_DECIMALS,
   DEFAULT_RADIUS_M, METERS_PER_KILOMETER, PROFILE_MAX_BRANCHES,
 } from "@/lib/config";
-import type { Branch } from "@/lib/types";
+import type { Branch, ProfileBranch } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type BranchEditorProps = {
-  branches: Branch[]; onChange: (branches: Branch[]) => void;
+  branches: ProfileBranch[]; onChange: (branches: ProfileBranch[]) => void;
   pickingBranchId?: string; onPickBranch: (id: string) => void; disabled?: boolean;
 };
 type BranchFieldsProps = {
-  branch: Branch; index: number; onChange: (branch: Branch) => void;
+  branch: ProfileBranch; index: number; onChange: (branch: ProfileBranch) => void;
   onRemove: () => void; canRemove: boolean; picking: boolean; onPick: () => void; disabled: boolean;
 };
 
-function isBlankPlaceholder(branches: Branch[]): boolean {
+function isBlankPlaceholder(branches: ProfileBranch[]): boolean {
   if (branches.length !== 1) return false;
   const branch = branches[0];
-  return branch.address.trim() === "" && branch.lat === undefined && branch.lon === undefined && branch.locationSource === undefined;
+  return branch.isPlaceholder === true && branch.address.trim() === "" && branch.lat === undefined && branch.lon === undefined && branch.locationSource === undefined;
 }
 
 function nextBranchName(branches: Branch[]): string {
@@ -104,8 +104,7 @@ export function BranchPickBanner({ branches, pickingBranchId, onCancel }: {
 
 export default function BranchEditor({ branches, onChange, pickingBranchId, onPickBranch, disabled = false }: BranchEditorProps): ReactElement {
   const [manualBranchId, setManualBranchId] = useState<string>();
-  const [expandedBranchIds, setExpandedBranchIds] = useState<string[]>([]);
-  const showEmpty = isBlankPlaceholder(branches) && manualBranchId !== branches[0].id && !expandedBranchIds.includes(branches[0].id);
+  const showEmpty = isBlankPlaceholder(branches);
   useEffect(() => {
     // Focus after the hidden placeholder form mounts; later edits must not steal focus.
     if (manualBranchId) document.getElementById(`branch-${manualBranchId}-name`)?.focus();
@@ -113,21 +112,23 @@ export default function BranchEditor({ branches, onChange, pickingBranchId, onPi
   function addBranch(): void {
     if (disabled || branches.length >= PROFILE_MAX_BRANCHES) return;
     const added = { id: crypto.randomUUID(), name: nextBranchName(branches), address: "", radiusMeters: DEFAULT_RADIUS_M };
-    setExpandedBranchIds([...branches.map((branch) => branch.id), added.id]);
     onChange([...branches, added]);
   }
-  function editBranch(updated: Branch): void {
+  function editBranch(updated: ProfileBranch): void {
     if (disabled) return;
     // Clearing an existing location must keep its form open without triggering manual-entry focus.
-    setExpandedBranchIds(branches.map((branch) => branch.id));
-    onChange(branches.map((branch) => branch.id === updated.id ? updated : branch));
+    onChange(branches.map((branch) => branch.id === updated.id ? { ...updated, isPlaceholder: false } : branch));
   }
   function removeBranch(id: string): void {
     if (disabled || branches.length <= 1) return;
     const remaining = branches.filter((branch) => branch.id !== id);
     // A visible blank branch is still a user's draft after its sibling is removed.
-    setExpandedBranchIds(remaining.map((branch) => branch.id));
-    onChange(remaining);
+    onChange(remaining.map((branch) => branch.isPlaceholder ? { ...branch, isPlaceholder: false } : branch));
+  }
+  function addManually(): void {
+    if (disabled) return;
+    setManualBranchId(branches[0].id);
+    editBranch(branches[0]);
   }
   return <section aria-labelledby="branches-heading" className="space-y-4">
     <div className="flex items-center justify-between gap-3">
@@ -136,7 +137,7 @@ export default function BranchEditor({ branches, onChange, pickingBranchId, onPi
     </div>
     {showEmpty ? <div className="space-y-3">
       <p className="text-sm text-slate-500">No branches yet. Use Find branches above, or add one manually.</p>
-      <Button variant="outline" disabled={disabled} onClick={() => { if (!disabled) setManualBranchId(branches[0].id); }}>Add manually</Button>
+      <Button variant="outline" disabled={disabled} onClick={addManually}>Add manually</Button>
     </div> : <>{branches.map((branch, index) => <BranchFields key={branch.id} branch={branch} index={index} disabled={disabled}
       onChange={editBranch}
       canRemove={branches.length > 1} onRemove={() => removeBranch(branch.id)}

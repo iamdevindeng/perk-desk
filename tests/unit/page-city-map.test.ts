@@ -92,7 +92,7 @@ it.each([
 });
 
 it("keeps map picking enabled and shows the pick instruction before the city hint", async () => {
-  await load("");
+  await load("", [{ ...UNLOCATED_BRANCH, isPlaceholder: true }]);
   invoke(button("Add manually").props.onClick); render();
   expect(button("Pick on map").props.disabled).not.toBe(true);
   const fieldsets = findComponents(tree, (element) => element.type === "fieldset");

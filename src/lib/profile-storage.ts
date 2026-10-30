@@ -3,20 +3,20 @@
 import { z } from "zod";
 import { DEFAULT_RADIUS_M, PROFILE_MAX_BRANCHES, PROFILE_MAX_SAVED_CITIES } from "@/lib/config";
 import { getCities } from "@/lib/data";
-import { BranchSchema, ProfileSchema, type Profile } from "@/lib/types";
+import { ProfileBranchSchema, ProfileSchema, type Profile } from "@/lib/types";
 
 const PROFILE_KEY = "perkdesk:v1:profile";
-// City memory can hold unfinished names; these drafts never enter API requests (R39).
-const StoredBranchDraftSchema = BranchSchema.extend({ name: BranchSchema.shape.name.or(z.literal("")) });
+// Browser drafts may be incomplete; request builders still require complete API fields.
+const StoredBranchDraftSchema = ProfileBranchSchema.extend({ name: ProfileBranchSchema.shape.name.or(z.literal("")) });
+const StoredBranchesSchema = z.array(StoredBranchDraftSchema).min(1).max(PROFILE_MAX_BRANCHES);
 const StoredCityBranchesSchema = z.record(ProfileSchema.shape.branchesByCity.unwrap().keyType,
-  z.array(StoredBranchDraftSchema).min(1).max(PROFILE_MAX_BRANCHES)).default({});
-// Start blank must persist, while incomplete edits still retain the last valid profile (R43).
-const StoredProfileSchema = ProfileSchema.extend({ institutionName: z.string().max(100), branchesByCity: StoredCityBranchesSchema })
-  .refine((profile) => profile.institutionName.length > 0 || isEmptyProfile(profile));
+  StoredBranchesSchema).default({});
+const StoredProfileSchema = ProfileSchema.extend({ institutionName: z.string().max(100), city: z.string().max(80),
+  branches: StoredBranchesSchema, branchesByCity: StoredCityBranchesSchema });
 
 export function emptyProfile(): Profile {
   return { institutionName: "", city: getCities()[0].label,
-    branches: [{ id: "branch-1", name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M }],
+    branches: [{ id: "branch-1", name: "Main branch", address: "", radiusMeters: DEFAULT_RADIUS_M, isPlaceholder: true }],
     signedMerchantsText: "", businessMembersText: "", categoryPreferences: { removed: [], added: [] }, merchantStatus: {}, branchesByCity: {} };
 }
 
@@ -25,7 +25,7 @@ export function isEmptyProfile(profile: Profile): boolean {
   const branch = profile.branches[0];
   const blankBranch = blank.branches[0];
   return profile.institutionName === blank.institutionName && profile.city === blank.city &&
-    profile.branches.length === 1 && branch.name === blankBranch.name && branch.address === blankBranch.address &&
+    profile.branches.length === 1 && branch.isPlaceholder === true && branch.name === blankBranch.name && branch.address === blankBranch.address &&
     branch.radiusMeters === blankBranch.radiusMeters && branch.lat === undefined && branch.lon === undefined &&
     branch.locationSource === undefined && profile.signedMerchantsText === "" && profile.businessMembersText === "" &&
     profile.categoryPreferences.removed.length === 0 && profile.categoryPreferences.added.length === 0 &&
@@ -64,6 +64,6 @@ export function loadProfile(): Profile | null {
 
 export function saveProfile(profile: Profile): void {
   const parsed = StoredProfileSchema.safeParse(profile);
-  // Do not overwrite the last complete profile while a required field is being edited.
+  // Malformed data must not replace the saved draft, but empty editable fields are valid drafts.
   if (parsed.success) writeStored(PROFILE_KEY, JSON.stringify(parsed.data));
 }

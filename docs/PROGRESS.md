@@ -2320,3 +2320,45 @@ Staged list (before this log):
 ```
 
 Open issues: no additional action required from Devin for these repairs. No live service calls, remote actions, new dependencies, or protected-check changes.
+
+## Persist blank branch drafts through refresh (2026-10-30)
+
+Status: DONE
+
+- Replace location-based placeholder inference with an optional browser-only `isPlaceholder` marker. New/reset city placeholders are marked explicitly; old saved branches without the marker remain visible.
+- Persist manual activation and edits, so a sole unlocated branch stays visible after reload, deletion of its sibling, and city round trips. Keep focus behavior and the one-to-five-branch limit.
+- Save incomplete institution, city, and branch-name drafts in browser storage, with existing type, maximum-length, coordinate, radius, and count checks. API request builders retain their complete-data validation.
+- Add reload regressions using real components and save/load functions, plus request/cache boundary tests. Update older expectations for explicit placeholder creation and persisted manual activation.
+
+Files touched: `src/components/BranchEditor.tsx`, `src/components/ProfileForm.tsx`, `src/lib/profile-storage.ts`, `src/lib/types.ts`, `tests/unit/branch-editor-actions.test.ts`, `tests/unit/branch-editor-empty.test.ts`, `tests/unit/branch-refresh.test.ts`, `tests/unit/page-city-map.test.ts`, `tests/unit/profile-city.test.ts`, `tests/unit/profile-draft-requests.test.ts`, `tests/unit/profile-storage.test.ts`, `docs/PROGRESS.md`.
+
+How to verify: `npm run lint && npm test -- --maxWorkers=1 && npm run typecheck && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && git diff --check`.
+
+Decisions I made:
+- This request supersedes the previous entry's decision to reset expansion on reload and retain only complete current profiles. Browser drafts now preserve the user's work even before other required fields are filled; planning still requires complete values and a branch location.
+- Keep the existing storage key and add only an optional profile-branch field. Do not change the API BranchSchema or request shapes. Request parsing strips the marker before cache construction; tests compare complete requests and keys against unchanged baselines.
+- A missing marker in old storage means a user-visible branch. Do not infer that legacy data is disposable from its name or missing location.
+- Manual activation now changes the profile, clears the city-reset notice as other edits do, and makes Start blank request confirmation before clearing the draft.
+- Follow the React skill review for schema compatibility, event-owned state changes, stable branch IDs, focus effects, and derived rendering. Use the installed Playwright locally with isolated browser storage and external/API request interception.
+
+Verification: all 1619 offline tests across 108 files passed, including 8 new refresh tests and 7 request-boundary tests. Lint, typecheck, production build, repository rules, full-tree privacy, and whitespace checks passed. The first full suite found six stale assertions in city-map/city-reset tests; they were updated to require the explicit placeholder marker and the new persisted manual activation. Independent code review found no actionable production issue.
+
+Real-browser verification: 8 scenarios passed in isolated headed Chrome against localhost only, using UI clicks/fills and actual page reloads. Covered manual activation before institution/address entry, add blank B/remove A/reload, empty current branch name, clearing an existing address, Denver/Austin round trips, empty/partial Other city, 390px mobile reload without overflow, and reset returning to a genuine empty placeholder. Compared surviving branch IDs and displayed counts, confirmed planning stayed disabled for incomplete drafts, and visually inspected desktop/mobile screenshots. Research API requests: 0; runtime page errors: 0; all 129 external resource requests were blocked. No user browser data was changed. Temporary test scripts, screenshots, and result receipts remain outside the repository.
+
+Staged list (before this log):
+```text
+ src/components/BranchEditor.tsx           |  29 +++---
+ src/components/ProfileForm.tsx            |   2 +-
+ src/lib/profile-storage.ts                |  20 ++--
+ src/lib/types.ts                          |   7 +-
+ tests/unit/branch-editor-actions.test.ts  |  10 +-
+ tests/unit/branch-editor-empty.test.ts    |  15 +--
+ tests/unit/branch-refresh.test.ts         | 147 ++++++++++++++++++++++++++++++
+ tests/unit/page-city-map.test.ts          |   2 +-
+ tests/unit/profile-city.test.ts           |   9 +-
+ tests/unit/profile-draft-requests.test.ts |  72 +++++++++++++++
+ tests/unit/profile-storage.test.ts        |  17 ++--
+ 11 files changed, 279 insertions(+), 51 deletions(-)
+```
+
+Open issues: none for this repair. No remote actions, live service calls, dependency additions, or protected-check changes.

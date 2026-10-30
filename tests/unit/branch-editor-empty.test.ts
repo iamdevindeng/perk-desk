@@ -6,7 +6,7 @@ import Home from "@/app/page";
 import BranchEditor from "@/components/BranchEditor";
 import { PROFILE_MAX_BRANCHES } from "@/lib/config";
 import { emptyProfile, loadProfile, saveProfile } from "@/lib/profile-storage";
-import type { Branch, BranchLookupResponse } from "@/lib/types";
+import type { ProfileBranch, BranchLookupResponse } from "@/lib/types";
 import { FAKE_BRANCH } from "../fixtures/fake-plan";
 import { componentText, findComponents, renderComponents, resetComponents, type TestElement } from "../fixtures/component-harness";
 import { flushPage, invoke } from "../fixtures/page-harness";
@@ -23,13 +23,13 @@ vi.mock("react", async (importOriginal) => {
 vi.mock("next/dynamic", () => ({ default: () => "MerchantMap" }));
 
 const EMPTY_MESSAGE = "No branches yet. Use Find branches above, or add one manually.";
-const BLANK_BRANCH: Branch = { ...FAKE_BRANCH, name: "Main branch", address: "", lat: undefined, lon: undefined, locationSource: undefined };
+const BLANK_BRANCH: ProfileBranch = { ...FAKE_BRANCH, name: "Main branch", address: "", lat: undefined, lon: undefined, locationSource: undefined, isPlaceholder: true };
 const focus = vi.fn();
 const getElementById = vi.fn();
 const fetchMock = vi.fn<typeof fetch>();
 const values = new Map<string, string>();
-const onChange = vi.fn<(updated: Branch[]) => void>((updated) => { branches = updated; });
-let branches: Branch[];
+const onChange = vi.fn<(updated: ProfileBranch[]) => void>((updated) => { branches = updated; });
+let branches: ProfileBranch[];
 let disabled: boolean;
 let tree: TestElement;
 function render(): void {
@@ -61,13 +61,14 @@ it.each(["Main branch", "Branch 1"])("shows a short empty state for a blank %s w
   expect(branches).toEqual(original); expect(onChange).not.toHaveBeenCalled(); expect(focus).not.toHaveBeenCalled();
 });
 
-it("reveals the same placeholder and focuses its name once without persisting UI state", () => {
+it("turns the same placeholder into a persistent draft and focuses its name once", () => {
   const original = structuredClone(branches); render();
   invoke(button("Add manually").props.onClick); render(); render();
   expect(componentText(tree)).not.toContain(EMPTY_MESSAGE);
   expect(field(`branch-${BLANK_BRANCH.id}-name`)!.props.value).toBe(BLANK_BRANCH.name);
   expect(getElementById).toHaveBeenCalledExactlyOnceWith(`branch-${BLANK_BRANCH.id}-name`);
-  expect(focus).toHaveBeenCalledOnce(); expect(onChange).not.toHaveBeenCalled(); expect(branches).toEqual(original);
+  expect(focus).toHaveBeenCalledOnce(); expect(onChange).toHaveBeenCalledOnce();
+  expect(branches).toEqual([{ ...original[0], isPlaceholder: false }]);
   invoke(field(`branch-${BLANK_BRANCH.id}-name`)!.props.onChange, { target: { value: "Fake Manual Branch" } }); render();
   expect(field(`branch-${BLANK_BRANCH.id}-name`)!.props.value).toBe("Fake Manual Branch");
   expect(focus).toHaveBeenCalledOnce(); expect(branches[0].id).toBe(BLANK_BRANCH.id);
@@ -110,7 +111,7 @@ it("returns to the empty state for a different placeholder after manual entry", 
   render(); invoke(button("Add manually").props.onClick); render();
   branches = [{ ...BLANK_BRANCH, id: "fake-new-city" }]; render();
   expect(componentText(tree)).toContain(EMPTY_MESSAGE); expect(field("branch-fake-new-city-name")).toBeUndefined();
-  expect(focus).toHaveBeenCalledOnce(); expect(onChange).not.toHaveBeenCalled();
+  expect(focus).toHaveBeenCalledOnce(); expect(onChange).toHaveBeenCalledOnce();
 });
 
 it("does not open manual entry while disabled", () => {

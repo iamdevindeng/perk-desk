@@ -11,6 +11,8 @@ export const BranchSchema = z.object({
   radiusMeters: z.number().int().min(1000).max(20000).default(DEFAULT_RADIUS_M),
   locationSource: z.enum(["preset", "map", "qloo_locality", "qloo_place"]).optional(),
 });
+// Only browser profiles distinguish untouched placeholders from user-created drafts.
+export const ProfileBranchSchema = BranchSchema.extend({ isPlaceholder: z.boolean().optional() });
 export const BranchLookupRequestSchema = z.object({
   name: z.string().trim().min(1).max(100), city: z.string().trim().min(2).max(80),
 });
@@ -30,8 +32,8 @@ export const MerchantStatusSchema = z.enum(["to_contact", "contacted", "signed",
 export const MerchantStatusEntrySchema = z.object({ name: z.string(), status: MerchantStatusSchema, updatedAt: z.string() });
 export const ProfileSchema = z.object({
   institutionName: z.string().min(1).max(100), city: z.string().min(2).max(80),
-  branches: z.array(BranchSchema).min(1).max(5),
-  branchesByCity: z.record(z.string().min(1).max(80), z.array(BranchSchema).min(1).max(5)).default({}),
+  branches: z.array(ProfileBranchSchema).min(1).max(5),
+  branchesByCity: z.record(z.string().min(1).max(80), z.array(ProfileBranchSchema).min(1).max(5)).default({}),
   signedMerchantsText: z.string().max(20000).default(""), businessMembersText: z.string().max(20000).default(""),
   categoryPreferences: CategoryPreferencesSchema.default({ removed: [], added: [] }),
   merchantStatus: z.record(z.string(), MerchantStatusEntrySchema).default({}),
@@ -146,6 +148,7 @@ export type CategoryPreferences = z.infer<typeof CategoryPreferencesSchema>;
 export type MerchantStatus = z.infer<typeof MerchantStatusSchema>;
 export type MerchantStatusEntry = z.infer<typeof MerchantStatusEntrySchema>;
 export type Profile = z.infer<typeof ProfileSchema>;
+export type ProfileBranch = z.infer<typeof ProfileBranchSchema>;
 export type TagRef = z.infer<typeof TagRefSchema>;
 export type CategoryTag = z.infer<typeof CategoryTagSchema>;
 export type BrandCandidate = z.infer<typeof BrandCandidateSchema>;

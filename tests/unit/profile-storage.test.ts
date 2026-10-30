@@ -47,7 +47,7 @@ describe("browser profile storage", () => {
     expect(loadProfile()).toEqual(profile);
     const restored = { ...profile, city: "Austin, TX", branches: profile.branchesByCity["Austin, TX"] };
     saveProfile(restored);
-    expect(loadProfile()).toEqual(profile);
+    expect(loadProfile()).toEqual(restored);
     const completed = { ...restored, branches: [{ ...restored.branches[0], name: "Fake Completed Branch" }] };
     saveProfile(completed);
     expect(loadProfile()).toEqual(completed);
@@ -80,10 +80,10 @@ describe("browser profile storage", () => {
     expect(loadProfile()).toBeNull();
   });
 
-  it("preserves the last valid profile while a required field is temporarily empty", () => {
+  it("persists a temporarily empty required field as a browser draft", () => {
     saveProfile(FAKE_PROFILE);
     saveProfile({ ...FAKE_PROFILE, institutionName: "" });
-    expect(loadProfile()).toEqual(FAKE_PROFILE);
+    expect(loadProfile()).toEqual({ ...FAKE_PROFILE, institutionName: "" });
   });
 
   it("overwrites the profile with a saved blank and preserves unrelated storage", () => {
@@ -97,12 +97,15 @@ describe("browser profile storage", () => {
     expect([...values.keys()]).toEqual(["perkdesk:v1:profile", "unrelated-key"]);
   });
 
-  it("preserves a saved blank while other invalid partial profiles are edited", () => {
+  it("persists incomplete editable drafts but rejects malformed field values", () => {
     saveProfile(emptyProfile());
     saveProfile({ ...emptyProfile(), city: "Fake City, CO" });
-    expect(loadProfile()).toEqual(emptyProfile());
-    saveProfile({ ...FAKE_PROFILE, branches: [{ ...FAKE_PROFILE.branches[0], name: "" }] });
-    expect(loadProfile()).toEqual(emptyProfile());
+    expect(loadProfile()).toEqual({ ...emptyProfile(), city: "Fake City, CO" });
+    const draft = { ...FAKE_PROFILE, branches: [{ ...FAKE_PROFILE.branches[0], name: "" }] };
+    saveProfile(draft);
+    expect(loadProfile()).toEqual(draft);
+    saveProfile({ ...draft, branches: [{ ...draft.branches[0], radiusMeters: 0 }] });
+    expect(loadProfile()).toEqual(draft);
   });
 
   it("is safe during server rendering", () => {

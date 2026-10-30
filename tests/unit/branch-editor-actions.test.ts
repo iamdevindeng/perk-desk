@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import BranchEditor from "@/components/BranchEditor";
 import { PROFILE_MAX_BRANCHES } from "@/lib/config";
-import type { Branch } from "@/lib/types";
+import type { ProfileBranch } from "@/lib/types";
 import { FAKE_BRANCH } from "../fixtures/fake-plan";
 import { componentText, findComponents, renderComponents, resetComponents, type TestElement } from "../fixtures/component-harness";
 import { invoke } from "../fixtures/page-harness";
@@ -15,10 +15,10 @@ vi.mock("react", async (importOriginal) => {
   return { ...actual, useState: fake.componentState, useRef: fake.componentRef, useEffect: fake.componentEffect };
 });
 
-let branches: Branch[];
+let branches: ProfileBranch[];
 let tree: TestElement;
 let disabled: boolean;
-const onChange = vi.fn<(next: Branch[]) => void>((next) => { branches = next; });
+const onChange = vi.fn<(next: ProfileBranch[]) => void>((next) => { branches = next; });
 const focus = vi.fn();
 function render(): void {
   tree = renderComponents(createElement(BranchEditor, { branches, disabled, onChange, onPickBranch: () => {} }));
@@ -33,7 +33,7 @@ function click(label: string, index = 0): void {
   invoke(target.props.onClick); render();
 }
 function edit(id: string, value: string): void { invoke(field(id)!.props.onChange, { target: { value } }); render(); }
-function blankBranch(id: string): Branch {
+function blankBranch(id: string): ProfileBranch {
   return { ...FAKE_BRANCH, id, address: "", lat: undefined, lon: undefined, locationSource: undefined };
 }
 beforeEach(() => {
@@ -76,7 +76,7 @@ it("keeps an untouched visible draft open when removing its sibling", () => {
 
 it("starts a different city's placeholder closed after add/remove operations", () => {
   click("+ Add branch"); click("Remove", 0);
-  branches = [blankBranch("fake-new-city")]; render();
+  branches = [{ ...blankBranch("fake-new-city"), isPlaceholder: true }]; render();
   expect(componentText(tree)).toContain("No branches yet.");
   expect(field("branch-fake-new-city-name")).toBeUndefined();
   click("Add manually");
