@@ -3,6 +3,7 @@
 import { tool, type Tool } from "ai";
 import { z } from "zod";
 import { contextQlooOptions, handleToolError, researchStopped, type PlanContext, type RunContext } from "@/lib/agent/context";
+import { TRACE_SUMMARY_MAX } from "@/lib/config";
 import { getCategoryDefaults } from "@/lib/data";
 import { citySlug } from "@/lib/hash";
 import { isBlacklistedCategory, searchPlaceCategories } from "@/lib/qloo/tags";
@@ -29,18 +30,24 @@ async function categoryWithDensity(category: CategoryTag, context: PlanContext |
 
 export async function searchCategoriesForContext(query: string, context: PlanContext | RunContext): Promise<SearchCategoriesOutput> {
   if (researchStopped(context)) return { error: "Research stopped; using available categories." };
-  context.emit({ type: "tool_call", at: 0, tool: "searchCategories", summary: "Finding place categories" });
+  const input = SearchCategoriesInputSchema.safeParse({ query });
+  const rawQuery = typeof query === "string" ? query.trim().slice(0, TRACE_SUMMARY_MAX) : "";
+  const summaryQuery = input.success ? input.data.query : rawQuery;
+  context.emit({ type: "tool_call", at: 0, tool: "searchCategories",
+    summary: `Finding place categories for "${summaryQuery}"`.slice(0, TRACE_SUMMARY_MAX) });
   try {
-    const input = SearchCategoriesInputSchema.parse({ query });
-    const categories = await searchPlaceCategories(input.query, contextQlooOptions(context));
+    if (!input.success) throw input.error;
+    const categories = await searchPlaceCategories(input.data.query, contextQlooOptions(context));
     const results: CategorySearchResult[] = [];
     for (const category of categories) {
       if (!isBlacklistedCategory(category.tagId)) results.push(await categoryWithDensity(category, context));
     }
-    context.emit({ type: "tool_result", at: 0, tool: "searchCategories", summary: `Found ${results.length} place categories` });
+    context.emit({ type: "tool_result", at: 0, tool: "searchCategories",
+      summary: `Found ${results.length} place categories for "${summaryQuery}"`.slice(0, TRACE_SUMMARY_MAX) });
     return results;
   } catch (error) {
-    context.emit({ type: "tool_result", at: 0, tool: "searchCategories", summary: "Category lookup failed" });
+    context.emit({ type: "tool_result", at: 0, tool: "searchCategories",
+      summary: `Category lookup failed for "${summaryQuery}"`.slice(0, TRACE_SUMMARY_MAX) });
     return handleToolError(context, error);
   }
 }
