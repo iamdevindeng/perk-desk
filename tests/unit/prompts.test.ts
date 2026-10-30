@@ -11,9 +11,11 @@ describe("model data boundaries", () => {
       branches: [{ ...FAKE_PLAN_REQUEST.branches[0], address: "private-address-canary" }],
     });
     const prompt = buildPlanUserPrompt(context);
-    expect(prompt).toContain(FAKE_PLAN_REQUEST.brandNames[0]);
+    const input = JSON.parse(prompt);
+    expect(input.brandNames).toEqual(FAKE_PLAN_REQUEST.brandNames);
     expect(prompt).not.toContain("private-address-canary");
-    expect(JSON.parse(prompt).branchCount).toBe(1);
+    expect(input.branchCount).toBe(1);
+    expect(input).not.toHaveProperty("knownDensities");
   });
   it("does not send signed lists or internal follow-up exclusions to the research model", () => {
     const context = createRunContext({ ...FAKE_RUN_REQUEST,

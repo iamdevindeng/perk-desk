@@ -223,7 +223,7 @@ For each branch without `lat/lon`: Qloo locality lookup of `branch.address` (QLO
 const result = await generateText({
   model: agentModel(),                       // src/lib/agent/model.ts
   instructions: PLAN_SYSTEM_PROMPT,          // src/lib/agent/prompts.ts
-  prompt: buildPlanUserPrompt(context),      // brand names, city, preferences, known densities
+  prompt: buildPlanUserPrompt(context),      // brand names, city, branch count, preferences
   tools: { resolveBrands, searchCategories, submitPlan },
   toolChoice: "auto",
   stopWhen: [isStepCount(PLAN_MAX_STEPS), () => context.plan !== null],
@@ -264,7 +264,7 @@ Rules: only use tagIds returned by searchCategories. Prefer categories whose mer
 Respect institution preferences: avoid categories the institution removed before unless evidence is strong; consider ones it added.
 Never use or mention age, gender, income or ZIP. Do not invent IDs. Be brief.
 ```
-User prompt: brand names, city, branch count, preferences (removed/added labels), known densities.
+User prompt: brand names, city, branch count, preferences (removed/added labels). Cached densities arrive through `knownIndependents` in `searchCategories` tool results.
 
 ## 6. Run agent (`src/lib/agent/run-agent.ts`) — steps ③–⑥
 

@@ -34,7 +34,6 @@ export function buildPlanUserPrompt(context: PlanContext): string {
       removed: preferences.removed.map((tagId) => ({ tagId, label: getCategoryLabel(tagId) })),
       added: preferences.added.map((tagId) => ({ tagId, label: getCategoryLabel(tagId) })),
     },
-    knownDensities: [...context.knownDensities].map(([tagId, independentCount]) => ({ tagId, independentCount })),
   });
 }
 
