@@ -94,9 +94,9 @@ function resultCard(candidate: MerchantCandidate): MerchantResult {
 
 function pitchedCard(card: MerchantResult, pitches: Map<string, string>, context: RunContext): MerchantResult {
   const generated = pitches.get(card.place.entityId);
-  const validGenerated = generated !== undefined && checkPitch(generated, card);
+  const validGenerated = generated !== undefined && checkPitch(generated, card, context.request.institutionName);
   const pitch = validGenerated ? generated : buildTemplatePitch(card, context.request.institutionName);
-  if (!checkPitch(pitch, card)) {
+  if (!checkPitch(pitch, card, context.request.institutionName)) {
     context.cacheable = false;
     context.warnings.push(`A valid pitch could not be prepared for ${card.place.name}; the merchant remains on the list.`);
     return { ...card, pitch: "", pitchSource: "template" };

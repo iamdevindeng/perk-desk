@@ -74,7 +74,7 @@ flowchart LR
   R --> S[Filter + deterministic score]
   S -->|thin category?| D
   S -->|shortlist| D
-  D -->|pitches, fact-checked| R
+  D -->|verified fact selections| R
   R -->|trace + shortlist| U
   P & R <--> C[(Upstash: cache + rate limits)]
 ```
@@ -87,13 +87,13 @@ flowchart LR
 
 Without Qloo, Perk Desk would only list popular places nearby. Rank lift exists only because we compare the **same** place query **with** member brands and **without** them, plus explainability brand shares.
 
-**What the agent decides:** ambiguous brand matches, which place categories to propose, one adjacent retry when a category is thin, and recruiting pitches.
+**What the agent decides:** ambiguous brand matches, which place categories to propose, one adjacent retry when a category is thin, and which verified fact to highlight in each recruiting pitch.
 
 **What stays in code (guards):**
 - Agent proposals must come from this request's Qloo category-search results and cite a real brand tag (checked in code). Fallback preference/default suggestions still require observed category-search membership and user confirmation.
 - Human confirm before any merchant search.
 - Deterministic score: `0.40×affinity + 0.25×lift + 0.20×distance + 0.15×rating` (`src/lib/merchants/scoring.ts`). The LLM never ranks merchants.
-- Pitch guard: ≤3 sentences, ≤600 chars, must name the merchant. Numbers must match card values or the fixed 10-minute call length. Phrase checks reject unsupported numeric discount or partnership claims and, without a taste signal, member-preference or taste-link claims. Rejected pitches use a template.
+- Pitches use three fixed sentences and at most 600 characters. The model selects a verified category, taste, distance, or rating fact for each merchant; code supplies all wording, names, and numbers. Names are quoted as labels. The model cannot supply free text, discounts, or partnership claims. Invalid or missing selections use a deterministic template. Cached pitches are checked against the same rules before replay.
 - **Fallback mode:** if DeepSeek is missing/fails, the app still runs on Qloo with rule-based categories and template pitches.
 
 ### How Perk Desk uses Qloo
@@ -158,7 +158,7 @@ npm run dev                  # http://localhost:3000
 Verified with `npm test` against `tests/unit/**/*.test.ts` (no live Qloo/DeepSeek calls):
 
 ```bash
-npm test              # 1,520 offline unit tests (102 files)
+npm test              # 1,583 offline unit tests (104 files)
 npm run lint
 npx tsc --noEmit
 npm run check:privacy # secrets / private-data scan

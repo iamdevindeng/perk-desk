@@ -1,9 +1,11 @@
 // Validates research requests and streams live or cached results with safe daily limits.
 // Called by: the browser's POST /api/run request and run-route unit tests
 import { z } from "zod";
+import { checkPitch } from "@/lib/agent/guards";
 import { runResearch } from "@/lib/agent/run-agent";
 import { LIVE_LIMIT_MESSAGE, RESULT_TTL_S, RUN_DEADLINE_MS, RUN_REPLAY_DELAY_MS } from "@/lib/config";
 import { hasQlooKey } from "@/lib/env";
+import { buildTemplatePitch } from "@/lib/fallback/pitch-template";
 import { cacheKey } from "@/lib/hash";
 import { isNationalChain, isTeamStore } from "@/lib/merchants/chains";
 import { isCategoryMismatch } from "@/lib/merchants/category-sanity";
@@ -13,7 +15,7 @@ import { getJson, setJson } from "@/lib/store/cache";
 import { checkLimit, getClientIp } from "@/lib/store/rate-limit";
 import { withRunUsage } from "@/lib/store/usage";
 import { createEmitter, createNdjsonResponse, type Emit } from "@/lib/stream";
-import { RunRequestSchema, RunResultSchema, TraceEventSchema, type RunRequest, type TraceEvent } from "@/lib/types";
+import { RunRequestSchema, RunResultSchema, TraceEventSchema, type MerchantResult, type RunRequest, type TraceEvent } from "@/lib/types";
 
 export const maxDuration = 300;
 
@@ -39,7 +41,13 @@ async function validateRequest(request: Request): Promise<RunRequest | Response>
   return parsed.data;
 }
 
-async function cachedEvents(key: string, signal: AbortSignal, city: string): Promise<TraceEvent[] | null> {
+function checkedCachedPitch(card: MerchantResult, institutionName: string): MerchantResult {
+  if (checkPitch(card.pitch, card, institutionName)) return card;
+  const pitch = buildTemplatePitch(card, institutionName);
+  return { ...card, pitch: checkPitch(pitch, card, institutionName) ? pitch : "", pitchSource: "template" };
+}
+
+async function cachedEvents(key: string, signal: AbortSignal, input: RunRequest): Promise<TraceEvent[] | null> {
   const parsed = CachedRunSchema.safeParse(await getJson(key, signal));
   if (!parsed.success) return null;
   const events = parsed.data.events;
@@ -48,9 +56,12 @@ async function cachedEvents(key: string, signal: AbortSignal, city: string): Pro
   if (events.some((event) => ["error", "limited", "done"].includes(event.type))) return null;
   const result = events.find((event) => event.type === "result")?.result;
   // Recheck stored names and genres so noisy demo shortlists refresh naturally (FIXES-R6.md R27).
-  if (result?.merchants.some(({ place, categoryTagId }) => isNationalChain(place.name, city) || isTeamStore(place.name)
+  if (result?.merchants.some(({ place, categoryTagId }) => isNationalChain(place.name, input.city) || isTeamStore(place.name)
     || isCategoryMismatch(place, categoryTagId))) return null;
-  return events;
+  // Old free-form pitches must pass today's grammar without turning a usable cache hit into live research.
+  return events.map((event) => event.type === "result" ? { ...event, result: { ...event.result,
+    merchants: event.result.merchants.map((card) => checkedCachedPitch(card, input.institutionName)),
+  } } : event);
 }
 
 async function replay(events: TraceEvent[], emit: Emit, signal: AbortSignal): Promise<void> {
@@ -88,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
   const input = await validateRequest(request);
   if (input instanceof Response) return input;
   const key = cacheKey("run", input);
-  const cached = await cachedEvents(key, signal, input.city);
+  const cached = await cachedEvents(key, signal, input);
   if (cached) return createNdjsonResponse(async (emit) => { await replay(cached, emit, clientSignal); }, streamOptions);
   if (clientSignal.aborted) return new Response(null, { status: 204 });
   // Check shared budgets before opening the stream so store failures can return HTTP 503.

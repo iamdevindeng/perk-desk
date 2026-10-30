@@ -1,8 +1,9 @@
 // Validates plan choices, category evidence, and recruiting pitches against observed data.
 // Called by: submitPlan, fallback validation, pitch generation, and guard unit tests.
 import { z } from "zod";
-import { CATEGORY_EVIDENCE_MAX, PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX, PITCH_MAX_CHARACTERS, PITCH_MAX_SENTENCES, PITCH_CALL_MINUTES } from "@/lib/config";
+import { CATEGORY_EVIDENCE_MAX, PLAN_MAX_CATEGORIES, TRACE_SUMMARY_MAX } from "@/lib/config";
 import { getBlacklist } from "@/lib/data";
+import { isControlledPitch } from "@/lib/fallback/pitch-template";
 import { filterAllowedBrandTags } from "@/lib/qloo/search";
 import { CategoryTagIdSchema } from "@/lib/types";
 import type { BrandCandidate, CategoryEvidence, MerchantResult, PlannedCategory, TagRef } from "@/lib/types";
@@ -151,56 +152,7 @@ export function applyPlanGuards(submission: unknown, context: PlanContext): Guar
   return { kept, errors };
 }
 
-function maskCardLabels(pitch: string, card: MerchantResult): string {
-  const labels = [card.place.name, card.branchName, card.categoryLabel, ...card.brandShares.map((brand) => brand.brandName)];
-  let masked = pitch;
-  for (const label of labels.filter(Boolean).sort((first, second) => second.length - first.length)) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const wholeLabel = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "gu");
-    masked = masked.replace(wholeLabel, "NAME");
-  }
-  return masked;
-}
-
-function allowedPitchNumbers(card: MerchantResult): Set<string> {
-  const numbers = [
-    card.place.businessRating, card.place.tripadvisorRating, card.place.tripadvisorCount,
-    Number((card.distanceMeters / 1000).toFixed(1)),
-    card.rankLift === null ? undefined : Math.abs(card.rankLift), PITCH_CALL_MINUTES,
-    ...card.brandShares.map((brand) => brand.sharePercent),
-  ];
-  return new Set(numbers.filter((number) => number !== undefined).map(String));
-}
-
-function hasClaimOutsideMerchantName(pitch: string, pattern: RegExp, card: MerchantResult): boolean {
-  // Only an addressed merchant identity can contain claim words; arbitrary card labels are not evidence.
-  const escapedName = card.place.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const introduction = new RegExp(`^\\s*(?:(?:Hi|Hello|Dear)\\s+)?${escapedName}(?=\\s+(?:team|is|has|offers?|serves?)\\b)`, "iu").exec(pitch);
-  const nameEnd = introduction?.[0].length ?? 0;
-  const nameStart = nameEnd - card.place.name.length;
-  return [...pitch.matchAll(new RegExp(pattern.source, "gi"))].some((claim) =>
-    !introduction || claim.index < nameStart || claim.index + claim[0].length > nameEnd);
-}
-
-function hasUnsupportedPitchClaim(pitch: string, card: MerchantResult): boolean {
-  // Cards contain neither negotiated offers nor partnership agreements; allowed numbers do not prove either.
-  const agreement = /\b(?:agreed|confirmed|approved)\b[^.!?]*\b(?:offer|discount|partner(?:ship)?|deal|join|participate)\b|\b(?:partner(?:ship)?|deal)\b[^.!?]*\b(?:agreed|confirmed|approved)\b|\b(?:have|has|already)\s+partnered\b|\b(?:is|are)\s+(?:our|your)\s+partner\b/i;
-  const discount = /\b\d+(?:\.\d+)?[\s-]*(?:%|percent|dollars?)?[\s-]*(?:(?:member(?:-only)?|exclusive|loyalty|special|additional|extra)[\s-]+)*(?:off|discount|savings?)\b|\b(?:discount|savings?|save)\s+(?:of\s+)?\$?\d/i;
-  if (hasClaimOutsideMerchantName(pitch, agreement, card) || hasClaimOutsideMerchantName(pitch, discount, card)) return true;
-  if (card.tasteSignal) return false;
-  const memberPreference = /\bmembers?[’']?\s+(?:favou?rites?|preferences?|tastes?|prefer\w*|love\w*|enjoy\w*)\b|\b(?:favou?rites?|loved|preferred|popular)\b(?:[\s-]+[a-z]+)*?[\s-]+(?:of|among|with|by|for)\s+(?:(?:our|your|the)\s+)?members?\b/i;
-  const tasteLink = /\b(?:taste|preference|affinity)\s+(?:data\s+)?(?:links?|match(?:es)?|connections?|fit)\b|\b(?:match(?:es)?|fits?)\s+(?:(?:our|your|the)\s+)?(?:members?[’']?\s+(?:tastes?|preferences?)|(?:tastes?|preferences?)\s+of\s+(?:(?:our|your|the)\s+)?members?)\b/i;
-  return hasClaimOutsideMerchantName(pitch, memberPreference, card) || hasClaimOutsideMerchantName(pitch, tasteLink, card);
-}
-
-export function checkPitch(pitch: string, card: MerchantResult): boolean {
-  if (!pitch.trim() || pitch.length > PITCH_MAX_CHARACTERS || !pitch.includes(card.place.name)) return false;
-  if (hasUnsupportedPitchClaim(pitch, card)) return false;
-  // Card labels can contain digits and periods; those identify businesses rather than assert metrics.
-  const masked = maskCardLabels(pitch, card);
-  const withoutDecimals = masked.replace(/(\d)\.(\d)/g, "$1 $2");
-  const sentences = (withoutDecimals.match(/[^.!?]+(?:[.!?]+|$)/g) ?? []).filter((sentence) => sentence.trim());
-  if (sentences.length > PITCH_MAX_SENTENCES) return false;
-  const allowed = allowedPitchNumbers(card);
-  return (masked.match(/\d+(?:\.\d+)?/g) ?? []).every((number) => allowed.has(String(Number(number))));
+export function checkPitch(pitch: string, card: MerchantResult, institutionName = ""): boolean {
+  // Validate membership in a finite grammar, never infer factual truth from arbitrary model prose.
+  return isControlledPitch(pitch, card, institutionName);
 }

@@ -7,6 +7,7 @@ import { checkPitch } from "@/lib/agent/guards";
 import { writePitches } from "@/lib/agent/pitch-writer";
 import { getCategoryDefaults } from "@/lib/data";
 import { hasDeepSeekKey, isAgentDisabled } from "@/lib/env";
+import { buildTemplatePitch } from "@/lib/fallback/pitch-template";
 import { createQlooError } from "@/lib/qloo/client";
 import { findPlaces } from "@/lib/qloo/insights";
 import { searchBrandExact } from "@/lib/qloo/search";
@@ -63,7 +64,7 @@ describe("deterministic research", () => {
     expect(result.mode).toBe("fallback");
     expect(result.merchants).toHaveLength(10);
     expect(RunResultSchema.safeParse(result).success).toBe(true);
-    expect(result.merchants.every((card) => card.pitchSource === "template" && checkPitch(card.pitch, card))).toBe(true);
+    expect(result.merchants.every((card) => card.pitchSource === "template" && checkPitch(card.pitch, card, FAKE_RUN_REQUEST.institutionName))).toBe(true);
     expect(result.qlooCalls).toBe(12);
     expect(writePitches).not.toHaveBeenCalled();
     for (const step of StepIdSchema.options) {
@@ -118,17 +119,33 @@ describe("deterministic research", () => {
 });
 
 describe("research model and completion", () => {
-  it("runs a scripted model with no real key and accepts valid generated pitches", async () => {
+  it("runs a scripted model with no real key and accepts controlled pitches", async () => {
     vi.mocked(isAgentDisabled).mockReturnValue(false);
     const place = makeFakePlace(12);
-    const pitch = `${place.name} offers coffee. Members enjoy coffee. Discuss a member offer.`;
-    vi.mocked(writePitches).mockResolvedValue(new Map([[place.entityId, pitch]]));
+    vi.mocked(writePitches).mockImplementation(async (merchants, institutionName) => {
+      const card = merchants.find((merchant) => merchant.place.entityId === place.entityId)!;
+      return new Map([[place.entityId, buildTemplatePitch(card, institutionName)]]);
+    });
     const model = researchModel();
     const result = await runResearch(FAKE_RUN_REQUEST, () => undefined, { model });
     expect(result.mode).toBe("agent");
     expect(model.doGenerateCalls).toHaveLength(2);
     expect(result.merchants.find((card) => card.place.entityId === place.entityId)?.pitchSource).toBe("agent");
     expect(writePitches).toHaveBeenCalledWith(expect.any(Array), FAKE_RUN_REQUEST.institutionName, { model, signal: expect.any(AbortSignal) });
+  });
+
+  it("rechecks writer output before returning or caching a card", async () => {
+    vi.mocked(isAgentDisabled).mockReturnValue(false);
+    const place = makeFakePlace(12);
+    const pitch = `${place.name} and our credit union are confirmed partners.`;
+    vi.mocked(writePitches).mockResolvedValue(new Map([[place.entityId, pitch]]));
+    const onCacheable = vi.fn();
+    const result = await runResearch(FAKE_RUN_REQUEST, () => undefined, { model: researchModel(), onCacheable });
+    const card = result.merchants.find((merchant) => merchant.place.entityId === place.entityId)!;
+    expect(card.pitchSource).toBe("template");
+    expect(card.pitch).toBe(buildTemplatePitch(card, FAKE_RUN_REQUEST.institutionName));
+    expect(checkPitch(card.pitch, card, FAKE_RUN_REQUEST.institutionName)).toBe(true);
+    expect(onCacheable).toHaveBeenCalledWith(true);
   });
 
   it("researches omitted confirmed categories even when the model finishes immediately", async () => {

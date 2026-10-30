@@ -43,6 +43,6 @@ it("streams all six steps and a grounded shortlist when the model is disabled", 
   if (terminal?.type !== "result") throw new Error("Expected result");
   expect(terminal.result.mode).toBe("fallback");
   expect(terminal.result.merchants).toHaveLength(8);
-  expect(terminal.result.merchants.every((merchant) => merchant.pitchSource === "template" && checkPitch(merchant.pitch, merchant))).toBe(true);
+  expect(terminal.result.merchants.every((merchant) => merchant.pitchSource === "template" && checkPitch(merchant.pitch, merchant, FAKE_RUN_REQUEST.institutionName))).toBe(true);
   expect(findPlaces).toHaveBeenCalledTimes(2);
 });

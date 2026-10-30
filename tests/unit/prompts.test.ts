@@ -26,14 +26,30 @@ describe("model data boundaries", () => {
     expect(prompt).toContain(FAKE_RUN_REQUEST.categories[0].tagId);
     expect(prompt).not.toContain("private-");
   });
-  it("limits pitch evidence to visible card facts", () => {
-    const prompt = buildPitchPrompt({ institutionName: "Fake CU", merchants: [FAKE_MERCHANT] });
+  it("offers fact IDs with code-owned sentences instead of free-form source descriptions", () => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place,
+      description: "private-description-canary", uniqueSellingPoint: "private-selling-point-canary",
+    } };
+    const prompt = buildPitchPrompt({ institutionName: "Fake CU", merchants: [card] });
     const input = JSON.parse(prompt);
     expect(input.merchants[0].name).toBe(FAKE_MERCHANT.place.name);
-    expect(input.merchants[0].tasteSignal).toBe(true);
-    expect(input.merchants[0].distanceKm).toBe("0.1");
-    expect(input.merchants[0]).not.toHaveProperty("score");
-    expect(input.merchants[0]).not.toHaveProperty("phone");
-    expect(input.merchants[0]).not.toHaveProperty("explain");
+    expect(Object.keys(input.merchants[0]).sort()).toEqual(["entityId", "facts", "name"]);
+    expect(input.merchants[0].facts).toEqual([
+      { fact: "taste", sentence: expect.stringContaining('"Fake Coffee Co"') },
+      { fact: "category", sentence: expect.stringContaining('"Coffee shop"') },
+      { fact: "distance", sentence: expect.stringContaining("0.1 km") },
+      { fact: "rating", sentence: expect.stringContaining("4.5-star business rating") },
+    ]);
+    expect(prompt).not.toContain("private-");
+  });
+  it("does not offer unavailable taste or rating facts to the model", () => {
+    const card = { ...FAKE_MERCHANT, tasteSignal: false,
+      place: { ...FAKE_MERCHANT.place, businessRating: undefined, tripadvisorRating: undefined },
+    };
+    const input = JSON.parse(buildPitchPrompt({ institutionName: "Fake CU", merchants: [card] }));
+    expect(input.merchants[0].facts).toEqual([
+      { fact: "category", sentence: expect.any(String) },
+      { fact: "distance", sentence: expect.any(String) },
+    ]);
   });
 });

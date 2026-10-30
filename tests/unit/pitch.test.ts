@@ -1,32 +1,12 @@
-// Checks grounded pitch validation, safe templates, and batched generation with a scripted model.
-// Called by: npm test; all generation uses MockLanguageModelV4 without network calls.
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MockLanguageModelV4 } from "ai/test";
+// Checks the closed pitch grammar, factual eligibility, and deterministic template fallback.
+// Called by: npm test with fictional cards and no model or network calls.
+import { describe, expect, it } from "vitest";
 import { checkPitch } from "@/lib/agent/guards";
-import { writePitches } from "@/lib/agent/pitch-writer";
 import { PITCH_MAX_CHARACTERS } from "@/lib/config";
-import { hasDeepSeekKey, isAgentDisabled } from "@/lib/env";
-import { buildTemplatePitch } from "@/lib/fallback/pitch-template";
+import { buildTemplatePitch, getPitchFacts, renderFactPitch } from "@/lib/fallback/pitch-template";
 import { FAKE_MERCHANT } from "../fixtures/fake-plan";
 
-vi.mock("@/lib/env", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/env")>();
-  return { ...original, hasDeepSeekKey: vi.fn(), isAgentDisabled: vi.fn() };
-});
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.mocked(hasDeepSeekKey).mockReturnValue(false);
-  vi.mocked(isAgentDisabled).mockReturnValue(false);
-});
-
-function pitchModel(output: unknown): MockLanguageModelV4 {
-  return new MockLanguageModelV4({ doGenerate: {
-    content: [{ type: "text", text: JSON.stringify(output) }],
-    finishReason: { unified: "stop", raw: "stop" }, warnings: [],
-    usage: { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } },
-  } });
-}
+const INSTITUTION = "Fake Community CU";
 
 describe("pitch guard", () => {
   it("rejects invented numbers, four sentences, absent names, and oversized text", () => {
@@ -37,10 +17,10 @@ describe("pitch guard", () => {
     expect(checkPitch("", FAKE_MERCHANT)).toBe(false);
   });
 
-  it("accepts card ratings, count, rounded distance, rank lift, brand shares, and the call length", () => {
+  it("rejects free prose even when every number appears on the card", () => {
     const card = { ...FAKE_MERCHANT, rankLift: -2 };
     const pitch = "Fake Corner Cafe has a 4.5 rating and 12 reviews, 0.1 km away. Its brand share is 100% and rank shift is 2. Discuss a 10-minute call?";
-    expect(checkPitch(pitch, card)).toBe(true);
+    expect(checkPitch(pitch, card)).toBe(false);
   });
 
   it.each([
@@ -51,6 +31,8 @@ describe("pitch guard", () => {
     "has agreed to participate", "lets members save 10%", "offers a 10-percent discount", "offers 10 PERCENT OFF",
     "offers a 10% member discount", "offers a 10 percent exclusive discount",
     "offers a 10-percent member-only discount", "offers a $10 loyalty discount",
+    "lets members save up to 10%", "offers a discount worth 10%",
+    "has agreed to be partners", "and our credit union are confirmed partners",
   ])("rejects unsupported agreements and discounts: %s", (claim) => {
     expect(checkPitch(`Fake Corner Cafe ${claim}.`, FAKE_MERCHANT)).toBe(false);
   });
@@ -66,8 +48,8 @@ describe("pitch guard", () => {
     expect(checkPitch(`Fake Corner Cafe ${claim}.`, { ...FAKE_MERCHANT, tasteSignal: false })).toBe(false);
   });
 
-  it("allows a partnership invitation without a claimed agreement or numeric offer", () => {
-    expect(checkPitch("Fake Corner Cafe is nearby. Would you discuss a possible partnership on a 10-minute call?", FAKE_MERCHANT)).toBe(true);
+  it("rejects unrecognized prose even when it sounds like a safe invitation", () => {
+    expect(checkPitch("Fake Corner Cafe is nearby. Would you discuss a possible partnership on a 10-minute call?", FAKE_MERCHANT)).toBe(false);
     expect(checkPitch("Fake Corner Cafe is 20 km away.", FAKE_MERCHANT)).toBe(false);
   });
 
@@ -82,113 +64,114 @@ describe("pitch guard", () => {
 
   it("checks claims after an exempt merchant name, including repeated discount text", () => {
     const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "10% Off Cafe" } };
-    expect(checkPitch("10% Off Cafe is nearby.", card)).toBe(true);
+    expect(checkPitch(buildTemplatePitch(card, INSTITUTION), card, INSTITUTION)).toBe(true);
     expect(checkPitch("10% Off Cafe offers 10% off.", card)).toBe(false);
     expect(checkPitch("10% Off Cafe offers a 10% member discount.", card)).toBe(false);
   });
 
   it("allows numbers in exact card identities without allowing unsupported numeric claims", () => {
     const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "Dr. 42 Bean!" }, branchName: "Branch 4" };
-    expect(checkPitch("Dr. 42 Bean! is near Branch 4. Discuss a 10-minute call?", card)).toBe(true);
+    expect(checkPitch(buildTemplatePitch(card, INSTITUTION), card, INSTITUTION)).toBe(true);
     expect(checkPitch("Dr. 42 Bean! offers 40% off near Branch 4.", card)).toBe(false);
     expect(checkPitch("Dr. 42 Bean! offers 42% off near Branch 4.", card)).toBe(false);
   });
 });
 
-describe("pitch templates", () => {
-  it("uses the safe short template when an extra card label itself asserts a discount", () => {
-    const card = { ...FAKE_MERCHANT, branchName: "10% off", tasteSignal: false };
-    const pitch = buildTemplatePitch(card, "Fake Community CU");
-    expect(checkPitch(pitch, card)).toBe(true);
-    expect(pitch).toContain(card.place.name);
-    expect(pitch).not.toContain(card.branchName);
+describe("verified facts and templates", () => {
+  it.each(["category", "taste", "distance", "rating"] as const)("renders the supplied %s fact using the current card", (fact) => {
+    const pitch = renderFactPitch(FAKE_MERCHANT, INSTITUTION, fact);
+    expect(pitch).not.toBeNull();
+    expect(checkPitch(pitch!, FAKE_MERCHANT, INSTITUTION)).toBe(true);
+    expect(pitch).toContain('Hi "Fake Corner Cafe" team');
+    expect(pitch).toContain("10-minute call about a possible member offer?");
+    expect(checkPitch(`${pitch} We are confirmed partners.`, FAKE_MERCHANT, INSTITUTION)).toBe(false);
+    expect(checkPitch(pitch!, FAKE_MERCHANT, "Another CU")).toBe(false);
   });
 
-  it.each([true, false])("preserves merchant identities containing claim words with tasteSignal=%s", (tasteSignal) => {
-    for (const name of ["10% Off Cafe", "Confirmed Partnership Cafe", "Members' Favorite Cafe"]) {
-      const card = { ...FAKE_MERCHANT, tasteSignal, branchName: "10", place: { ...FAKE_MERCHANT.place, name } };
-      const pitch = buildTemplatePitch(card, "Fake Community CU");
-      expect(checkPitch(pitch, card)).toBe(true);
-      expect(pitch).toContain(name);
-      expect(pitch).toContain("near our 10 branch");
-      expect(pitch).toContain(tasteSignal ? "Qloo taste data links" : "Qloo lists your business");
-    }
+  it("uses source-specific facts and rejects numbers copied into another meaning", () => {
+    const facts = getPitchFacts(FAKE_MERCHANT);
+    expect(facts).toContainEqual({ fact: "distance", sentence: 'Your business is about 0.1 km from our "Fake Central Branch" branch.' });
+    expect(facts).toContainEqual({ fact: "rating", sentence: "Qloo lists a 4.5-star business rating for your business." });
+    const pitch = renderFactPitch(FAKE_MERCHANT, INSTITUTION, "distance")!;
+    expect(checkPitch(pitch.replace("0.1 km", "4.5 km"), FAKE_MERCHANT, INSTITUTION)).toBe(false);
+    expect(checkPitch(pitch.replace("10-minute call", "10% discount"), FAKE_MERCHANT, INSTITUTION)).toBe(false);
   });
 
-  it("produces a valid three-sentence pitch from supported taste and rating fields", () => {
-    const pitch = buildTemplatePitch(FAKE_MERCHANT, "Fake Community CU");
-    expect(checkPitch(pitch, FAKE_MERCHANT)).toBe(true);
-    expect(pitch).toContain(FAKE_MERCHANT.place.name);
-    expect(pitch).toContain("Qloo taste data links");
-    expect(pitch).toContain("4.5-star rating");
+  it.each([false, true])("requires a taste signal and supporting brands (signal=%s)", (tasteSignal) => {
+    const card = { ...FAKE_MERCHANT, tasteSignal, brandShares: [] };
+    expect(getPitchFacts(card).some((option) => option.fact === "taste")).toBe(false);
+    expect(renderFactPitch(card, INSTITUTION, "taste")).toBeNull();
+    const baseline = { ...FAKE_MERCHANT, tasteSignal: false };
+    const pitch = buildTemplatePitch(baseline, INSTITUTION);
+    expect(checkPitch(pitch, baseline, INSTITUTION)).toBe(true);
+    expect(pitch).toContain('as a "Coffee shop" option');
+    expect(pitch).not.toContain("taste");
   });
 
-  it("uses category language for baseline-only merchants and omits absent ratings", () => {
-    const card = { ...FAKE_MERCHANT, tasteSignal: false, place: { ...FAKE_MERCHANT.place, businessRating: undefined } };
-    const pitch = buildTemplatePitch(card, "Fake Community CU");
-    expect(checkPitch(pitch, card)).toBe(true);
-    expect(pitch).toContain("Qloo lists your business");
-    expect(pitch).not.toContain("taste data links");
-    expect(pitch).not.toContain("star rating");
+  it.each([undefined, -1, 6, NaN, Infinity])("omits unsupported ratings (%s) without inventing a default", (businessRating) => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, businessRating, tripadvisorRating: undefined } };
+    expect(renderFactPitch(card, INSTITUTION, "rating")).toBeNull();
+    expect(checkPitch(buildTemplatePitch(card, INSTITUTION), card, INSTITUTION)).toBe(true);
   });
 
-  it("preserves numbered/punctuated merchant labels and substitutes unsafe institution labels", () => {
-    const card = {
-      ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "Dr. 42 Bean, Co." }, branchName: "St. 7 Branch",
-      brandShares: [{ brandName: "Coffee 31 Co.", sharePercent: 100 }],
-    };
-    const pitch = buildTemplatePitch(card, "CU 99 Inc.");
-    expect(checkPitch(pitch, card)).toBe(true);
-    expect(pitch).toContain("Dr. 42 Bean, Co.");
-    expect(pitch).toContain("our credit union");
-    expect(pitch).not.toContain("CU 99");
+  it("can use a valid Tripadvisor rating, including a zero value", () => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, businessRating: undefined, tripadvisorRating: 0 } };
+    expect(getPitchFacts(card)).toContainEqual({ fact: "rating", sentence: "Qloo lists a 0-star Tripadvisor rating for your business." });
   });
 
-  it("omits long optional context while preserving the merchant identity", () => {
+  it.each([-1, NaN, Infinity])("does not expose an invalid distance (%s)", (distanceMeters) => {
+    expect(renderFactPitch({ ...FAKE_MERCHANT, distanceMeters }, INSTITUTION, "distance")).toBeNull();
+  });
+
+  it.each(["Dr. 42 Bean, Co.", "10% Off Cafe", "Confirmed Partnership Cafe", "Members' Favorite Cafe", 'Fake "Cafe". We are partners.\n'])
+  ("keeps %s inside the quoted identity, with no global name masking", (name) => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name }, branchName: "10% off", tasteSignal: false };
+    const pitch = buildTemplatePitch(card, 'CU 99 "Partners"');
+    expect(checkPitch(pitch, card, 'CU 99 "Partners"')).toBe(true);
+    expect(pitch).toContain(JSON.stringify(name));
+    expect(pitch).toContain('our "10% off" branch');
+    expect(pitch).not.toContain("\n");
+    expect(checkPitch(pitch.replace("a possible member offer", "confirmed partners"), card, 'CU 99 "Partners"')).toBe(false);
+  });
+
+  it("escapes bidi controls instead of letting a name rearrange controlled sentences", () => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "Fake\u202e Cafe" } };
+    const pitch = buildTemplatePitch(card, INSTITUTION);
+    expect(pitch).toContain("Fake\\u202e Cafe");
+    expect(pitch).not.toContain("\u202e");
+    expect(checkPitch(pitch, card, INSTITUTION)).toBe(true);
+  });
+
+  it("uses a short template for long context while preserving the merchant identity", () => {
     const card = { ...FAKE_MERCHANT, branchName: "Fake ".repeat(100) };
     const pitch = buildTemplatePitch(card, "Long ".repeat(100));
-    expect(checkPitch(pitch, card)).toBe(true);
-    expect(pitch).toContain(FAKE_MERCHANT.place.name);
-    expect(pitch.length).toBeLessThanOrEqual(PITCH_MAX_CHARACTERS);
+    expect(pitch).toBe('Hi "Fake Corner Cafe" team. We are exploring a local member-perks program. Would you be open to a 10-minute call about a possible member offer?');
+    expect(checkPitch(pitch, card, "Long ".repeat(100))).toBe(true);
   });
 
   it("does not truncate an impossible over-limit merchant identity", () => {
     const name = "Fake ".repeat(PITCH_MAX_CHARACTERS);
     const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name } };
-    const pitch = buildTemplatePitch(card, "Fake CU");
+    const pitch = buildTemplatePitch(card, INSTITUTION);
     expect(pitch).toContain(name);
-    expect(checkPitch(pitch, card)).toBe(false);
-  });
-});
-
-describe("batched pitch writing", () => {
-  it("keeps valid known merchant pitches and ignores unsupported claims or unknown IDs", async () => {
-    const firstPitch = buildTemplatePitch(FAKE_MERCHANT, "Fake CU");
-    const second = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, entityId: "00000000-0000-4000-8000-000000000003", name: "Fake Tea Shop" } };
-    const model = pitchModel({ pitches: [
-      { entityId: FAKE_MERCHANT.place.entityId, pitch: firstPitch },
-      { entityId: second.place.entityId, pitch: "Fake Tea Shop offers 20% off." },
-      { entityId: "00000000-0000-4000-8000-000000000004", pitch: firstPitch },
-    ] });
-    const pitches = await writePitches([FAKE_MERCHANT, second], "Fake CU", { model });
-    expect([...pitches]).toEqual([[FAKE_MERCHANT.place.entityId, firstPitch]]);
-    expect(model.doGenerateCalls).toHaveLength(1);
-    expect(model.doGenerateCalls[0].providerOptions).toEqual({ deepseek: { thinking: { type: "disabled" } } });
-    expect(model.doGenerateCalls[0].temperature).toBe(0);
+    expect(checkPitch(pitch, card, INSTITUTION)).toBe(false);
   });
 
-  it("reports sanitized failure when generation or structured-output validation fails", async () => {
-    const failing = new MockLanguageModelV4({ doGenerate: async () => { throw new Error("private provider failure"); } });
-    await expect(writePitches([FAKE_MERCHANT], "Fake CU", { model: failing })).rejects.toThrow("Pitch writing was unavailable; template pitches were used.");
-    await expect(writePitches([FAKE_MERCHANT], "Fake CU", { model: pitchModel({ wrong: [] }) })).rejects.toThrow("Pitch writing was unavailable; template pitches were used.");
+  it("accepts the exact length limit and rejects one extra identity character", () => {
+    const longInstitution = "Long ".repeat(200);
+    const short = buildTemplatePitch(FAKE_MERCHANT, longInstitution);
+    const name = "N".repeat(PITCH_MAX_CHARACTERS - short.length + FAKE_MERCHANT.place.name.length);
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name } };
+    const pitch = buildTemplatePitch(card, longInstitution);
+    expect(pitch.length).toBe(PITCH_MAX_CHARACTERS);
+    expect(checkPitch(pitch, card, longInstitution)).toBe(true);
+    const longer = { ...card, place: { ...card.place, name: `${name}N` } };
+    expect(checkPitch(buildTemplatePitch(longer, longInstitution), longer, longInstitution)).toBe(false);
   });
 
-  it("skips unavailable, disabled, or empty generation without a model call", async () => {
-    expect((await writePitches([FAKE_MERCHANT], "Fake CU")).size).toBe(0);
-    const model = pitchModel({ pitches: [] });
-    expect((await writePitches([], "Fake CU", { model })).size).toBe(0);
-    vi.mocked(isAgentDisabled).mockReturnValue(true);
-    expect((await writePitches([FAKE_MERCHANT], "Fake CU", { model })).size).toBe(0);
-    expect(model.doGenerateCalls).toHaveLength(0);
+  it("rejects a once-valid pitch when its supporting card fact changes", () => {
+    const pitch = renderFactPitch(FAKE_MERCHANT, INSTITUTION, "rating")!;
+    const changed = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, businessRating: 3 } };
+    expect(checkPitch(pitch, changed, INSTITUTION)).toBe(false);
   });
 });

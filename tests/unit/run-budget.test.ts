@@ -29,7 +29,7 @@ it("returns gathered merchants and disables caching after the Qloo budget is rea
   expect(RunResultSchema.safeParse(result).success).toBe(true);
   expect(result.merchants).toHaveLength(places.length);
   expect(result.merchants.map((merchant) => merchant.place.entityId).sort()).toEqual(places.map((place) => place.entityId).sort());
-  expect(result.merchants.every((merchant) => merchant.pitchSource === "template" && checkPitch(merchant.pitch, merchant))).toBe(true);
+  expect(result.merchants.every((merchant) => merchant.pitchSource === "template" && checkPitch(merchant.pitch, merchant, FAKE_RUN_REQUEST.institutionName))).toBe(true);
   expect(result.categories[0].status).toBe("incomplete");
   expect(events).toContainEqual(expect.objectContaining({
     type: "agent_note", text: "Stopped early to stay within the research budget",

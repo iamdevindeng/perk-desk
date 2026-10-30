@@ -5,6 +5,7 @@ import { POST } from "@/app/api/run/route";
 import { runResearch } from "@/lib/agent/run-agent";
 import { RESULT_TTL_S } from "@/lib/config";
 import { cacheKey } from "@/lib/hash";
+import { buildTemplatePitch } from "@/lib/fallback/pitch-template";
 import { getJson, setJson } from "@/lib/store/cache";
 import { checkLimit } from "@/lib/store/rate-limit";
 import { TraceEventSchema, type CategoryTag, type Place, type RunResult, type TraceEvent } from "@/lib/types";
@@ -21,7 +22,8 @@ const GYM = { tagId: "urn:tag:category:place:gym", label: "Gym" };
 function cachedResult(category: CategoryTag, name: string, primaryGenreId?: string): RunResult {
   const merchant = FAKE_RUN_RESULT.merchants[0];
   const place: Place = { ...merchant.place, name, primaryGenreId };
-  return { ...FAKE_RUN_RESULT, merchants: [{ ...merchant, categoryTagId: category.tagId, categoryLabel: category.label, place }],
+  const card = { ...merchant, categoryTagId: category.tagId, categoryLabel: category.label, place };
+  return { ...FAKE_RUN_RESULT, merchants: [{ ...card, pitch: buildTemplatePitch(card, FAKE_RUN_REQUEST.institutionName) }],
     categories: [{ ...FAKE_RUN_RESULT.categories[0], tagId: category.tagId, label: category.label }],
   };
 }
