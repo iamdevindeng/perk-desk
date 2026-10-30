@@ -2392,3 +2392,27 @@ Staged list (before this log):
 ```
 
 Open issues: none for this repair. No remote actions, live service calls, dependency additions, or protected-check changes.
+
+## Refresh README test totals after branch repairs (2026-10-30)
+
+Status: DONE
+
+- Update the README test summary from 1,583 tests across 104 files to 1,624 tests across 108 files.
+- Confirm the totals with a fresh complete offline test run after the three branch repairs.
+- Keep this documentation update in its own local commit.
+
+Files touched: `README.md`, `docs/PROGRESS.md`.
+
+How to verify: `npm run lint && npm test -- --maxWorkers=1 && QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build && npm run check:rules && npm run check:privacy -- --all && git diff --check`.
+
+Verification: all 1,624 offline tests across 108 files passed. Lint, production build including TypeScript, repository rules, full-tree privacy, and whitespace checks passed. The first build was blocked by the sandbox's local-port restriction; after backing up the generated Turbopack cache, the same build passed with local-process permission.
+
+Decisions I made: use one test worker to avoid the previously documented privacy-scan timeout under parallel load. Update only the README statistic and this required progress entry.
+
+Staged list (before this log):
+```text
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+Open issues: none. No remote actions or live service calls.
