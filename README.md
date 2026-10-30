@@ -10,14 +10,14 @@ Built for the **Qloo Agentic Hackathon: Agents, but with taste** (Devpost) with 
 
 ---
 
-## Try it in 30 seconds
+## Quick start for judges
 
 1. Open https://perk-desk.vercel.app.
 2. Under **"Or explore a demo with a fictional credit union:"**, click **Try Denver demo** (or **Try Austin demo**).
 3. Click **Plan merchant categories** → review **Recognized brands** and **Categories to research** → **Confirm & find merchants**.
 4. On **Your merchant shortlist**, look for **`+N places vs. baseline`** (rank lift), member-brand shares, the map, **Independents only**, **Copy pitch**, status, and **Export CSV**.
 
-Unchanged demos replay a cached research result in about 5 seconds and do not count toward daily limits. Edited demos and new profiles run live research.
+When a cached result is available, unchanged demos replay it without using the daily live-research limits. If the cache is missing, expired, or invalid, the demo runs live and uses the same limits as other requests. Edited demos and new profiles also run live when their inputs are not cached. Live planning and research can take a few minutes.
 
 <!-- SCREENSHOT / GIF SLOTS (capture plan: submission/v2/screenshots.md)
      1. [gallery] Shortlist card with rank lift + map — gallery thumbnail
@@ -83,8 +83,6 @@ flowchart LR
 
 ## Why Qloo (and why an agent with guards)
 
-**Hackathon story / pitch:** see the Devpost project page (add public URL after submit). This README stays a repo guide — setup, architecture, and tests.
-
 Without Qloo, Perk Desk would only list popular places nearby. Rank lift exists only because we compare the **same** place query **with** member brands and **without** them, plus explainability brand shares.
 
 **What the agent decides:** ambiguous brand matches, which place categories to propose, one adjacent retry when a category is thin, and which verified fact to highlight in each recruiting pitch.
@@ -138,7 +136,7 @@ Cached requests (including demos) are unlimited. A run that hits its call cap re
 
 ## Run locally
 
-Requires Node.js 20.9+ (macOS, Linux, or WSL).
+Requires Node.js 22.x (22.12 or later) or 24+ (macOS, Linux, or WSL). Node.js 24 is recommended; this checkout was verified with 24.22.1.
 
 ```bash
 npm install
@@ -153,15 +151,24 @@ npm run dev                  # http://localhost:3000
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | required on Vercel production | Shared cache + rate limits (in-memory locally) |
 | `QLOO_BASE_URL`, `DEEPSEEK_MODEL`, `PD_AGENT_DISABLED` | optional | Overrides; `PD_AGENT_DISABLED=1` forces fallback |
 
+For a Vercel production deployment, configure both Upstash values and the Qloo key before serving live requests. After deployment, complete the unchanged Denver and Austin demos through **Confirm & find merchants** once, then repeat each to verify cached replay. A working cache is required for demos to remain available after live limits are reached.
+
 ## Tests
 
 Verified with `npm test` against `tests/unit/**/*.test.ts` (no live Qloo/DeepSeek calls):
 
 ```bash
-npm test              # 1,624 offline unit tests (108 files)
+npm test              # 1,633 offline unit tests (108 files)
 npm run lint
-npx tsc --noEmit
-npm run check:privacy # secrets / private-data scan
+npm run typecheck
+npm run build
+npm run check:rules
+npm run check:privacy -- --all # full-tree secrets / private-data scan
+```
+
+Optional live checks use the configured provider keys:
+
+```bash
 npm run smoke         # live end-to-end (needs keys)
 npm run eval          # live category-selection eval (15 brand lists)
 ```
@@ -170,10 +177,11 @@ npm run eval          # live category-selection eval (15 brand lists)
 
 - Member brands must come from the credit union (aggregated). Demos use fictional lists.
 - Qloo coverage varies; small CUs may miss in Find branches — add branches manually or on the map.
+- Qloo categories and the maintained chain list can miss unsuitable businesses. Review each shortlist before contacting merchants.
 - Typed addresses are approximate without a map pick.
 - Refresh keeps profile + statuses; brands/results in memory are cleared (same inputs usually hit cache).
 - Statuses are per-browser; only Signed and Not a fit are excluded on the next run.
-- Shared daily limits; demos keep working when live research is paused.
+- Shared daily limits; demos remain available after live limits are reached only when their cached results can be read.
 - No email sending, accounts, or server-side profiles (by design).
 
 ## Docs

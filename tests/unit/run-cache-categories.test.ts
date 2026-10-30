@@ -18,6 +18,7 @@ vi.mock("@/lib/store/rate-limit", () => ({ checkLimit: vi.fn(), getClientIp: () 
 
 const COFFEE = { tagId: "urn:tag:category:place:coffee_shop", label: "Coffee shop" };
 const GYM = { tagId: "urn:tag:category:place:gym", label: "Gym" };
+const CLOTHING = { tagId: "urn:tag:category:place:clothing_store", label: "Clothing store" };
 
 function cachedResult(category: CategoryTag, name: string, primaryGenreId?: string): RunResult {
   const merchant = FAKE_RUN_RESULT.merchants[0];
@@ -47,6 +48,18 @@ beforeEach(() => {
 afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("cached category checks", () => {
+  it("refreshes an old shortlist containing a newly recognized national chain", async () => {
+    // Only the public chain name is real; all place fields come from invented test data.
+    const result = cachedResult(CLOTHING, "Neiman Marcus Fake Branch");
+    vi.mocked(getJson).mockResolvedValue({ complete: true, events: [{ type: "result", at: 0, result }] });
+    const events = await run(CLOTHING);
+    expect(runResearch).toHaveBeenCalledOnce(); expect(checkLimit).toHaveBeenCalledWith("run", "fake-ip");
+    expect(events.map((event) => event.type)).toEqual(["result", "done"]);
+    expect(events.find((event) => event.type === "result")?.result).toEqual(FAKE_RUN_RESULT);
+    expect(setJson).toHaveBeenCalledWith(cacheKey("run", { ...FAKE_RUN_REQUEST, categories: [CLOTHING] }),
+      { complete: true, events: expect.any(Array) }, RESULT_TTL_S, expect.any(AbortSignal));
+  });
+
   it.each([
     { category: COFFEE, name: "Fake Corner Cafe", genre: "urn:tag:genre:place:cocktail_bar" },
     { category: COFFEE, name: "Fake Candy Shop", genre: "urn:tag:genre:place:candy_store" },

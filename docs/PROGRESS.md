@@ -33,6 +33,9 @@ Earlier T1–T12 review repairs (2026-10-24): all seven reported findings were f
 
 ## Waiting for Devin
 
+- [ ] Pre-push audit (2026-10-30): after the eventual deployment, confirm the public demo opens without deployment protection; complete both unchanged demos and repeat each to verify cached replay. The new chain exclusion invalidates affected old run caches, so re-warming is necessary before judging. Confirm Qloo and both production Upstash variables are configured. No push, deployment, or remote-cache writes were performed in this audit.
+- [ ] Pre-push recommendation review (2026-10-30): verify the remaining possible franchise/campus-facility classifications against independent business information. Do not broaden name filters without evidence; R18 explicitly preserves University Co-op and R32 bounds genre filtering.
+
 - [ ] R41: review the local branch-lookup commit and test Find branches in the local browser; live API checks were intentionally left to Devin. No push is authorized.
 
 - [ ] R9: review the local R39–R40 commits before deciding on any push.
@@ -2416,3 +2419,77 @@ Staged list (before this log):
 ```
 
 Open issues: none. No remote actions or live service calls.
+
+
+## Pre-push documentation and judge-flow audit (2026-10-30)
+
+Status: DONE (local audit and repairs; deployed-environment acceptance remains above).
+
+What was done:
+- Independently reviewed public setup instructions, current architecture, provider/cache/limit boundaries, privacy controls, Git hooks, and the complete judge interaction flow.
+- Corrected the Node.js support declaration to match the locked AI SDK, Vite, and Vitest requirements; synchronized package and lockfile root engines, README, and the architecture table. No dependency version changed.
+- Clarified production Upstash requirements, cold-demo limits, cache prerequisites, and full-tree privacy checks. Removed fixed demo timing and the unfinished Devpost link placeholder. Updated current architecture wording for limit messages and controlled fallback pitches.
+- A real smoke check exposed a national department-store chain missing from the maintained list. Added its complete brand name, eight matching/nonmatching cases, and a regression proving an affected old run cache triggers fresh research. No Qloo response payloads were saved.
+- Verified desktop/mobile browser behavior using existing hand-written fixtures and an isolated production preview. Re-ran live agent and deterministic fallback smoke checks with memory-only caching.
+
+Files touched: `.env.example`, `README.md`, `docs/ARCHITECTURE.md`, `docs/PROGRESS.md`, `package.json`, `package-lock.json`, `src/data/national-chains.json`, `src/lib/config.ts`, `tests/unit/chains.test.ts`, `tests/unit/run-cache-categories.test.ts`.
+
+How to verify:
+```bash
+npm test -- --maxWorkers=1
+npm run lint
+npm run typecheck
+QLOO_API_KEY= DEEPSEEK_API_KEY= UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= PD_AGENT_DISABLED=1 NEXT_TELEMETRY_DISABLED=1 npm run build
+npm run check:rules
+npm run check:privacy -- --all
+git diff --check
+UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= npm run smoke
+PD_AGENT_DISABLED=1 UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= npm run smoke
+```
+
+Verification:
+- Final offline suite: 1,633 tests across 108 files passed. Lint, typecheck, production build, repository rules, full-tree privacy (247 tracked files), and whitespace checks passed. Commit/push hooks remain installed and unchanged; author check passed.
+- Browser: seven grouped scenarios passed on the production build, including incomplete-profile gating, Denver/Austin presets, explicit confirmation, shortlist focus, clipboard copying, saved status, CSV content/download, 390px mobile overflow/map navigation, address clearing, removal/re-addition of the last branch across reloads, and recovery from HTTP 503. Zero page errors. Six API requests were intercepted with invented responses, and all 64 external resource requests were blocked; this does not verify live map tiles or deployed APIs. The temporary preview server was stopped after inspection.
+- Live agent after the fix: both cities returned 10 merchants and 10 controlled agent pitches, with no unresolved preset brands and zero matches against the maintained chain/team predicates. Denver plan/run took 15.8/18.8 seconds; Austin took 12.5/18.9 seconds. Repeat plans reused 15/20 cached Qloo lookups. The previously exposed department-store chain was absent from the new Denver shortlist.
+- Live fallback after the fix: both cities returned 10 merchants with 10 template pitches, no unresolved preset brands, and zero matches against the maintained chain/team predicates. Denver plan/run took 5.8/19.7 seconds; Austin took 3.2/19.6 seconds. Repeat plans reused 12/10 cached Qloo lookups. These are local in-memory caches, not proof of deployed demo readiness.
+
+Decisions I made:
+- Treat the current request to correct critical documents as authorization for the narrowly scoped current-fact corrections in ARCHITECTURE; leave historical TASKS/FIXES and earlier PROGRESS entries intact.
+- The README test-count edit present at the start was committed independently as dd82a0b during this audit. Preserve that history and leave this audit's repairs unstaged and uncommitted for review; no remote Git operations were used.
+- Keep the existing national-chain algorithm and add one established public brand name to its hand-maintained list. All test location data is invented. Do not weaken rate limits, cache validation, privacy rules, hooks, or secret boundaries.
+- Keep the explicitly allowed University Co-op and the bounded genre filtering rules. A potential franchise and a campus fitness facility require separate factual review; the README now states the classification/list limitation. A smoke predicate count is not proof every merchant is independently owned.
+- Use Node.js 24.22.1 for verification; the declared supported range is Node 22.x from 22.12 or Node 24 and later. Vite's existing future-loader warning and the provider's JSON-schema compatibility warning did not fail checks.
+- The initial sandboxed smoke command could not open tsx IPC; rerun with local-process permission succeeded. The Playwright CLI wrapper could not reach npm inside the sandbox, so browser verification used the already-installed Playwright library without adding dependencies. Browser artifacts stayed in temporary storage.
+
+Open issues: deployed URL/access protection, production environment values, shared-store health, fresh demo caches, live tile loading, and provider quotas at judging time are not established by local verification. See Waiting for Devin. No push, deployment, remote cache write, tag-ID change, or dependency upgrade was performed.
+
+## Publish the audited judge-flow repairs (2026-10-30)
+
+Status: DONE (review and commit preparation; Git commit/push results are reported in the accompanying chat).
+
+- The owner explicitly requested committing and pushing these reviewed changes. This authorizes the Git fetch/commit/push for this release and supersedes the older no-remote-action instruction for those operations only.
+- Fetched origin and confirmed main has no incoming/divergent commits and 14 existing local commits to publish together with this repair commit.
+- Independently rechecked the complete diff: no added credentials, private paths, or saved Qloo response payloads; environment examples retain blank secret values.
+- Preserve the earlier audit as historical evidence, include its repairs and log, and keep pre-commit/pre-push checks enabled. The full 1,633-test suite, production build, and other audit verification remain documented above; the push hook runs its required checks again.
+
+Files touched: `.env.example`, `README.md`, `docs/ARCHITECTURE.md`, `docs/PROGRESS.md`, `package.json`, `package-lock.json`, `src/data/national-chains.json`, `src/lib/config.ts`, `tests/unit/chains.test.ts`, `tests/unit/run-cache-categories.test.ts`.
+
+Staged list (before adding the progress log):
+```text
+ .env.example                            |  2 +-
+ README.md                               | 26 +++++++++++++++++---------
+ docs/ARCHITECTURE.md                    | 10 +++++-----
+ package-lock.json                       |  2 +-
+ package.json                            |  2 +-
+ src/data/national-chains.json           |  1 +
+ src/lib/config.ts                       |  2 +-
+ tests/unit/chains.test.ts               | 12 ++++++++++++
+ tests/unit/run-cache-categories.test.ts | 13 +++++++++++++
+ 9 files changed, 52 insertions(+), 18 deletions(-)
+```
+
+How to verify: `git status --short`, `git log -1 --oneline`, `git ls-remote origin refs/heads/main`; use the full verification commands in the preceding audit entry for local checks.
+
+Decisions I made: publish main with a normal fast-forward push to its existing origin/main upstream. Do not rewrite history, force-push, bypass hooks, or modify Git configuration.
+
+Open issues: the deployment/demo-cache acceptance and recommendation-classification review in Waiting for Devin remain separate from publishing this Git revision. No manual deployment or remote-cache change is part of this request.

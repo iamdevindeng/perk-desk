@@ -25,6 +25,18 @@ describe("isNationalChain", () => {
     expect(isNationalChain("Fake Rack Attacker Shop")).toBe(false);
   });
 
+  it.each(["Neiman Marcus", "Neiman Marcus Fake Branch", "NEIMAN-MARCUS", "Neiman Marcus Last Call"])(
+    "excludes the full department-store brand %s", (name) => {
+      expect(isNationalChain(name)).toBe(true);
+    },
+  );
+
+  it.each(["Fake Neiman Cafe", "Fake Marcus Books", "Fake Neiman Marcusson Cafe", "Fake Neimans Marcus Books"])(
+    "preserves independent names that only resemble the department-store brand: %s", (name) => {
+      expect(isNationalChain(name)).toBe(false);
+    },
+  );
+
   it.each([
     "Urban Outfitters", "Madewell", "Rainbow Shops", "Fleet Feet", "GANNI", "Tecovas",
     "Anthropologie", "Free People", "J.Crew", "JCrew", "Old Navy", "Banana Republic",
