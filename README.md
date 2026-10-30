@@ -55,9 +55,9 @@ Member brands + branches
   Filter + score in code  →  shortlist + checked pitches + map + CSV
 ```
 
-1. **Profile (browser only).** Credit union name, city, 1–5 branches (Find branches / address / map). Optional signed-merchant and business-member lists. Stored in `localStorage` (`perkdesk:v1:profile`). No accounts.
+1. **Profile (saved in your browser).** Credit union name, city, 1–5 branches (Find branches / address / map). Optional signed-merchant and business-member lists. Stored in `localStorage` (`perkdesk:v1:profile`). No accounts.
 2. **Member taste.** Enter 1–10 aggregated brand names, or pick a quick segment (Dining, Coffee & desserts, Bars & craft beer, Pets, Fitness, Beauty & hair).
-3. **Plan.** Agent resolves brands in Qloo and proposes 2–6 place categories. **Every category must cite a real Qloo tag of one of your brands.** Then it stops.
+3. **Plan.** Agent resolves brands in Qloo and proposes 2–6 place categories. **Every agent-proposed category must cite a real Qloo tag of one of your brands.** Fallback can also suggest saved preferences or defaults. All suggestions must appear in this request's category-search results and await your confirmation.
 4. **You confirm.** Edit brands/categories (up to 5 for the run). Research starts only after **Confirm & find merchants**.
 5. **Research (NDJSON stream).** For every branch × category: Qloo places **seeded** with member brands (`feature.explainability=true`) and a **baseline** without the signal. Code filters noise/chains/signed, scores, may retry one adjacent category if thin.
 6. **Shortlist.** About 10 merchants: rank lift, brand shares, ratings, pitch, map, follow-up status, Independents only, CSV export.
@@ -90,10 +90,10 @@ Without Qloo, Perk Desk would only list popular places nearby. Rank lift exists 
 **What the agent decides:** ambiguous brand matches, which place categories to propose, one adjacent retry when a category is thin, and recruiting pitches.
 
 **What stays in code (guards):**
-- Categories must come from this run's Qloo tags and cite a real brand tag (checked in code).
+- Agent proposals must come from this request's Qloo category-search results and cite a real brand tag (checked in code). Fallback preference/default suggestions still require observed category-search membership and user confirmation.
 - Human confirm before any merchant search.
 - Deterministic score: `0.40×affinity + 0.25×lift + 0.20×distance + 0.15×rating` (`src/lib/merchants/scoring.ts`). The LLM never ranks merchants.
-- Pitch guard: ≤3 sentences, ≤600 chars, must name the merchant, **every number must appear on the card** — else a template.
+- Pitch guard: ≤3 sentences, ≤600 chars, must name the merchant. Numbers must match card values or the fixed 10-minute call length. Phrase checks reject unsupported numeric discount or partnership claims and, without a taste signal, member-preference or taste-link claims. Rejected pitches use a template.
 - **Fallback mode:** if DeepSeek is missing/fails, the app still runs on Qloo with rule-based categories and template pitches.
 
 ### How Perk Desk uses Qloo
@@ -110,7 +110,7 @@ Place details on cards (address, phone, website, hours, ratings, description) co
 
 ### Scoring (deterministic)
 
-- **rank_lift** = baseline rank − seeded rank. Missing from baseline → baseline rank = baseline length + 1. UI example: `+11 places vs. baseline`.
+- **rank_lift** = baseline rank − seeded rank. Missing from baseline → baseline rank = baseline length + 1. UI example: Denver ChopHouse — `+13 places vs. baseline`.
 - Affinity min-max normalised within branch × category; distance = 1 − distance/radius; rating from `business_rating` then Tripadvisor then 0.5.
 - Lift normalised as `clamp((rank_lift + 10) / 20, 0, 1)`. Taste-signal merchants sort first.
 - Filters drop closed places, noise genres, signed/not-a-fit, national chains, out-of-radius. Multi-location brands are flagged; **Independents only** hides them. Shortlist ~10 (`SHORTLIST_TOTAL = 10`).
@@ -119,7 +119,9 @@ Place details on cards (address, phone, website, hours, ratings, description) co
 
 ## Privacy and trust
 
-- No accounts. Profile stays in the browser only.
+- No accounts. The editable profile is saved in this browser's `localStorage`.
+- Branch lookup, planning, and research send required fields to the app server: institution name and city; branch names, addresses, coordinates, and radii; brand names/IDs and category preferences; and merchant lists or exclusions. Relevant fields are passed to Qloo and, when agent mode is used, DeepSeek for research.
+- Derived plans and research results can include branch details and institution or brand names. These results may be cached on the server for up to 30 days.
 - Aggregated brand names only — no member-level, age, gender, income, or ZIP data. Demographic Qloo brand tags are filtered before model/UI/cache.
 - API keys stay on the server. Usage logs store a short SHA-256 of the IP, never the raw IP or keys.
 - Demo institutions are **fictional**. No raw Qloo response payloads are committed to this repo.
@@ -153,10 +155,10 @@ npm run dev                  # http://localhost:3000
 
 ## Tests
 
-Verified with `npx vitest list` against `tests/unit/**/*.test.ts` (no live Qloo/DeepSeek calls):
+Verified with `npm test` against `tests/unit/**/*.test.ts` (no live Qloo/DeepSeek calls):
 
 ```bash
-npm test              # 1,457 offline unit tests (102 files)
+npm test              # 1,498 offline unit tests (102 files)
 npm run lint
 npx tsc --noEmit
 npm run check:privacy # secrets / private-data scan

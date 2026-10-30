@@ -13,7 +13,7 @@ export default function PresetPicker({ onSelect, onStartBlank, disabled = false 
   return <Card className="border-teal-200 bg-teal-50/40">
     <CardHeader>
       <CardTitle>Set up your credit union</CardTitle>
-      <CardDescription>Find local merchants your members already love. Your profile stays in this browser.</CardDescription>
+      <CardDescription>Find local merchants your members already love. Your profile is saved in this browser. Research sends relevant fields to the app server.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-3">
       <Button disabled={disabled} onClick={onStartBlank} className="w-full bg-teal-800 py-3 hover:bg-teal-900">Start with my credit union</Button>

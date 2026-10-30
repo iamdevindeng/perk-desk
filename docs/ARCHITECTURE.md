@@ -413,7 +413,7 @@ A single failed Qloo call inside `findMerchants` (one branch) is **not fatal**: 
 
 ## 13. Security checklist
 - Keys only in `src/lib/env.ts`; client code never imports server modules (ESLint boundary §2).
-- Nothing from the browser is forwarded to Qloo or DeepSeek except brand names/IDs, city, branch coordinates/addresses, category tags, merchant names. No IP.
+- Client-supplied fields forwarded to Qloo or DeepSeek are limited to institution and branch names, brand names/IDs, city, branch coordinates/addresses/radii, category tags/preferences, and merchant names/IDs. Institution names support branch lookup and pitches; branch names and radii provide research context. No IP is forwarded to either provider.
 - Server logs: errors with code and message only; never request headers or keys.
 
 ## 14. Module API (exported functions; names are binding, parameter details may grow)

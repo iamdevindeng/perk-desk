@@ -134,7 +134,7 @@ export default function ProfileForm({ profile, onChange, pickingBranchId, onPick
   return <Card>
     <CardHeader>
       <CardTitle id="program-profile-heading">Your perks program</CardTitle>
-      <CardDescription>Set the local area you serve. This profile stays in this browser.</CardDescription>
+      <CardDescription>Set the local area you serve. This profile is saved in this browser. Research sends relevant fields to the app server.</CardDescription>
     </CardHeader>
     <CardContent>
       <fieldset disabled={disabled} aria-labelledby="program-profile-heading" className="space-y-7">

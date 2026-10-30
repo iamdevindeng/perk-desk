@@ -50,7 +50,7 @@ afterEach(() => { resetComponents(); vi.unstubAllGlobals(); });
 it("places full-width primary credit union setup before smaller, mobile-stacked demo buttons", () => {
   const text = componentText(tree);
   expect(text).toContain("Set up your credit union");
-  expect(text).toContain("Find local merchants your members already love. Your profile stays in this browser.");
+  expect(text).toContain("Find local merchants your members already love. Your profile is saved in this browser. Research sends relevant fields to the app server.");
   const demoDescription = findComponents(tree, (element) => element.type === "p" && componentText(element).startsWith("Or explore a demo"))[0];
   expect(componentText(demoDescription)).toBe("Or explore a demo with a fictional credit union:");
   expect(text).not.toContain("Clear this browser's profile and results.");
