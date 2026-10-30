@@ -18,7 +18,7 @@ function toolReply(toolName: string, input: unknown) {
   return { content: [{ type: "tool-call" as const, toolCallId: toolName, toolName, input: JSON.stringify(input) }],
     finishReason: { unified: "tool-calls" as const, raw: "tool_calls" }, warnings: [], usage: USAGE };
 }
-function modelFor(outcome: string): MockLanguageModelV4 {
+function modelFor(outcome: string, pitch = "Fake Merchant 10 gives 97% off."): MockLanguageModelV4 {
   let calls = 0;
   return new MockLanguageModelV4({ doGenerate: async () => {
     calls += 1;
@@ -26,7 +26,7 @@ function modelFor(outcome: string): MockLanguageModelV4 {
     if (calls === 2) return toolReply("finishResearch", { note: "Fake research complete" });
     if (outcome === "provider") throw new Error("private provider detail");
     const output = outcome === "invalid-output" ? { wrong: "private structured output" }
-      : { pitches: [{ entityId: makeFakePlace(10).entityId, pitch: "Fake Merchant 10 gives 97% off." }] };
+      : { pitches: [{ entityId: makeFakePlace(10).entityId, pitch }] };
     return { content: [{ type: "text", text: JSON.stringify(output) }], finishReason: { unified: "stop", raw: "stop" }, warnings: [], usage: USAGE };
   } });
 }
@@ -52,5 +52,26 @@ describe("pitch batch failures", () => {
     expect(result.warnings).toEqual([]); expect(events.some((event) => event.type === "fallback")).toBe(false);
     expect(result.merchants.every((merchant) => merchant.pitchSource === "template" && checkPitch(merchant.pitch, merchant))).toBe(true);
     expect(onCacheable).toHaveBeenCalledWith(true);
+  });
+
+  it.each([
+    { name: "a qualified numeric discount", claim: "offers a 10% member discount", branchName: "Fake Central Branch", baselineOnly: false },
+    { name: "a discount matching a branch label", claim: "offers 10% off", branchName: "10", baselineOnly: false },
+    { name: "a baseline taste claim", claim: "matches the tastes of your members", branchName: "Fake Central Branch", baselineOnly: true },
+    { name: "a baseline favorite claim", claim: "is a favorite local spot for your members", branchName: "Fake Central Branch", baselineOnly: true },
+  ])("replaces $name with a grounded template before returning results", async ({ claim, branchName, baselineOnly }) => {
+    const places = Array.from({ length: 6 }, (_, index) => makeFakePlace(index + 10));
+    vi.mocked(findPlaces).mockImplementation(async (query) => baselineOnly && query.brandIds.length > 0 ? [] : places);
+    const rejectedPitch = `${places[0].name} ${claim}.`;
+    const model = modelFor("guard", rejectedPitch);
+    const request = { ...FAKE_RUN_REQUEST, branches: [{ ...FAKE_RUN_REQUEST.branches[0], name: branchName }] };
+    const result = await runResearch(request, () => undefined, { model });
+    const merchant = result.merchants.find((card) => card.place.entityId === places[0].entityId);
+    expect(model.doGenerateCalls).toHaveLength(3);
+    expect(result.mode).toBe("agent"); expect(result.warnings).toEqual([]);
+    expect(merchant).toMatchObject({ branchName, tasteSignal: !baselineOnly, pitchSource: "template" });
+    expect(merchant?.pitch).not.toBe(rejectedPitch);
+    expect(result.merchants).toHaveLength(6);
+    expect(result.merchants.every((card) => card.pitchSource === "template" && checkPitch(card.pitch, card))).toBe(true);
   });
 });

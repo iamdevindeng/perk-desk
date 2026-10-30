@@ -172,22 +172,32 @@ function allowedPitchNumbers(card: MerchantResult): Set<string> {
   return new Set(numbers.filter((number) => number !== undefined).map(String));
 }
 
+function hasClaimOutsideMerchantName(pitch: string, pattern: RegExp, card: MerchantResult): boolean {
+  // Only an addressed merchant identity can contain claim words; arbitrary card labels are not evidence.
+  const escapedName = card.place.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const introduction = new RegExp(`^\\s*(?:(?:Hi|Hello|Dear)\\s+)?${escapedName}(?=\\s+(?:team|is|has|offers?|serves?)\\b)`, "iu").exec(pitch);
+  const nameEnd = introduction?.[0].length ?? 0;
+  const nameStart = nameEnd - card.place.name.length;
+  return [...pitch.matchAll(new RegExp(pattern.source, "gi"))].some((claim) =>
+    !introduction || claim.index < nameStart || claim.index + claim[0].length > nameEnd);
+}
+
 function hasUnsupportedPitchClaim(pitch: string, card: MerchantResult): boolean {
   // Cards contain neither negotiated offers nor partnership agreements; allowed numbers do not prove either.
   const agreement = /\b(?:agreed|confirmed|approved)\b[^.!?]*\b(?:offer|discount|partner(?:ship)?|deal|join|participate)\b|\b(?:partner(?:ship)?|deal)\b[^.!?]*\b(?:agreed|confirmed|approved)\b|\b(?:have|has|already)\s+partnered\b|\b(?:is|are)\s+(?:our|your)\s+partner\b/i;
-  const discount = /\b\d+(?:\.\d+)?[\s-]*(?:%|percent|dollars?)?[\s-]*(?:off|discount|savings?)\b|\b(?:discount|savings?|save)\s+(?:of\s+)?\$?\d/i;
-  if (agreement.test(pitch) || discount.test(pitch)) return true;
+  const discount = /\b\d+(?:\.\d+)?[\s-]*(?:%|percent|dollars?)?[\s-]*(?:(?:member(?:-only)?|exclusive|loyalty|special|additional|extra)[\s-]+)*(?:off|discount|savings?)\b|\b(?:discount|savings?|save)\s+(?:of\s+)?\$?\d/i;
+  if (hasClaimOutsideMerchantName(pitch, agreement, card) || hasClaimOutsideMerchantName(pitch, discount, card)) return true;
   if (card.tasteSignal) return false;
-  const memberPreference = /\bmembers?[’']?\s+(?:favou?rites?|preferences?|tastes?|prefer\w*|love\w*|enjoy\w*)\b|\b(?:favou?rites?|loved|preferred|popular)\s+(?:of|among|with|by)\s+(?:(?:our|your|the)\s+)?members?\b/i;
-  const tasteLink = /\b(?:taste|preference|affinity)\s+(?:data\s+)?(?:links?|match(?:es)?|connections?|fit)\b|\b(?:match(?:es)?|fits?)\s+(?:(?:our|your|the)\s+)?members?[’']?\s+(?:tastes?|preferences?)\b/i;
-  return memberPreference.test(pitch) || tasteLink.test(pitch);
+  const memberPreference = /\bmembers?[’']?\s+(?:favou?rites?|preferences?|tastes?|prefer\w*|love\w*|enjoy\w*)\b|\b(?:favou?rites?|loved|preferred|popular)\b(?:[\s-]+[a-z]+)*?[\s-]+(?:of|among|with|by|for)\s+(?:(?:our|your|the)\s+)?members?\b/i;
+  const tasteLink = /\b(?:taste|preference|affinity)\s+(?:data\s+)?(?:links?|match(?:es)?|connections?|fit)\b|\b(?:match(?:es)?|fits?)\s+(?:(?:our|your|the)\s+)?(?:members?[’']?\s+(?:tastes?|preferences?)|(?:tastes?|preferences?)\s+of\s+(?:(?:our|your|the)\s+)?members?)\b/i;
+  return hasClaimOutsideMerchantName(pitch, memberPreference, card) || hasClaimOutsideMerchantName(pitch, tasteLink, card);
 }
 
 export function checkPitch(pitch: string, card: MerchantResult): boolean {
   if (!pitch.trim() || pitch.length > PITCH_MAX_CHARACTERS || !pitch.includes(card.place.name)) return false;
+  if (hasUnsupportedPitchClaim(pitch, card)) return false;
   // Card labels can contain digits and periods; those identify businesses rather than assert metrics.
   const masked = maskCardLabels(pitch, card);
-  if (hasUnsupportedPitchClaim(masked, card)) return false;
   const withoutDecimals = masked.replace(/(\d)\.(\d)/g, "$1 $2");
   const sentences = (withoutDecimals.match(/[^.!?]+(?:[.!?]+|$)/g) ?? []).filter((sentence) => sentence.trim());
   if (sentences.length > PITCH_MAX_SENTENCES) return false;

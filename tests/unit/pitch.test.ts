@@ -49,6 +49,8 @@ describe("pitch guard", () => {
     "has a confirmed partnership", "has an agreed partnership", "has already partnered with our credit union",
     "is our partner", "has a partnership that is confirmed", "has agreed to join our program",
     "has agreed to participate", "lets members save 10%", "offers a 10-percent discount", "offers 10 PERCENT OFF",
+    "offers a 10% member discount", "offers a 10 percent exclusive discount",
+    "offers a 10-percent member-only discount", "offers a $10 loyalty discount",
   ])("rejects unsupported agreements and discounts: %s", (claim) => {
     expect(checkPitch(`Fake Corner Cafe ${claim}.`, FAKE_MERCHANT)).toBe(false);
   });
@@ -58,6 +60,8 @@ describe("pitch guard", () => {
     "is your members' favorite", "is a place your members love", "matches your members' tastes",
     "has a proven taste link to your members", "is a preference match for members",
     "is loved by our members", "is popular with your members", "is a place our members enjoy",
+    "matches the tastes of your members", "is a favorite local spot for your members",
+    "matches the preferences of our members", "is a favourite local shop among our members",
   ])("rejects unsupported baseline taste claims: %s", (claim) => {
     expect(checkPitch(`Fake Corner Cafe ${claim}.`, { ...FAKE_MERCHANT, tasteSignal: false })).toBe(false);
   });
@@ -65,6 +69,22 @@ describe("pitch guard", () => {
   it("allows a partnership invitation without a claimed agreement or numeric offer", () => {
     expect(checkPitch("Fake Corner Cafe is nearby. Would you discuss a possible partnership on a 10-minute call?", FAKE_MERCHANT)).toBe(true);
     expect(checkPitch("Fake Corner Cafe is 20 km away.", FAKE_MERCHANT)).toBe(false);
+  });
+
+  it.each([
+    ["10", "offers 10% off"], ["10% off", "offers 10% off"],
+    ["partnership", "has a confirmed partnership"], ["confirmed partnership", "has a confirmed partnership"],
+    ["tastes", "matches the tastes of your members"], ["favorite local spot for your members", "is a favorite local spot for your members"],
+  ])("does not let a branch named %s hide an unsupported claim", (branchName, claim) => {
+    const card = { ...FAKE_MERCHANT, branchName, tasteSignal: false };
+    expect(checkPitch(`Fake Corner Cafe ${claim}.`, card)).toBe(false);
+  });
+
+  it("checks claims after an exempt merchant name, including repeated discount text", () => {
+    const card = { ...FAKE_MERCHANT, place: { ...FAKE_MERCHANT.place, name: "10% Off Cafe" } };
+    expect(checkPitch("10% Off Cafe is nearby.", card)).toBe(true);
+    expect(checkPitch("10% Off Cafe offers 10% off.", card)).toBe(false);
+    expect(checkPitch("10% Off Cafe offers a 10% member discount.", card)).toBe(false);
   });
 
   it("allows numbers in exact card identities without allowing unsupported numeric claims", () => {
@@ -76,6 +96,25 @@ describe("pitch guard", () => {
 });
 
 describe("pitch templates", () => {
+  it("uses the safe short template when an extra card label itself asserts a discount", () => {
+    const card = { ...FAKE_MERCHANT, branchName: "10% off", tasteSignal: false };
+    const pitch = buildTemplatePitch(card, "Fake Community CU");
+    expect(checkPitch(pitch, card)).toBe(true);
+    expect(pitch).toContain(card.place.name);
+    expect(pitch).not.toContain(card.branchName);
+  });
+
+  it.each([true, false])("preserves merchant identities containing claim words with tasteSignal=%s", (tasteSignal) => {
+    for (const name of ["10% Off Cafe", "Confirmed Partnership Cafe", "Members' Favorite Cafe"]) {
+      const card = { ...FAKE_MERCHANT, tasteSignal, branchName: "10", place: { ...FAKE_MERCHANT.place, name } };
+      const pitch = buildTemplatePitch(card, "Fake Community CU");
+      expect(checkPitch(pitch, card)).toBe(true);
+      expect(pitch).toContain(name);
+      expect(pitch).toContain("near our 10 branch");
+      expect(pitch).toContain(tasteSignal ? "Qloo taste data links" : "Qloo lists your business");
+    }
+  });
+
   it("produces a valid three-sentence pitch from supported taste and rating fields", () => {
     const pitch = buildTemplatePitch(FAKE_MERCHANT, "Fake Community CU");
     expect(checkPitch(pitch, FAKE_MERCHANT)).toBe(true);

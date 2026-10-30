@@ -158,7 +158,7 @@ npm run dev                  # http://localhost:3000
 Verified with `npm test` against `tests/unit/**/*.test.ts` (no live Qloo/DeepSeek calls):
 
 ```bash
-npm test              # 1,498 offline unit tests (102 files)
+npm test              # 1,520 offline unit tests (102 files)
 npm run lint
 npx tsc --noEmit
 npm run check:privacy # secrets / private-data scan
