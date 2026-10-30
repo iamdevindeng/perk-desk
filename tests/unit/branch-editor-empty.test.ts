@@ -91,6 +91,21 @@ it("treats whitespace-only addresses as blank and shows both forms for two blank
   expect(field("branch-fake-second-name")).toBeDefined(); expect(componentText(tree)).not.toContain(EMPTY_MESSAGE);
 });
 
+it.each(["preset", "qloo_place", "map", undefined] as const)("keeps a sole %s branch open while replacing its address without moving focus", (locationSource) => {
+  branches = [{ ...FAKE_BRANCH, locationSource }]; render();
+  const addressId = `branch-${branches[0].id}-address`;
+  invoke(field(addressId)!.props.onChange, { target: { value: "" } }); render();
+  expect(field(addressId)!.props.value).toBe("");
+  expect(componentText(tree)).not.toContain(EMPTY_MESSAGE);
+  expect(branches[0]).toMatchObject({ address: "", lat: undefined, lon: undefined, locationSource: undefined });
+  invoke(field(addressId)!.props.onChange, { target: { value: "2 Example Lane" } }); render();
+  expect(field(addressId)!.props.value).toBe("2 Example Lane");
+  expect(focus).not.toHaveBeenCalled();
+  branches = [{ ...BLANK_BRANCH, id: "fake-new-placeholder" }]; render();
+  expect(componentText(tree)).toContain(EMPTY_MESSAGE);
+  expect(field("branch-fake-new-placeholder-address")).toBeUndefined();
+});
+
 it("returns to the empty state for a different placeholder after manual entry", () => {
   render(); invoke(button("Add manually").props.onClick); render();
   branches = [{ ...BLANK_BRANCH, id: "fake-new-city" }]; render();
