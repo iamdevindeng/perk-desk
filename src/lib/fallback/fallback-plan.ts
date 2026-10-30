@@ -99,6 +99,7 @@ export async function buildFallbackPlan(context: PlanContext, preserveResolved =
   const categories: PlannedCategory[] = [];
   const chosenIds = new Set(brands.map((brand) => brand.entityId));
   for (const category of proposed) {
+    // Limit accepted categories only; removed or rejected suggestions must not consume a slot.
     if (categories.length >= FALLBACK_MAX_CATEGORIES) break;
     // Hand-written targets are suggestions; guard 1 still requires a real category-search result.
     if (!context.candidateCategories.has(category.tagId)) await searchCategoriesForContext(category.label, context);

@@ -1,6 +1,5 @@
 // Maps permitted brand-tag names to deterministic fallback categories with honest evidence.
 // Called by: fallback-plan and category-map unit tests.
-import { FALLBACK_MAX_CATEGORIES } from "@/lib/config";
 import { categoryEvidenceKey, compactCategoryEvidence } from "@/lib/agent/guards";
 import { getCategoryDefaults, getCategoryLabel } from "@/lib/data";
 import { normalizeName } from "@/lib/merchants/name-match";
@@ -106,6 +105,6 @@ export function mapBrandTagsToCategories(brands: BrandCandidate[]): PlannedCateg
   const permittedBrands = brands.map((brand) => ({ ...brand, tags: filterAllowedBrandTags(brand.tags) }));
   const mapped = ruleCategories(permittedBrands);
   // Rank by all distinct supporting tags before capping evidence for storage/display.
-  return (mapped.length ? mapped : defaultCategories(permittedBrands)).slice(0, FALLBACK_MAX_CATEGORIES)
+  return (mapped.length ? mapped : defaultCategories(permittedBrands))
     .map((category) => ({ ...category, evidence: compactCategoryEvidence(category.evidence) }));
 }

@@ -1,7 +1,6 @@
 // Checks fallback rule coverage, keyword matching, frequency order, and honest default evidence.
 // Called by: npm test through the Vitest unit-test configuration.
 import { describe, expect, it } from "vitest";
-import { FALLBACK_MAX_CATEGORIES } from "@/lib/config";
 import { getCategoryDefaults } from "@/lib/data";
 import { CATEGORY_RULES, mapBrandTagsToCategories } from "@/lib/fallback/category-map";
 import type { BrandCandidate } from "@/lib/types";
@@ -43,10 +42,9 @@ describe("fallback category rules", () => {
 
   it("ranks distinct supporting tags by frequency and resolves ties by rule order", () => {
     const categories = mapBrandTagsToCategories([brandWithTags(["Wine", "Gifts", "Coffee", "Espresso"])]);
-    expect(categories).toHaveLength(FALLBACK_MAX_CATEGORIES);
     expect(categories.map((category) => category.tagId)).toEqual([
       "urn:tag:category:place:coffee_shop", "urn:tag:category:place:cafe",
-      "urn:tag:category:place:wine_bar", "urn:tag:category:place:wine_store",
+      "urn:tag:category:place:wine_bar", "urn:tag:category:place:wine_store", "urn:tag:category:place:gift_shop",
     ]);
     expect(categories[0].evidence).toHaveLength(2);
   });
@@ -81,6 +79,17 @@ describe("fallback category rules", () => {
     expect(categories.length).toBeGreaterThan(0);
     expect(categories.every((category) => category.evidence[0].kind === "default" && !("brandEntityId" in category.evidence[0]))).toBe(true);
     expect(mapBrandTagsToCategories([])).toEqual([]);
+  });
+
+  it("keeps the full ordered defaults from multiple matching segments", () => {
+    const categories = mapBrandTagsToCategories([
+      { ...FAKE_BRAND, name: "Starbucks", tags: [] },
+      { ...FAKE_BRAND, entityId: "00000000-0000-4000-8000-000000000009", name: "Nike", tags: [] },
+    ]);
+    expect(categories.map((category) => category.tagId)).toEqual([
+      "coffee_shop", "bakery", "dessert_shop", "ice_cream_shop", "gym", "sporting_goods_store", "bicycle_shop", "juice_shop",
+    ].map((slug) => `urn:tag:category:place:${slug}`));
+    expect(categories.every((category) => category.evidence[0].kind === "default")).toBe(true);
   });
 
   it("does not mutate input brands or tags", () => {

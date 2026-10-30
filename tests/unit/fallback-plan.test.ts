@@ -3,9 +3,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPlanContext } from "@/lib/agent/context";
 import type { PlanContext } from "@/lib/agent/context";
+import { FALLBACK_MAX_CATEGORIES } from "@/lib/config";
 import { resolveBrandNames } from "@/lib/agent/tools/resolve-brands";
 import { searchCategoriesForContext } from "@/lib/agent/tools/search-categories";
 import { buildFallbackPlan } from "@/lib/fallback/fallback-plan";
+import type { BrandCandidate } from "@/lib/types";
 import { FAKE_BRAND, FAKE_CATEGORY, FAKE_CATEGORY_ID, FAKE_PLAN_REQUEST, FAKE_TAG } from "../fixtures/fake-plan";
 
 vi.mock("@/lib/agent/tools/resolve-brands", () => ({ resolveBrandNames: vi.fn() }));
@@ -15,12 +17,12 @@ const CAFE_ID = "urn:tag:category:place:cafe";
 const BAKERY_ID = "urn:tag:category:place:bakery";
 const HIGHER_BRAND = { ...FAKE_BRAND, entityId: "00000000-0000-4000-8000-000000000009", name: "Fake Other Coffee", popularity: 0.9 };
 
-function makeContext(): PlanContext {
+function makeContext(brand: BrandCandidate = FAKE_BRAND): PlanContext {
   const context = createPlanContext(structuredClone(FAKE_PLAN_REQUEST));
-  context.brandsByInput.set(FAKE_BRAND.name, {
-    inputName: FAKE_BRAND.name, status: "resolved", chosen: FAKE_BRAND, matchKind: "exact", candidates: [FAKE_BRAND, HIGHER_BRAND],
+  context.brandsByInput.set(brand.name, {
+    inputName: brand.name, status: "resolved", chosen: brand, matchKind: "exact", candidates: [brand, HIGHER_BRAND],
   });
-  context.brandTags.set(FAKE_BRAND.entityId, [FAKE_TAG]);
+  context.brandTags.set(brand.entityId, brand.tags);
   return context;
 }
 
@@ -35,6 +37,22 @@ beforeEach(() => {
 });
 
 describe("fallback plan", () => {
+  it.each(["removed", "unobserved"])("fills available slots after the first four candidates are %s", async (rejection) => {
+    const brand = { ...FAKE_BRAND, tags: ["Coffee", "Tea", "Bakery", "Dessert", "Wine"]
+      .map((name, index) => ({ ...FAKE_TAG, id: `fake:tag:${index}`, name })) };
+    const context = makeContext(brand);
+    const tagIds = ["coffee_shop", "cafe", "tea_house", "bakery", "donut_shop", "dessert_shop", "ice_cream_shop", "wine_bar", "wine_store"]
+      .map((slug) => `urn:tag:category:place:${slug}`);
+    context.request.preferences.removed = rejection === "removed" ? tagIds.slice(0, 4) : [];
+    const observedIds = rejection === "unobserved" ? tagIds.slice(4) : tagIds;
+    for (const tagId of observedIds) context.candidateCategories.set(tagId, "Observed category");
+    vi.mocked(searchCategoriesForContext).mockResolvedValue([]);
+    const categories = await buildFallbackPlan(context);
+    expect(categories.map((category) => category.tagId)).toEqual(tagIds.slice(4, 8));
+    expect(categories).toHaveLength(FALLBACK_MAX_CATEGORIES);
+    expect(categories.every((category) => category.evidence[0].kind === "rule")).toBe(true);
+  });
+
   it("uses observed category searches, preserves exact choices, and keeps rule evidence", async () => {
     const context = makeContext();
     const categories = await buildFallbackPlan(context);
